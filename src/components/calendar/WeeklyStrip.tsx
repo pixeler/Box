@@ -110,7 +110,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
               onClick={() => onSelectDate(day.formattedDate)}
               className="group flex flex-col items-center justify-center flex-1 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none select-none cursor-pointer"
             >
-              {/* Capsule container (encompasses both day letter and number when selected) */}
+              {/* Capsule container (encompasses day letter, number and event dot within 40x48px) */}
               <div
                 className={`w-[40px] h-[48px] rounded-full flex flex-col items-center justify-center transition-all duration-150 ${
                   isSelected
@@ -120,7 +120,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
               >
                 {/* 1. Day Abbreviation Letter on TOP */}
                 <span
-                  className={`text-[11.5px] leading-none transition-colors ${
+                  className={`text-[12px] leading-none transition-colors ${
                     isSelected
                       ? 'text-gray-200 font-medium'
                       : isHoliday
@@ -131,9 +131,12 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
                   {day.dayShortName}
                 </span>
 
+                {/* Exact 4px gap between title and number */}
+                <div className="h-[4px]" />
+
                 {/* 2. Day Number BELOW letter */}
                 <span
-                  className={`text-[14.5px] leading-none mt-1 transition-colors ${
+                  className={`text-[15px] leading-none transition-colors ${
                     isSelected
                       ? 'text-white font-bold'
                       : isHoliday
@@ -143,15 +146,15 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
                 >
                   {toPersianDigits(day.dayNumber)}
                 </span>
-              </div>
 
-              {/* Dot indicator underneath number (only when not selected) */}
-              <div className="h-[5px] flex items-center justify-center mt-0.5">
-                {!isSelected && hasDot ? (
-                  <span className="w-[3px] h-[3px] rounded-full bg-gray-400/90" />
-                ) : (
-                  <span className="w-[3px] h-[3px]" />
-                )}
+                {/* 3. Event dot indicator inside the 48px container, right under number */}
+                <div className="h-[4px] flex items-center justify-center mt-[2px]">
+                  {!isSelected && hasDot ? (
+                    <span className="w-[3px] h-[3px] rounded-full bg-gray-400/90" />
+                  ) : (
+                    <span className="w-[3px] h-[3px]" />
+                  )}
+                </div>
               </div>
             </button>
           );
