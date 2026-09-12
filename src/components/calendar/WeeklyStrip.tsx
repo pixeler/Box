@@ -112,7 +112,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
             >
               {/* Capsule container (encompasses both day letter and number when selected) */}
               <div
-                className={`w-[36px] h-[54px] rounded-full flex flex-col items-center justify-center transition-all duration-150 ${
+                className={`w-[40px] h-[48px] rounded-full flex flex-col items-center justify-center transition-all duration-150 ${
                   isSelected
                     ? 'bg-[#18181b] text-white shadow-xs'
                     : 'bg-transparent text-gray-700'
@@ -120,7 +120,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
               >
                 {/* 1. Day Abbreviation Letter on TOP */}
                 <span
-                  className={`text-[12px] leading-none transition-colors ${
+                  className={`text-[11.5px] leading-none transition-colors ${
                     isSelected
                       ? 'text-gray-200 font-medium'
                       : isHoliday
@@ -133,7 +133,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
 
                 {/* 2. Day Number BELOW letter */}
                 <span
-                  className={`text-[15px] leading-tight mt-1 transition-colors ${
+                  className={`text-[14.5px] leading-none mt-1 transition-colors ${
                     isSelected
                       ? 'text-white font-bold'
                       : isHoliday
