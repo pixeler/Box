@@ -25,6 +25,16 @@ export const PERSIAN_WEEKDAY_NAMES = [
   'جمعه',
 ];
 
+export const PERSIAN_WEEKDAY_SHORT_NAMES = [
+  'ش',
+  'ی',
+  'د',
+  'س',
+  'چ',
+  'پ',
+  'ج',
+];
+
 export const PERSIAN_FULL_WEEKDAY_NAMES = [
   'شنبه',
   'یک‌شنبه',
@@ -51,6 +61,7 @@ export interface WeekDayInfo {
   date: Date;
   jalali: JalaliDate;
   dayName: string;
+  dayShortName: string;
   dayNumber: number; // e.g. 30
   formattedDate: string; // "1404/10/30"
   isToday: boolean;
@@ -147,6 +158,7 @@ export function getWeekDaysForDate(targetDate: Date): WeekDayInfo[] {
       date: d,
       jalali: j,
       dayName: PERSIAN_WEEKDAY_NAMES[i],
+      dayShortName: PERSIAN_WEEKDAY_SHORT_NAMES[i],
       dayNumber: j.jd,
       formattedDate: key,
       isToday: key === todayKey,

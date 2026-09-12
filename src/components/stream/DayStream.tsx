@@ -5,7 +5,7 @@ import { TaskItemRow } from './TaskItemRow';
 import { NoteItemRow } from './NoteItemRow';
 import { EventItemRow } from './EventItemRow';
 import { ResurfacingSection } from './ResurfacingSection';
-import { RiCalendarEventLine } from '@remixicon/react';
+import { RiCalendarLine } from '@remixicon/react';
 import { setupDragCardGhost } from '@/lib/drag';
 import { CardDropPreview } from './CardDropPreview';
 import { getTodayJalaliKey } from '@/lib/jalali';
@@ -372,30 +372,24 @@ export const DayStream: React.FC<DayStreamProps> = ({
                 setIsDragOverEmpty(false);
                 handleDropAtSlot(e, 0);
               }}
-              className={`w-full py-10 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
+              className={`w-full py-8 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
                 isDragOverEmpty ? 'bg-gray-50/70 scale-[1.01]' : 'bg-transparent'
               }`}
             >
-              <RiCalendarEventLine
-                className={`w-11 h-11 mb-4 transition-colors duration-200 ${
+              <RiCalendarLine
+                className={`w-7 h-7 mb-3 transition-colors duration-200 ${
                   isDragOverEmpty ? 'text-gray-600' : 'text-gray-400'
                 }`}
               />
 
-              <h3 className="text-[15px] font-semibold text-gray-700 mb-2">
-                {isToday
-                  ? 'فعلا کار یا یادداشتی برای امروز نیست'
-                  : 'فعلا کار یا یادداشتی برای این روز نیست'}
-              </h3>
-
               {isDragOverEmpty ? (
-                <p className="text-[12.5px] text-gray-400 font-normal leading-relaxed max-w-[320px] mx-auto animate-in fade-in duration-150">
+                <p className="text-[12px] text-gray-400 font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
                   {isToday
                     ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
                     : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
                 </p>
               ) : (
-                <p className="text-[12.5px] text-gray-400 font-normal leading-relaxed max-w-[320px] mx-auto">
+                <p className="text-[12px] text-gray-400 font-normal leading-relaxed max-w-[340px] mx-auto">
                   {isToday ? (
                     <>
                       <span>می‌تونی از دکمه </span>

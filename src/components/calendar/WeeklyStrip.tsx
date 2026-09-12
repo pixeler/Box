@@ -7,7 +7,6 @@ import {
   parseJalaliKey,
   getJalaliDate,
   formatJalaliKey,
-  getTodayJalaliKey,
 } from '@/lib/jalali';
 import { isOfficialHoliday } from '@/lib/holidays';
 
@@ -99,61 +98,61 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
         className="w-full flex items-center justify-between px-0.5"
       >
         {weekDays.map((day) => {
-          const todayKey = getTodayJalaliKey();
           const isSelected = day.formattedDate === selectedDateKey;
-          const isToday = day.formattedDate === todayKey;
-          const isSelectedOtherThanToday = selectedDateKey !== todayKey;
           const isHoliday = day.isFriday || isOfficialHoliday(day.formattedDate);
           const hasDot = datesWithItems
             ? datesWithItems.has(day.formattedDate)
-            : day.dayNumber === 1 || day.dayNumber === 2; // fallback to match design if datesWithItems not yet computed
+            : day.dayNumber === 1 || day.dayNumber === 2 || day.dayNumber === 3;
 
           return (
             <button
               key={day.formattedDate}
               onClick={() => onSelectDate(day.formattedDate)}
-              className="group flex flex-col items-center justify-center flex-1 py-1 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none select-none cursor-pointer"
+              className="group flex flex-col items-center justify-center flex-1 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none select-none cursor-pointer"
             >
-              {/* 1. Day Number on TOP */}
-              <div className="flex items-center justify-center h-[34px] w-[34px]">
+              {/* Capsule container (encompasses both day letter and number when selected) */}
+              <div
+                className={`w-[36px] h-[54px] rounded-full flex flex-col items-center justify-center transition-all duration-150 ${
+                  isSelected
+                    ? 'bg-[#18181b] text-white shadow-xs'
+                    : 'bg-transparent text-gray-700'
+                }`}
+              >
+                {/* 1. Day Abbreviation Letter on TOP */}
                 <span
-                  className={`w-[34px] h-[34px] rounded-full flex items-center justify-center transition-all duration-150 ${
+                  className={`text-[12px] leading-none transition-colors ${
                     isSelected
-                      ? 'bg-[#27272a] text-white font-bold text-[15.5px] shadow-xs'
-                      : isToday && isSelectedOtherThanToday
-                      ? isHoliday
-                        ? 'border-[1.5px] border-rose-400 text-rose-600 font-bold text-[13.5px]'
-                        : 'border-[1.5px] border-gray-400 dark:border-gray-500 text-gray-900 dark:text-gray-100 font-bold text-[13.5px]'
+                      ? 'text-gray-200 font-medium'
                       : isHoliday
-                      ? 'text-rose-600 font-bold text-[13.5px] group-hover:text-rose-700'
-                      : 'text-gray-700 font-medium text-[13.5px] group-hover:text-black'
+                      ? 'text-rose-500 font-medium'
+                      : 'text-gray-400 group-hover:text-gray-600'
+                  }`}
+                >
+                  {day.dayShortName}
+                </span>
+
+                {/* 2. Day Number BELOW letter */}
+                <span
+                  className={`text-[15px] leading-tight mt-1 transition-colors ${
+                    isSelected
+                      ? 'text-white font-bold'
+                      : isHoliday
+                      ? 'text-rose-500 font-medium'
+                      : 'text-gray-700 font-medium group-hover:text-black'
                   }`}
                 >
                   {toPersianDigits(day.dayNumber)}
                 </span>
               </div>
 
-              {/* Dot indicator underneath day number - smaller and snug to number */}
-              <div className="h-[6px] flex items-center justify-center mt-0.5">
+              {/* Dot indicator underneath number (only when not selected) */}
+              <div className="h-[5px] flex items-center justify-center mt-0.5">
                 {!isSelected && hasDot ? (
                   <span className="w-[3px] h-[3px] rounded-full bg-gray-400/90" />
                 ) : (
                   <span className="w-[3px] h-[3px]" />
                 )}
               </div>
-
-              {/* 2. Day Name on BOTTOM */}
-              <span
-                className={`text-[11.5px] mt-0.5 transition-colors ${
-                  isSelected
-                    ? 'text-gray-900 font-bold'
-                    : isHoliday
-                    ? 'text-rose-600 font-medium'
-                    : 'text-gray-400 group-hover:text-gray-700'
-                }`}
-              >
-                {day.dayName}
-              </span>
             </button>
           );
         })}
