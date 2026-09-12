@@ -7,6 +7,7 @@ import {
   parseJalaliKey,
   getJalaliDate,
   formatJalaliKey,
+  getTodayJalaliKey,
 } from '@/lib/jalali';
 import { isOfficialHoliday } from '@/lib/holidays';
 
@@ -98,7 +99,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
         className="w-full flex items-center justify-between px-0.5"
       >
         {weekDays.map((day) => {
+          const todayKey = getTodayJalaliKey();
           const isSelected = day.formattedDate === selectedDateKey;
+          const isToday = day.formattedDate === todayKey;
           const isHoliday = day.isFriday || isOfficialHoliday(day.formattedDate);
           const hasDot = datesWithItems
             ? datesWithItems.has(day.formattedDate)
@@ -110,12 +113,16 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
               onClick={() => onSelectDate(day.formattedDate)}
               className="group flex flex-col items-center justify-center flex-1 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none select-none cursor-pointer"
             >
-              {/* Capsule container (encompasses day letter, number and event dot within 40x48px) */}
+              {/* Capsule container (encompasses day letter, number and absolute event dot within 40x48px) */}
               <div
-                className={`w-[40px] h-[48px] rounded-full flex flex-col items-center justify-center transition-all duration-150 ${
+                className={`relative w-[40px] h-[48px] rounded-full flex flex-col items-center justify-center transition-all duration-150 border-[1.5px] ${
                   isSelected
-                    ? 'bg-[#18181b] text-white shadow-xs'
-                    : 'bg-transparent text-gray-700'
+                    ? 'add-btn-dark-glass text-white shadow-xs border-transparent'
+                    : isToday
+                    ? isHoliday
+                      ? 'border-rose-400 text-rose-600 bg-transparent font-bold'
+                      : 'border-gray-400 dark:border-gray-500 text-gray-900 bg-transparent font-bold'
+                    : 'border-transparent bg-transparent text-gray-700'
                 }`}
               >
                 {/* 1. Day Abbreviation Letter on TOP */}
@@ -123,6 +130,10 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
                   className={`text-[12px] leading-none transition-colors ${
                     isSelected
                       ? 'text-gray-200 font-medium'
+                      : isToday
+                      ? isHoliday
+                        ? 'text-rose-600 font-bold'
+                        : 'text-gray-900 font-bold'
                       : isHoliday
                       ? 'text-rose-500 font-medium'
                       : 'text-gray-400 group-hover:text-gray-600'
@@ -131,14 +142,18 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
                   {day.dayShortName}
                 </span>
 
-                {/* Exact 4px gap between title and number */}
-                <div className="h-[4px]" />
+                {/* Gap between title and number */}
+                <div className="h-[5px]" />
 
                 {/* 2. Day Number BELOW letter */}
                 <span
                   className={`text-[15px] leading-none transition-colors ${
                     isSelected
                       ? 'text-white font-bold'
+                      : isToday
+                      ? isHoliday
+                        ? 'text-rose-600 font-bold'
+                        : 'text-gray-900 font-bold'
                       : isHoliday
                       ? 'text-rose-500 font-medium'
                       : 'text-gray-700 font-medium group-hover:text-black'
@@ -147,14 +162,10 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
                   {toPersianDigits(day.dayNumber)}
                 </span>
 
-                {/* 3. Event dot indicator inside the 48px container, right under number */}
-                <div className="h-[4px] flex items-center justify-center mt-[2px]">
-                  {!isSelected && hasDot ? (
-                    <span className="w-[3px] h-[3px] rounded-full bg-gray-400/90" />
-                  ) : (
-                    <span className="w-[3px] h-[3px]" />
-                  )}
-                </div>
+                {/* 3. Event dot indicator with absolute positioning */}
+                {!isSelected && hasDot && (
+                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-gray-400/90 pointer-events-none" />
+                )}
               </div>
             </button>
           );
