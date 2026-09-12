@@ -22,8 +22,8 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
   if (totalCount === 0) return null;
 
   return (
-    <div className="w-full mt-3 mb-1 select-none">
-      <h3 className="text-[14px] font-bold text-gray-900 px-1 text-right mb-1">
+    <div className="w-full mt-5 mb-2 select-none">
+      <h3 className="text-[12px] font-semibold text-gray-900 px-1 text-right mb-1.5">
         سنجاق شده
       </h3>
       <div className="w-full">

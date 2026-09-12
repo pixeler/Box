@@ -167,7 +167,7 @@ interface Relation {
 | ذخیره‌سازی محلی (دسکتاپ، فاز بعد) | SQLite از طریق `tauri-plugin-sql` |
 | جستجو | MiniSearch (client-side, in-memory index ساخته‌شده از دیتای محلی) |
 | تاریخ شمسی | `jalaali-js` یا `dayjs` + پلاگین jalali |
-| فونت | Vazirmatn (یا فونت فارسی مشابه با پشتیبانی خوب RTL) |
+| فونت | Estedad (یا فونت فارسی مشابه با پشتیبانی خوب RTL) |
 
 ### چرا بدون بک‌اند سرور؟
 

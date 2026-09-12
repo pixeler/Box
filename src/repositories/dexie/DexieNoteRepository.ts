@@ -56,6 +56,7 @@ export class DexieNoteRepository implements NoteRepository {
       type: existing.type,
       title: `${existing.title} (کپی)`,
       body: existing.body,
+      description: existing.description,
       tag_ids: [...existing.tag_ids],
       pinned: existing.pinned,
     });

@@ -1,20 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { Note, Tag } from '@/types/models';
 import { noteRepo, tagRepo } from '@/repositories';
 import { TagPickerPopover } from '../tags/TagPickerPopover';
+import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   RiCloseLine,
-  RiCheckLine,
-  RiDeleteBinLine,
+  RiPushpinLine,
+  RiPushpinFill,
   RiPriceTag3Line,
-  RiPushpin2Line,
-  RiPushpin2Fill,
-  RiLightbulbLine,
-  RiFileTextLine,
-  RiPaletteLine,
+  RiInboxArchiveLine,
+  RiDeleteBinLine,
+  RiFullscreenLine,
+  RiFullscreenExitLine,
 } from '@remixicon/react';
-import { PASTEL_NOTE_COLORS } from '@/lib/colors';
-import { cn } from '@/lib/utils';
 
 interface NoteEditModalProps {
   note: Note | null;
@@ -23,288 +28,441 @@ interface NoteEditModalProps {
   onSaved: () => void;
 }
 
+const extractNoteData = (n: Note | null) => {
+  if (!n) return { title: '', description: '', isPinned: false, tagIds: [] };
+  const noteTitle = n.title?.trim() || '';
+  let bodyText = '';
+  if (n.description !== undefined && n.description !== null && n.description.trim() !== '') {
+    bodyText = n.description.trim();
+  } else if (n.body) {
+    let body = n.body.trim();
+    if (noteTitle && body.startsWith(noteTitle)) {
+      bodyText = body.slice(noteTitle.length).trim();
+    } else if (noteTitle && body.startsWith(`# ${noteTitle}`)) {
+      bodyText = body.slice(`# ${noteTitle}`.length).trim();
+    } else if (body !== noteTitle) {
+      bodyText = body;
+    }
+  }
+  return {
+    title: noteTitle,
+    description: bodyText,
+    isPinned: !!n.pinned,
+    tagIds: n.tag_ids || [],
+  };
+};
+
 export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   note,
   isOpen,
   onClose,
   onSaved,
 }) => {
-  if (!isOpen || !note) return null;
-
-  const [title, setTitle] = useState(note.title);
-  const [body, setBody] = useState(note.body);
-  const [type, setType] = useState<'note' | 'idea'>(note.type || 'note');
-  const [pinned, setPinned] = useState(!!note.pinned);
-  const [color, setColor] = useState<string | undefined>(note.color);
-  const [tagIds, setTagIds] = useState<string[]>(note.tag_ids || []);
+  const initialData = extractNoteData(note);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [title, setTitle] = useState(initialData.title);
+  const [description, setDescription] = useState(initialData.description);
+  const [isPinned, setIsPinned] = useState(initialData.isPinned);
+  const [tagIds, setTagIds] = useState<string[]>(initialData.tagIds);
+  const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
+  const [selectedBox, setSelectedBox] = useState<string>('');
 
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
-  const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
+  const [boxPickerOpen, setBoxPickerOpen] = useState(false);
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const prevNoteIdRef = useRef(note?.id);
+  const prevIsOpenRef = useRef(isOpen);
+
+  const lastSavedRef = useRef<{
+    title: string;
+    description: string;
+    isPinned: boolean;
+    tagIds: string[];
+  }>({
+    title: initialData.title,
+    description: initialData.description,
+    isPinned: initialData.isPinned,
+    tagIds: initialData.tagIds,
+  });
 
   useEffect(() => {
-    setTitle(note.title);
-    setBody(note.body);
-    setType(note.type || 'note');
-    setPinned(!!note.pinned);
-    setColor(note.color);
-    setTagIds(note.tag_ids || []);
-
     tagRepo.listAll().then((all) => {
       const m: Record<string, Tag> = {};
       all.forEach((t) => (m[t.id] = t));
       setTagsMap(m);
     });
-  }, [note]);
+  }, []);
+
+  // Sync only on opening or note ID change (prevents re-syncing while typing)
+  useEffect(() => {
+    const justOpened = isOpen && !prevIsOpenRef.current;
+    const noteChanged = note?.id !== prevNoteIdRef.current;
+
+    if (note && isOpen && (justOpened || noteChanged)) {
+      const data = extractNoteData(note);
+      setTitle(data.title);
+      setDescription(data.description);
+      setIsPinned(data.isPinned);
+      setTagIds(data.tagIds);
+      setIsClosing(false);
+      lastSavedRef.current = {
+        title: data.title,
+        description: data.description,
+        isPinned: data.isPinned,
+        tagIds: [...data.tagIds],
+      };
+
+      const timer = setTimeout(() => {
+        titleInputRef.current?.focus();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+    prevNoteIdRef.current = note?.id;
+    prevIsOpenRef.current = isOpen;
+  }, [note?.id, isOpen]);
+
+  const performSave = useCallback(
+    async (overrides?: {
+      title?: string;
+      description?: string;
+      isPinned?: boolean;
+      tagIds?: string[];
+    }) => {
+      if (!note) return;
+
+      const currentTitle = (overrides?.title !== undefined ? overrides.title : title).trim();
+      const currentDesc = (overrides?.description !== undefined ? overrides.description : description).trim();
+      const currentPinned = overrides?.isPinned !== undefined ? overrides.isPinned : isPinned;
+      const currentTags = overrides?.tagIds !== undefined ? overrides.tagIds : tagIds;
+
+      if (!currentTitle && !currentDesc) return;
+
+      const last = lastSavedRef.current;
+      const tagsUnchanged =
+        currentTags.length === last.tagIds.length &&
+        currentTags.every((id, idx) => id === last.tagIds[idx]);
+
+      if (
+        currentTitle === last.title &&
+        currentDesc === last.description &&
+        currentPinned === last.isPinned &&
+        tagsUnchanged
+      ) {
+        return; // Nothing changed
+      }
+
+      try {
+        const finalTitle = currentTitle || currentDesc.slice(0, 40);
+        const finalBody = currentDesc
+          ? currentDesc.includes(finalTitle)
+            ? currentDesc
+            : `${finalTitle}\n${currentDesc}`
+          : finalTitle;
+
+        await noteRepo.update(note.id, {
+          title: finalTitle,
+          body: finalBody,
+          description: currentDesc || undefined,
+          pinned: currentPinned,
+          tag_ids: currentTags,
+        });
+
+        lastSavedRef.current = {
+          title: currentTitle,
+          description: currentDesc,
+          isPinned: currentPinned,
+          tagIds: [...currentTags],
+        };
+        onSaved();
+      } catch (err) {
+        console.error('Failed to auto-save note:', err);
+      }
+    },
+    [note, title, description, isPinned, tagIds, onSaved]
+  );
+
+  const scheduleSave = useCallback(
+    (delay = 400, overrides?: Parameters<typeof performSave>[0]) => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+      saveTimerRef.current = setTimeout(() => {
+        performSave(overrides);
+      }, delay);
+    },
+    [performSave]
+  );
+
+  const handleClose = () => {
+    if (isClosing) return;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    performSave();
+    setIsClosing(true);
+    setIsFullscreen(false);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 240);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.code === 'Escape') {
+        if (tagPickerOpen) {
+          setTagPickerOpen(false);
+          return;
+        }
+        if (boxPickerOpen) {
+          setBoxPickerOpen(false);
+          return;
+        }
         e.preventDefault();
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, tagPickerOpen, boxPickerOpen]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() && !body.trim()) return;
+  const handleToggleTag = (tagId: string) => {
+    const nextTags = tagIds.includes(tagId) ? tagIds.filter((id) => id !== tagId) : [...tagIds, tagId];
+    setTagIds(nextTags);
+    performSave({ tagIds: nextTags });
+  };
 
-    await noteRepo.update(note.id, {
-      title: title.trim() || body.trim().slice(0, 30),
-      body: body.trim(),
-      type,
-      pinned,
-      color,
-      tag_ids: tagIds,
-    });
-
-    onSaved();
-    onClose();
+  const handleTogglePin = () => {
+    const nextPinned = !isPinned;
+    setIsPinned(nextPinned);
+    performSave({ isPinned: nextPinned });
   };
 
   const handleDelete = async () => {
+    if (!note) return;
     if (window.confirm('آیا از حذف این یادداشت اطمینان دارید؟')) {
       await noteRepo.softDelete(note.id);
       onSaved();
-      onClose();
+      handleClose();
     }
   };
 
-  const handleToggleTag = (tagId: string) => {
-    setTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    );
-  };
+  if (!isOpen && !isClosing) return null;
+  if (!note) return null;
 
-  return (
+  const selectedTags = tagIds.map((id) => tagsMap[id]).filter(Boolean);
+
+  const portalTarget = typeof document !== 'undefined' ? (document.getElementById('app-main') || document.body) : null;
+  if (!portalTarget) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs select-none"
-      onClick={onClose}
+      className={`absolute inset-0 z-50 flex flex-col justify-end bg-black/75 backdrop-blur-xs select-none ${
+        isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
+      }`}
+      onClick={handleClose}
     >
       <div
-        dir="rtl"
+        ref={containerRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[440px] bg-white rounded-[8px] border border-gray-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className={`bg-white font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
+          isFullscreen
+            ? 'fixed inset-0 z-50 w-full h-full pb-5 px-6 pt-6 md:px-16 lg:px-24'
+            : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] ${
+                isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
+              }`
+        }`}
+        dir="rtl"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-gray-800">ویرایش یادداشت / ایده</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setPinned(!pinned)}
-              title={pinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}
-              className={`p-1 rounded-md transition-colors cursor-pointer ${
-                pinned ? 'text-gray-900 bg-gray-100' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {pinned ? <RiPushpin2Fill className="w-4 h-4" /> : <RiPushpin2Line className="w-4 h-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer transition-colors"
-            >
-              <RiCloseLine className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Top Action Buttons: Fullscreen, Delete and Close */}
+        <div className="absolute left-6 top-6 flex items-center gap-1 z-10">
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            title={isFullscreen ? 'کوچک کردن' : 'تمام‌صفحه'}
+          >
+            {isFullscreen ? (
+              <RiFullscreenExitLine className="w-5 h-5" />
+            ) : (
+              <RiFullscreenLine className="w-5 h-5" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="p-1.5 text-gray-400 hover:text-rose-600 rounded-full hover:bg-rose-50 transition-colors cursor-pointer"
+            title="حذف یادداشت"
+          >
+            <RiDeleteBinLine className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            title="بستن"
+          >
+            <RiCloseLine className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSave} className="p-4 flex flex-col gap-3.5">
-          {/* Type Selector */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setType('note')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
-                type === 'note'
-                  ? 'bg-blue-50 border-blue-200 text-blue-700'
-                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <RiFileTextLine className="w-3.5 h-3.5" />
-              <span>یادداشت</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setType('idea')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold border transition-all cursor-pointer ${
-                type === 'idea'
-                  ? 'bg-amber-50 border-amber-200 text-amber-700'
-                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <RiLightbulbLine className="w-3.5 h-3.5" />
-              <span>ایده</span>
-            </button>
-          </div>
-
-          {/* Title */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">
-              عنوان (اختیاری)
-            </label>
+        <form onSubmit={(e) => { e.preventDefault(); handleClose(); }} className={`flex-1 flex flex-col justify-between ${isFullscreen ? 'max-w-4xl mx-auto w-full h-full' : ''}`}>
+          {/* Main Top Input Area */}
+          <div className="flex-1 flex flex-col pt-3 min-h-0">
+            {/* Title Input */}
             <input
+              ref={titleInputRef}
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="عنوان یادداشت..."
-              className="w-full text-sm font-bold text-gray-900 border border-gray-200 rounded-[6px] px-3 py-2 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
+              onChange={(e) => {
+                const val = e.target.value;
+                setTitle(val);
+                scheduleSave(400, { title: val });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleClose();
+                }
+              }}
+              placeholder="چی تو ذهنته؟"
+              className={`w-full font-bold text-gray-900 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal transition-all ${
+                isFullscreen ? 'text-2xl md:text-3xl pl-32' : 'text-xl pl-24'
+              }`}
+              dir="rtl"
             />
-          </div>
 
-          {/* Body */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">
-              متن کامل
-            </label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="شرح کامل یادداشت یا ایده..."
-              rows={4}
-              className="w-full text-xs text-gray-800 border border-gray-200 rounded-[6px] px-3 py-2 outline-none focus:border-black focus:ring-1 focus:ring-black transition-all resize-none leading-relaxed"
-              autoFocus
-            />
-          </div>
+            {/* Note Property Chips Row */}
+            <div className="flex items-center gap-3 mt-4 flex-wrap">
+              {/* پین‌کردن */}
+              <button
+                type="button"
+                onClick={handleTogglePin}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer border ${
+                  isPinned
+                    ? 'bg-gray-100 border-gray-300 text-gray-900 font-bold'
+                    : 'border-transparent text-gray-400 hover:text-gray-600 font-normal'
+                }`}
+              >
+                {isPinned ? (
+                  <RiPushpinFill className="w-3.5 h-3.5 text-gray-800" />
+                ) : (
+                  <RiPushpinLine className="w-3.5 h-3.5 text-gray-400" />
+                )}
+                <span>پین‌کردن</span>
+              </button>
 
-          {/* Tags */}
-          <div className="relative">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">
-              برچسب‌ها
-            </label>
-            <div className="flex flex-wrap items-center gap-1.5 min-h-[30px] p-1.5 border border-gray-200 rounded-[6px] bg-white">
-              {tagIds.map((id) => {
-                const tag = tagsMap[id];
-                if (!tag) return null;
-                return (
-                  <span
-                    key={tag.id}
-                    className="inline-flex items-center gap-1 text-[11px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md"
-                  >
-                    <span>#{tag.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleTag(tag.id)}
-                      className="text-gray-400 hover:text-gray-600 cursor-pointer"
-                    >
-                      <RiCloseLine className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                );
-              })}
-
+              {/* برچسب */}
               <button
                 type="button"
                 onClick={() => setTagPickerOpen(!tagPickerOpen)}
-                className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-black px-1.5 py-0.5 rounded hover:bg-gray-100 cursor-pointer transition-colors"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer ${
+                  selectedTags.length > 0
+                    ? 'text-gray-900 font-semibold'
+                    : 'text-gray-400 hover:text-gray-600 font-normal'
+                }`}
               >
-                <RiPriceTag3Line className="w-3 h-3" />
-                <span>+ برچسب</span>
-              </button>
-            </div>
-
-            {tagPickerOpen && (
-              <div className="absolute top-14 right-0 z-50">
-                <TagPickerPopover
-                  selectedTagIds={tagIds}
-                  onToggleTag={handleToggleTag}
-                  onClose={() => setTagPickerOpen(false)}
+                <RiPriceTag3Line
+                  className={`w-3.5 h-3.5 ${
+                    selectedTags.length > 0 ? 'text-gray-900' : 'text-gray-400'
+                  }`}
                 />
-              </div>
-            )}
-          </div>
+                <span>
+                  {selectedTags.length > 0
+                    ? selectedTags.map((t) => `#${t.name}`).join(' ')
+                    : 'برچسب'}
+                </span>
+              </button>
 
-          {/* Color Picker */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1">
-              <RiPaletteLine className="w-3.5 h-3.5 text-gray-400" />
-              <span>رنگ یادداشت</span>
-            </label>
-            <div className="flex items-center gap-2 pt-0.5">
-              {PASTEL_NOTE_COLORS.map((c) => {
-                const isSelected = (!color && c.hex === '') || color === c.hex;
-                return (
+              {/* جعبه */}
+              <DropdownMenu open={boxPickerOpen} onOpenChange={setBoxPickerOpen}>
+                <DropdownMenuTrigger asChild>
                   <button
-                    key={c.id}
                     type="button"
-                    title={c.name}
-                    onClick={() => setColor(c.hex || undefined)}
-                    className={cn(
-                      'w-6 h-6 rounded-full border transition-all flex items-center justify-center cursor-pointer hover:scale-110 shadow-2xs',
-                      c.borderClass,
-                      isSelected
-                        ? 'ring-2 ring-black ring-offset-1 scale-105'
-                        : 'opacity-85 hover:opacity-100'
-                    )}
-                    style={{ backgroundColor: c.hex || '#ffffff' }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer ${
+                      selectedBox
+                        ? 'text-gray-900 font-semibold'
+                        : 'text-gray-400 hover:text-gray-600 font-normal'
+                    }`}
                   >
-                    {isSelected && (
-                      <RiCheckLine className="w-3.5 h-3.5 text-gray-800 stroke-[3]" />
-                    )}
+                    <RiInboxArchiveLine
+                      className={`w-3.5 h-3.5 ${
+                        selectedBox ? 'text-gray-900' : 'text-gray-400'
+                      }`}
+                    />
+                    <span>{selectedBox || 'جعبه'}</span>
                   </button>
-                );
-              })}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-36 p-1 text-xs" dir="rtl">
+                  <DropdownMenuItem onClick={() => setSelectedBox('کار')}>کار</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedBox('شخصی')}>شخصی</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedBox('ایده‌ها')}>ایده‌ها</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedBox('')} className="text-gray-400">
+                    بدون جعبه
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* BlockNote Notion-like Editor */}
+            <div className={`flex-1 overflow-y-auto mt-4 border-t border-gray-100/70 pt-3 ${
+              isFullscreen ? 'min-h-[300px]' : 'min-h-[180px] max-h-[46vh]'
+            }`}>
+              <BlockNoteEditor
+                key={`${note.id}-${isOpen ? 'open' : 'closed'}`}
+                initialContent={description}
+                onChange={(md) => {
+                  setDescription(md);
+                  scheduleSave(400, { description: md });
+                }}
+                placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
+                minHeight={isFullscreen ? '350px' : '180px'}
+              />
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="flex items-center gap-1 text-xs text-rose-600 hover:text-rose-700 px-2 py-1.5 rounded-md hover:bg-rose-50 cursor-pointer transition-colors"
-            >
-              <RiDeleteBinLine className="w-3.5 h-3.5" />
-              <span>حذف</span>
-            </button>
+          {/* Bottom Actions Bar */}
+          <div className="w-full">
+            {/* Common Bottom Bar */}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+              {/* Right side in RTL: Auto-save status indicator */}
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 font-normal">
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>ذخیره خودکار</span>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-3 py-1.5 text-xs text-gray-600 hover:text-black rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
-              >
-                انصراف
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-1.5 text-xs font-semibold bg-black text-white rounded-md hover:bg-gray-800 cursor-pointer transition-colors flex items-center gap-1"
-              >
-                <RiCheckLine className="w-3.5 h-3.5" />
-                <span>ذخیره</span>
-              </button>
+              {/* Left side in RTL: Mode label pill */}
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200/80">
+                  <span>ویرایش یادداشت</span>
+                </span>
+              </div>
             </div>
           </div>
         </form>
+
+        {/* Tag Picker Modal */}
+        {tagPickerOpen && (
+          <div
+            className="absolute inset-0 z-60 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs"
+            onClick={() => setTagPickerOpen(false)}
+          >
+            <div onClick={(e) => e.stopPropagation()}>
+              <TagPickerPopover
+                selectedTagIds={tagIds}
+                onToggleTag={handleToggleTag}
+                onClose={() => setTagPickerOpen(false)}
+              />
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 };

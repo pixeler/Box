@@ -6,11 +6,10 @@ import {
   addJalaliDays,
   nextWeekendFrom,
   formatTaskDateDisplay,
-  parseJalaliKey,
-  formatJalaliDisplay,
 } from '@/lib/jalali';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
+import { stripMarkdownForPreview } from '@/lib/markdown';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -74,16 +73,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   const tomorrowKey = addJalaliDays(todayKey, 1);
   const nextWeekKey = addJalaliDays(todayKey, 7);
   const weekendKey = nextWeekendFrom(todayKey);
-  const dateDisplay = isPinned && task.due_date
-    ? (() => {
-        try {
-          const j = parseJalaliKey(task.due_date);
-          return formatJalaliDisplay(j);
-        } catch {
-          return formatTaskDateDisplay(task.due_date, currentDateKey || todayKey);
-        }
-      })()
-    : formatTaskDateDisplay(task.due_date, currentDateKey || todayKey);
+  const dateDisplay = formatTaskDateDisplay(
+    task.due_date,
+    currentDateKey || todayKey,
+    isPinned
+  );
 
   const handleToggle = async () => {
     if (!isDone) {
@@ -130,15 +124,15 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
             onDragEnd={onDragEnd}
             onDrop={onDrop}
             onClick={() => setEditModalOpen(true)}
-            className={`group relative w-full border-b border-dotted border-gray-200 py-3 px-1 select-none transition-all duration-150 ${
+            className={`group relative w-full border-b border-dotted border-gray-200 py-3.5 px-1 select-none transition-all duration-150 ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             } hover:bg-black/[0.015] ${
               isDone ? 'opacity-55' : ''
             }`}
           >
-            <div className="flex items-center justify-between w-full">
-              {/* 1. RIGHT SIDE in RTL: Checkbox and Title */}
-              <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="flex items-start justify-between w-full">
+              {/* 1. RIGHT SIDE in RTL: Checkbox and Content (Title + Description) */}
+              <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* Circle Checkbox on the far right */}
                 <button
                   type="button"
@@ -146,7 +140,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                     e.stopPropagation();
                     handleToggle();
                   }}
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
                     isDone
                       ? 'bg-[#27272a] border-[#27272a] text-white'
                       : task.priority === 3
@@ -162,38 +156,51 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   {isDone && <RiCheckLine className="w-3.5 h-3.5 stroke-[3]" />}
                 </button>
 
-                {/* Title and Badges */}
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {/* Pin icon if pinned */}
-                  {isPinned && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTogglePin();
-                      }}
-                      title="برداشتن سنجاق"
-                      className="shrink-0 flex items-center text-gray-700 hover:text-black cursor-pointer p-0.5"
-                    >
-                      <RiPushpin2Fill className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                {/* Content: Title + Badges + Description */}
+                <div className="flex flex-col flex-1 min-w-0 text-right">
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    {/* Pin icon if pinned */}
+                    {isPinned && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTogglePin();
+                        }}
+                        title="برداشتن سنجاق"
+                        className="shrink-0 flex items-center text-gray-700 hover:text-black cursor-pointer p-0.5 mt-0.5"
+                      >
+                        <RiPushpin2Fill className="w-3.5 h-3.5" />
+                      </button>
+                    )}
 
-                  <span
-                    className={`text-[13.5px] font-bold leading-snug transition-all truncate ${
-                      isDone
-                        ? 'line-through text-gray-400 font-normal'
-                        : 'text-gray-900'
-                    }`}
-                  >
-                    {task.title}
-                  </span>
+                    <span
+                      className={`text-[13.5px] font-medium leading-snug transition-all break-words ${
+                        isDone
+                          ? 'line-through text-gray-400 font-normal'
+                          : 'text-gray-900'
+                      }`}
+                    >
+                      {stripMarkdownForPreview(task.title)}
+                    </span>
+                  </div>
+
+                  {/* Task Description if present */}
+                  {task.description && task.description.trim() && (
+                    <p
+                      className={`text-[12px] font-normal leading-relaxed mt-2 select-none break-words line-clamp-2 ${
+                        isDone ? 'line-through text-gray-300' : 'text-gray-400'
+                      }`}
+                    >
+                      {stripMarkdownForPreview(task.description)}
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* 2. LEFT SIDE in RTL: Date/Time display */}
               {dateDisplay && (
-                <span className="text-[12px] text-gray-400 font-normal select-none shrink-0">
+                <span className="text-[12px] text-gray-400 font-normal select-none shrink-0 mt-0.5 mr-2">
                   {dateDisplay}
                 </span>
               )}

@@ -123,7 +123,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
             <span className="text-gray-700 font-medium text-[13.5px]">
               از روزهای قبل
             </span>
-            <span className="text-gray-400 font-medium text-[13.5px]">
+            <span className="text-gray-400 font-normal text-[13px]">
               {toPersianDigits(overdueCount)}
             </span>
           </div>
@@ -223,7 +223,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
             <span className="text-gray-700 font-medium text-[13.5px]">
               برای بعدا
             </span>
-            <span className="text-gray-400 font-medium text-[13.5px]">
+            <span className="text-gray-400 font-normal text-[13px]">
               {toPersianDigits(futureTaskCount + futureEventCount)}
             </span>
           </div>

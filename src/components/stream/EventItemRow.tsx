@@ -48,7 +48,7 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDrop={onDrop}
-      className="w-full border-b border-dotted border-gray-200 py-3 px-1 select-none hover:bg-black/[0.015] transition-colors cursor-pointer"
+      className="w-full border-b border-dotted border-gray-200 py-3.5 px-1 select-none hover:bg-black/[0.015] transition-colors cursor-pointer"
     >
       <div className="flex items-center justify-between w-full">
         {/* 1. RIGHT SIDE in RTL: Dashed rounded square + Title */}
@@ -68,7 +68,7 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
 
           {/* Title */}
           <span
-            className={`text-[13.5px] font-bold transition-all ${
+            className={`text-[13.5px] font-medium transition-all ${
               checked ? 'line-through text-gray-400 font-normal' : 'text-gray-900'
             }`}
           >

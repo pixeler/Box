@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/dexie';
 import type { Task, TaskFilter } from '@/types/models';
 import type { TaskRepository } from '../interfaces';
+import { getTodayJalaliKey } from '@/lib/jalali';
 
 export class DexieTaskRepository implements TaskRepository {
   async create(taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
@@ -81,6 +82,19 @@ export class DexieTaskRepository implements TaskRepository {
     const existing = await db.tasks.get(id);
     if (!existing) throw new Error(`Task with id ${id} not found`);
     const newStatus = existing.status === 'done' ? 'open' : 'done';
+
+    // اگر تسک سنجاق شده تیک خورد، سنجاقش برداشته می‌شود و در تاریخ همان روز قرار می‌گیرد
+    if (newStatus === 'done' && existing.pinned) {
+      const todayKey = getTodayJalaliKey();
+      const timeMatch = existing.due_date?.match(/\d{1,2}:\d{2}/);
+      const newDueDate = timeMatch ? `${todayKey} ${timeMatch[0]}` : todayKey;
+      return this.update(id, {
+        status: 'done',
+        pinned: false,
+        due_date: newDueDate,
+      });
+    }
+
     return this.update(id, { status: newStatus });
   }
 

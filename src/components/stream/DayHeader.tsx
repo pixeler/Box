@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { parseJalaliKey, formatJalaliDisplay } from '@/lib/jalali';
 import { getHolidaysForDate } from '@/lib/holidays';
-import { RiCheckLine } from '@remixicon/react';
+import { RiCheckLine, RiFilter3Line } from '@remixicon/react';
 
 interface DayHeaderProps {
   selectedDateKey: string;
@@ -25,10 +25,10 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   const dayHolidays = getHolidaysForDate(selectedDateKey);
 
   return (
-    <div className="w-full flex items-center justify-between mt-3 mb-2 relative select-none">
+    <div className="w-full flex items-center justify-between mt-5 mb-2 relative select-none">
       {/* 1. Date title and occasions on the FAR RIGHT (First child in RTL) */}
       <div className="flex flex-col text-right">
-        <h2 className="text-[15px] font-bold text-gray-900 tracking-tight">
+        <h2 className="text-[14px] font-semibold text-gray-900 tracking-tight">
           {formattedDate}
         </h2>
         {dayHolidays.length > 0 && (
@@ -59,16 +59,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
           className="p-1 rounded-lg text-gray-700 hover:text-black hover:bg-gray-100 transition-colors flex items-center justify-center cursor-pointer"
           title="فیلتر و مرتب‌سازی"
         >
-          <svg
-            className="w-5 h-5 text-gray-700"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <path d="M4 6h16M4 12h10M4 18h4" />
-          </svg>
+          <RiFilter3Line className="w-5 h-5 text-gray-700" />
         </button>
 
         {/* Dropdown Menu */}

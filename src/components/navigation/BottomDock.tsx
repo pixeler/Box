@@ -287,11 +287,11 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           <button
             type="button"
             onClick={onOpenAdd}
-            className="h-[48px] px-6 rounded-full text-white flex items-center justify-center gap-1 font-bold cursor-pointer select-none add-btn-dark-glass"
+            className="h-[48px] px-6 rounded-full text-white flex items-center justify-center gap-1 font-medium cursor-pointer select-none add-btn-dark-glass"
             title="اضافه کردن (N)"
           >
             <RiAddLine className="w-[18px] h-[18px] text-white stroke-[0.5]" />
-            <span className="text-[13.5px] font-bold tracking-tight text-white">
+            <span className="text-[13.5px] font-medium tracking-tight text-white">
               اضافه کردن
             </span>
             <kbd className="hidden sm:inline-flex items-center justify-center text-[10px] font-bold text-white/80 bg-white/15 px-1.5 py-0.5 rounded mr-1 font-mono tracking-normal select-none">

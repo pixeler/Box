@@ -207,7 +207,8 @@ export function getJalaliMonthFirstDayOfWeek(jy: number, jm: number): number {
  */
 export function formatTaskDateDisplay(
   dueDateStr?: string,
-  viewDateKey: string = getTodayJalaliKey()
+  viewDateKey: string = getTodayJalaliKey(),
+  alwaysShowRelative: boolean = false
 ): string | null {
   if (!dueDateStr || !dueDateStr.trim()) return null;
 
@@ -249,8 +250,8 @@ export function formatTaskDateDisplay(
   const todayKey = getTodayJalaliKey();
   const isViewDate = datePart === viewDateKey;
 
-  // اگر تسک متعلق به همان روز در حال نمایش است، فقط ساعت (در صورت وجود) نمایش داده می‌شود
-  if (isViewDate) {
+  // اگر تسک متعلق به همان روز در حال نمایش است، فقط ساعت (در صورت وجود) نمایش داده می‌شود مگر اینکه نمایش تاریخ الزامی باشد
+  if (isViewDate && !alwaysShowRelative) {
     return timePart || null;
   }
 

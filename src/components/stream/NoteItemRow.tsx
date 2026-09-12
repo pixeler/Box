@@ -9,6 +9,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { NoteEditModal } from '@/components/notebook/NoteEditModal';
+import { stripMarkdownForPreview } from '@/lib/markdown';
 import {
   RiDeleteBinLine,
   RiFileTextLine,
@@ -43,6 +44,26 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const isPinned = !!note.pinned;
 
+  const noteTitle = note.title?.trim() || '';
+  const noteDescription = (() => {
+    if (note.description !== undefined && note.description !== null) {
+      return note.description.trim();
+    }
+    if (note.body && noteTitle) {
+      if (note.body.startsWith(noteTitle)) {
+        return note.body.slice(noteTitle.length).trim();
+      }
+      if (note.body.trim() !== noteTitle) {
+        return note.body.trim();
+      }
+    }
+    return '';
+  })();
+
+  const displayTitle = noteTitle || note.body || '';
+  const displayDescription =
+    displayTitle === note.body?.trim() && !note.description ? '' : noteDescription;
+
   const handleDelete = async () => {
     await noteRepo.softDelete(note.id);
     onStatusChanged();
@@ -69,36 +90,44 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
             onDragEnd={onDragEnd}
             onDrop={onDrop}
             onClick={() => setEditModalOpen(true)}
-            className={`group relative w-full border-b border-dotted border-gray-200 py-3 px-1 select-none transition-all duration-150 ${
+            className={`group relative w-full border-b border-dotted border-gray-200 py-3.5 px-1 select-none transition-all duration-150 ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             } hover:bg-black/[0.015]`}
           >
             <div className="flex items-start justify-between w-full">
-              {/* 1. RIGHT SIDE in RTL: Sticky Note Icon + Pin + Note text */}
+              {/* 1. RIGHT SIDE in RTL: Sticky Note Icon + Pin + Note Content */}
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* Sticky Note Icon on the far right */}
                 <div className="shrink-0 mt-0.5 flex items-center gap-1">
                   <RiStickyNoteLine className="w-5 h-5 text-gray-400" />
                 </div>
 
-                {/* Note Text and Pin Badge */}
-                <div className="flex-1 min-w-0 text-right flex items-center gap-1.5">
-                  {isPinned && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTogglePin();
-                      }}
-                      title="برداشتن سنجاق"
-                      className="shrink-0 flex items-center text-gray-700 hover:text-black cursor-pointer p-0.5"
-                    >
-                      <RiPushpin2Fill className="w-3.5 h-3.5" />
-                    </button>
+                {/* Note Content: Title and Description */}
+                <div className="flex flex-col flex-1 min-w-0 text-right">
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    {isPinned && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTogglePin();
+                        }}
+                        title="برداشتن سنجاق"
+                        className="shrink-0 flex items-center text-gray-700 hover:text-black cursor-pointer p-0.5 mt-0.5"
+                      >
+                        <RiPushpin2Fill className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <p className="text-[13.5px] font-medium text-gray-900 leading-snug break-words">
+                      {stripMarkdownForPreview(displayTitle)}
+                    </p>
+                  </div>
+
+                  {displayDescription && (
+                    <p className="text-[12px] text-gray-400 font-normal leading-relaxed mt-2 select-none break-words line-clamp-2">
+                      {stripMarkdownForPreview(displayDescription)}
+                    </p>
                   )}
-                  <p className="text-[13.5px] font-bold text-gray-900 leading-relaxed truncate">
-                    {note.body || note.title}
-                  </p>
                 </div>
               </div>
             </div>

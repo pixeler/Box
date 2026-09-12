@@ -8,8 +8,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Vazirmatn", "system-ui", "sans-serif"],
-        vazir: ["Vazirmatn", "sans-serif"],
+        sans: ["Estedad", "sans-serif"],
+        estedad: ["Estedad", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

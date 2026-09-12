@@ -45,6 +45,7 @@ export interface Note {
   type: "note" | "idea";
   title: string;
   body: string;
+  description?: string;
   color?: string; // pastel color hex code or class
   date_key?: string; // e.g. "1404/10/30"
   tag_ids: string[];

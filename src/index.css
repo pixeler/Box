@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Estedad';
+  src: url('/fonts/estedad/Estedad-Variable.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -50,7 +58,7 @@
 }
 
 body {
-  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Estedad', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   user-select: none;
   -webkit-user-select: none;
   -webkit-font-smoothing: antialiased;
@@ -250,5 +258,46 @@ button:active {
   transform: scale(0.985);
 }
 
+/* BlockNote Notion-like Editor RTL & Typography */
+.blocknote-editor-wrapper {
+  direction: rtl;
+  text-align: right;
+}
 
+.blocknote-editor-wrapper .bn-container,
+.blocknote-editor-wrapper .bn-container *,
+.blocknote-editor-wrapper .bn-default-styles {
+  font-family: 'Estedad', system-ui, -apple-system, sans-serif !important;
+}
 
+.blocknote-editor-wrapper .bn-editor {
+  direction: rtl;
+  text-align: right;
+  /* Preserve left gutter for side menu (add button + drag handle) to avoid clipping on mobile */
+  padding-left: 54px !important;
+  padding-right: 8px !important;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.blocknote-editor-wrapper .bn-block-content {
+  direction: rtl;
+  text-align: right;
+}
+
+.blocknote-editor-wrapper [data-content-type=quote] blockquote {
+  border-left: none !important;
+  border-right: 3px solid #9ca3af !important;
+  padding-left: 0 !important;
+  padding-right: 1em !important;
+  color: #6b7280;
+}
+
+/* Ensure BlockNote popups and menus also inherit Estedad font and RTL */
+.bn-menu-dropdown,
+.bn-toolbar,
+.bn-side-menu,
+.bn-slash-menu {
+  font-family: 'Estedad', system-ui, -apple-system, sans-serif !important;
+  direction: rtl;
+}

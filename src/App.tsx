@@ -62,7 +62,8 @@ export function App() {
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
-          target.isContentEditable);
+          target.isContentEditable ||
+          Boolean(target.closest?.('[contenteditable="true"]')));
 
       // 1. Search shortcut: Ctrl+K / Cmd+K / Ctrl+ن (supports English and Persian layout)
       if (
@@ -240,7 +241,7 @@ export function App() {
                       <RiArrowLeftSLine className="w-5 h-5 text-gray-400 -mx-0.5" />
                     </>
                   )}
-                  <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+                  <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
                     {currentWeekdayName}
                   </h1>
                   <span className="w-2.5 h-2.5 rounded-full bg-teal-600 inline-block shrink-0" />
@@ -295,6 +296,7 @@ export function App() {
               onStatusChanged={loadDayData}
               onMigrateTask={handleMigrateTask}
               onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
+              onOpenAdd={() => setQuickCaptureOpen(true)}
             />
           </>
         )}

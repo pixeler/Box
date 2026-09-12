@@ -4,6 +4,7 @@ import { entryRepo, taskRepo, noteRepo, tagRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey } from '@/lib/jalali';
 import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
 import { TagPickerPopover } from '../tags/TagPickerPopover';
+import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,11 +25,15 @@ import {
   RiPushpinFill,
   RiLink,
   RiImageLine,
+  RiFullscreenLine,
+  RiFullscreenExitLine,
 } from '@remixicon/react';
+
+import { toast } from '@/lib/toast';
 
 interface QuickCaptureInputProps {
   currentSelectedDateKey: string;
-  onItemCreated: () => void;
+  onItemCreated: () => void | Promise<void>;
   isOpen?: boolean;
   onClose?: () => void;
   onOpen?: () => void;
@@ -53,6 +58,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const [assignee, setAssignee] = useState<string>('');
   const [selectedBox, setSelectedBox] = useState<string>('');
   const [isPinned, setIsPinned] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -75,21 +81,20 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     });
   }, []);
 
-  // When opening or switching tab, focus title input immediately
+  // When opening or switching tab, focus title input immediately and sync due date
   useEffect(() => {
     if (isOpen) {
+      setDueDate(currentSelectedDateKey);
       const timer = setTimeout(() => {
         titleInputRef.current?.focus();
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, activeTab]);
+  }, [isOpen, activeTab, currentSelectedDateKey]);
 
   // Keep due date updated with selected date
   useEffect(() => {
-    if (!dueDate) {
-      setDueDate(currentSelectedDateKey);
-    }
+    setDueDate(currentSelectedDateKey);
   }, [currentSelectedDateKey]);
 
   // Global key bindings: 'N' / Persian 'د' to open, Escape to close
@@ -101,7 +106,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
-          target.isContentEditable);
+          target.isContentEditable ||
+          Boolean(target.closest?.('[contenteditable="true"]')));
 
       if (!isOpen) {
         if (
@@ -160,9 +166,11 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setAssignee('');
     setSelectedBox('');
     setIsPinned(false);
+    setIsFullscreen(false);
     setDatePickerOpen(false);
     setTagPickerOpen(false);
     setBoxPickerOpen(false);
+    setDueDate(currentSelectedDateKey);
     onClose?.();
   };
 
@@ -170,7 +178,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     if (e) e.preventDefault();
     if (isSubmittingRef.current) return;
 
-    const cleanTitle = title.trim();
+    // Use DOM input value as fallback if React state is not yet flushed
+    const cleanTitle = (titleInputRef.current?.value || title).trim();
     if (!cleanTitle) return;
 
     isSubmittingRef.current = true;
@@ -181,16 +190,19 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         processed: true,
       });
 
+      const effectiveDueDate = dueDate || currentSelectedDateKey;
+
       if (activeTab === 'task') {
         await taskRepo.create({
           entry_id: entry.id,
           title: cleanTitle,
           description: description.trim(),
           status: 'open',
-          due_date: dueDate || currentSelectedDateKey,
+          due_date: effectiveDueDate,
           priority: priority,
           tag_ids: tagIds,
         });
+        toast.show('تسک جدید با موفقیت ایجاد شد');
       } else {
         const bodyContent = description.trim();
         await noteRepo.create({
@@ -198,13 +210,15 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           type: 'note',
           title: cleanTitle,
           body: bodyContent ? `${cleanTitle}\n${bodyContent}` : cleanTitle,
-          date_key: currentSelectedDateKey,
+          description: bodyContent || undefined,
+          date_key: effectiveDueDate,
           tag_ids: tagIds,
           pinned: isPinned,
         });
+        toast.show('یادداشت جدید با موفقیت ثبت شد');
       }
 
-      onItemCreated();
+      await onItemCreated();
       setIsClosing(true);
       setTimeout(() => {
         setIsClosing(false);
@@ -278,24 +292,44 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full bg-white rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 font-sans text-right flex flex-col min-h-[440px] max-h-[92%] overflow-hidden ${
-          isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
+        className={`bg-white font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
+          isFullscreen && activeTab === 'note'
+            ? 'fixed inset-0 z-50 w-full h-full pb-5 px-6 pt-6 md:px-16 lg:px-24'
+            : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] ${
+                isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
+              }`
         }`}
         dir="rtl"
       >
-        {/* Top Left Close Button */}
-        <button
-          type="button"
-          onClick={handleClose}
-          className="absolute left-6 top-6 p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-          title="بستن"
-        >
-          <RiCloseLine className="w-5 h-5" />
-        </button>
+        {/* Top Left Action Buttons: Fullscreen & Close */}
+        <div className="absolute left-6 top-6 flex items-center gap-1 z-10">
+          {activeTab === 'note' && (
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+              title={isFullscreen ? 'کوچک کردن' : 'تمام‌صفحه'}
+            >
+              {isFullscreen ? (
+                <RiFullscreenExitLine className="w-5 h-5" />
+              ) : (
+                <RiFullscreenLine className="w-5 h-5" />
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleClose}
+            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            title="بستن"
+          >
+            <RiCloseLine className="w-5 h-5" />
+          </button>
+        </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col justify-between">
+        <form onSubmit={handleSubmit} className={`flex-1 flex flex-col justify-between ${isFullscreen && activeTab === 'note' ? 'max-w-4xl mx-auto w-full h-full' : ''}`}>
           {/* Main Top Input Area */}
-          <div className="flex-1 flex flex-col pt-3">
+          <div className="flex-1 flex flex-col pt-3 min-h-0">
             {/* Title Input */}
             <input
               ref={titleInputRef}
@@ -303,13 +337,16 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                const isEnter = e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.keyCode === 13;
+                if (isEnter && !e.shiftKey) {
                   e.preventDefault();
                   handleSubmit();
                 }
               }}
               placeholder={activeTab === 'task' ? 'چی کاره‌ای؟' : 'چی تو ذهنته؟'}
-              className="w-full text-xl font-bold text-gray-900 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal"
+              className={`w-full font-bold text-gray-900 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal transition-all ${
+                isFullscreen && activeTab === 'note' ? 'text-2xl md:text-3xl pl-24' : 'text-xl pl-16'
+              }`}
               dir="rtl"
             />
 
@@ -387,22 +424,38 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
               </div>
             )}
 
-            {/* Description / Note body Textarea */}
-            <textarea
-              ref={noteBodyRef}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-              placeholder={activeTab === 'task' ? 'توضیحات' : 'متن یادداشت'}
-              rows={7}
-              className="w-full resize-none text-sm text-gray-700 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal leading-relaxed mt-4 flex-1"
-              dir="rtl"
-            />
+            {/* Description / Note body */}
+            {activeTab === 'note' ? (
+              <div
+                className={`flex-1 overflow-y-auto mt-3 border-t border-gray-100/70 pt-2 ${
+                  isFullscreen ? 'min-h-[300px]' : 'min-h-[160px] max-h-[46vh]'
+                }`}
+              >
+                <BlockNoteEditor
+                  initialContent={description}
+                  onChange={(md) => setDescription(md)}
+                  placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
+                  minHeight={isFullscreen ? '350px' : '160px'}
+                />
+              </div>
+            ) : (
+              <textarea
+                ref={noteBodyRef}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onKeyDown={(e) => {
+                  const isEnter = e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.keyCode === 13;
+                  if (isEnter && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit();
+                  }
+                }}
+                placeholder="توضیحات (Enter برای ایجاد تسک، Shift+Enter برای خط بعد)"
+                rows={7}
+                className="w-full resize-none text-sm text-gray-700 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal leading-relaxed mt-4 flex-1"
+                dir="rtl"
+              />
+            )}
           </div>
 
           {/* Middle Toolbars */}
@@ -617,7 +670,10 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* کار */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab('task')}
+                  onClick={() => {
+                    setActiveTab('task');
+                    setIsFullscreen(false);
+                  }}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
                     activeTab === 'task'
                       ? 'border-gray-400 bg-white text-gray-900 font-bold shadow-xs'

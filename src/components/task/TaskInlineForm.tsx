@@ -19,6 +19,7 @@ import {
   RiCloseLine,
   RiArrowDownSLine,
 } from '@remixicon/react';
+import { toast } from '@/lib/toast';
 
 interface TaskInlineFormProps {
   initialDate?: string;
@@ -116,6 +117,7 @@ export const TaskInlineForm: React.FC<TaskInlineFormProps> = ({
         tag_ids: tagIds,
       });
 
+      toast.show('تسک جدید با موفقیت ایجاد شد');
       onTaskCreated();
       onClose();
     } catch (err) {
@@ -134,6 +136,13 @@ export const TaskInlineForm: React.FC<TaskInlineFormProps> = ({
           type="text"
           value={title}
           onChange={(e) => handleTitleChange(e.target.value)}
+          onKeyDown={(e) => {
+            const isEnter = e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.keyCode === 13;
+            if (isEnter && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
           placeholder="عنوان تسک..."
           className="w-full text-[14px] font-bold text-gray-900 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal mb-2"
           dir="rtl"
@@ -143,6 +152,13 @@ export const TaskInlineForm: React.FC<TaskInlineFormProps> = ({
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          onKeyDown={(e) => {
+            const isEnter = e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.keyCode === 13;
+            if (isEnter && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
           placeholder="توضیحات (اختیاری)..."
           rows={2}
           className="w-full resize-none text-[12px] text-gray-600 bg-transparent outline-none placeholder:text-gray-400 leading-relaxed mb-3"

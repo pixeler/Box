@@ -8,6 +8,7 @@ import {
   RiPriceTag3Line,
   RiLightbulbLine,
 } from '@remixicon/react';
+import { toast } from '@/lib/toast';
 
 export const NotebookView: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -48,6 +49,7 @@ export const NotebookView: React.FC = () => {
       tag_ids: selectedTag ? [selectedTag] : [],
     });
 
+    toast.show(noteType === 'idea' ? 'ایده جدید ثبت شد' : 'یادداشت جدید ثبت شد');
     setNewNoteText('');
     loadData();
   };
@@ -75,7 +77,14 @@ export const NotebookView: React.FC = () => {
             <textarea
               value={newNoteText}
               onChange={(e) => setNewNoteText(e.target.value)}
-              placeholder="نوشتن یک فکر، یادداشت یا ایده جدید..."
+              onKeyDown={(e) => {
+                const isEnter = e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.keyCode === 13;
+                if (isEnter && !e.shiftKey) {
+                  e.preventDefault();
+                  handleCreateNote(e);
+                }
+              }}
+              placeholder="نوشتن یک فکر، یادداشت یا ایده جدید... (Enter برای ثبت)"
               rows={2}
               className="w-full bg-transparent text-sm outline-none resize-none text-gray-800 placeholder-gray-400"
               dir="rtl"

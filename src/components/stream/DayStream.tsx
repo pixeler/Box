@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Task, EventItem, Note, Tag } from '@/types/models';
 import { DayHeader } from './DayHeader';
 import { TaskItemRow } from './TaskItemRow';
 import { NoteItemRow } from './NoteItemRow';
 import { EventItemRow } from './EventItemRow';
 import { ResurfacingSection } from './ResurfacingSection';
-import { RiSparklingLine } from '@remixicon/react';
+import { RiCalendarEventLine } from '@remixicon/react';
 import { setupDragCardGhost } from '@/lib/drag';
 import { CardDropPreview } from './CardDropPreview';
+import { getTodayJalaliKey } from '@/lib/jalali';
 
 export type UnifiedStreamItem =
   | { id: string; type: 'task'; data: Task }
@@ -26,6 +27,7 @@ interface DayStreamProps {
   onStatusChanged: () => void;
   onMigrateTask: (taskId: string, targetDate?: string) => void;
   onGoToToday?: () => void;
+  onOpenAdd?: () => void;
 }
 
 function getPriorityScore(item: UnifiedStreamItem): number {
@@ -114,9 +116,15 @@ export const DayStream: React.FC<DayStreamProps> = ({
   onStatusChanged,
   onMigrateTask,
   onGoToToday,
+  onOpenAdd,
 }) => {
   const [filterType, setFilterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
   const [sortBy, setSortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
+  const [isDragOverEmpty, setIsDragOverEmpty] = useState(false);
+  const dragEnterCountRef = useRef(0);
+
+  const todayKey = getTodayJalaliKey();
+  const isToday = selectedDateKey === todayKey;
 
   // Unified items list
   const rawItems: UnifiedStreamItem[] = useMemo(() => {
@@ -188,7 +196,20 @@ export const DayStream: React.FC<DayStreamProps> = ({
   const handleDragEnd = () => {
     setDraggedIndex(null);
     setDropSlotIndex(null);
+    setIsDragOverEmpty(false);
+    dragEnterCountRef.current = 0;
   };
+
+  useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      dragEnterCountRef.current = 0;
+      setIsDragOverEmpty(false);
+      setDraggedIndex(null);
+      setDropSlotIndex(null);
+    };
+    window.addEventListener('dragend', handleGlobalDragEnd);
+    return () => window.removeEventListener('dragend', handleGlobalDragEnd);
+  }, []);
 
   const handleDropAtSlot = (e: React.DragEvent, slot: number) => {
     e.preventDefault();
@@ -324,18 +345,84 @@ export const DayStream: React.FC<DayStreamProps> = ({
             );
           })}
 
-          {/* پیش‌نمایش در حالت خالی بودن لیست هنگام کشیدن تسک به این روز */}
-          {!hasAnyItems && dropSlotIndex !== null && (
-            <CardDropPreview />
-          )}
-
+          {/* پیش‌نمایش در حالت خالی بودن لیست فقط اگر آیتم درگی غیر از روی کامپوننت خالی هست */}
           {/* Empty state when no items */}
           {!hasAnyItems && (
-            <div className="w-full py-8 flex flex-col items-center justify-center text-center text-gray-400">
-              <RiSparklingLine className="w-7 h-7 text-gray-300 mb-1.5" />
-              <p className="text-xs font-medium text-gray-500">
-                هنوز تسک یا یادداشتی برای این روز ثبت نشده
-              </p>
+            <div
+              onDragEnter={(e) => {
+                e.preventDefault();
+                dragEnterCountRef.current += 1;
+                setIsDragOverEmpty(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (!isDragOverEmpty) setIsDragOverEmpty(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                dragEnterCountRef.current -= 1;
+                if (dragEnterCountRef.current <= 0) {
+                  dragEnterCountRef.current = 0;
+                  setIsDragOverEmpty(false);
+                }
+              }}
+              onDrop={(e) => {
+                dragEnterCountRef.current = 0;
+                setIsDragOverEmpty(false);
+                handleDropAtSlot(e, 0);
+              }}
+              className={`w-full py-10 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
+                isDragOverEmpty ? 'bg-gray-50/70 scale-[1.01]' : 'bg-transparent'
+              }`}
+            >
+              <RiCalendarEventLine
+                className={`w-11 h-11 mb-4 transition-colors duration-200 ${
+                  isDragOverEmpty ? 'text-gray-600' : 'text-gray-400'
+                }`}
+              />
+
+              <h3 className="text-[15px] font-semibold text-gray-700 mb-2">
+                {isToday
+                  ? 'فعلا کار یا یادداشتی برای امروز نیست'
+                  : 'فعلا کار یا یادداشتی برای این روز نیست'}
+              </h3>
+
+              {isDragOverEmpty ? (
+                <p className="text-[12.5px] text-gray-400 font-normal leading-relaxed max-w-[320px] mx-auto animate-in fade-in duration-150">
+                  {isToday
+                    ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
+                    : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
+                </p>
+              ) : (
+                <p className="text-[12.5px] text-gray-400 font-normal leading-relaxed max-w-[320px] mx-auto">
+                  {isToday ? (
+                    <>
+                      <span>می‌تونی از دکمه </span>
+                      <button
+                        type="button"
+                        onClick={onOpenAdd}
+                        className="font-bold text-gray-800 underline underline-offset-4 decoration-gray-400 hover:decoration-gray-800 transition-colors cursor-pointer inline"
+                      >
+                        اضافه کردن
+                      </button>
+                      <span> استفاده کنی یا اینکه کارهایی که از روزهای قبل مانده را به امروز بگیری و بکشی!</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>می‌تونی از دکمه </span>
+                      <button
+                        type="button"
+                        onClick={onOpenAdd}
+                        className="font-bold text-gray-800 underline underline-offset-4 decoration-gray-400 hover:decoration-gray-800 transition-colors cursor-pointer inline"
+                      >
+                        اضافه کردن
+                      </button>
+                      <span> استفاده کنی تا برای این روز کار یا یادداشت ثبت کنی!</span>
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           )}
         </div>
