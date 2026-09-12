@@ -90,16 +90,16 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
             onDragEnd={onDragEnd}
             onDrop={onDrop}
             onClick={() => setEditModalOpen(true)}
-            className={`group relative w-full border-b border-dotted border-gray-200 py-3.5 px-1 select-none transition-all duration-150 ${
+            className={`group relative w-full border-b border-dotted border-border py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-            } hover:bg-black/[0.015]`}
+            }`}
           >
             <div className="flex items-start justify-between w-full">
               {/* 1. RIGHT SIDE in RTL: Sticky Note Icon + Pin + Note Content */}
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* Sticky Note Icon on the far right */}
                 <div className="shrink-0 mt-0.5 flex items-center gap-1">
-                  <RiStickyNoteLine className="w-5 h-5 text-gray-400" />
+                  <RiStickyNoteLine className="w-5 h-5 text-muted-foreground" />
                 </div>
 
                 {/* Note Content: Title and Description */}
@@ -113,18 +113,19 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
                           handleTogglePin();
                         }}
                         title="برداشتن سنجاق"
-                        className="shrink-0 flex items-center text-gray-700 hover:text-black cursor-pointer p-0.5 mt-0.5"
+                        className="shrink-0 flex items-center text-muted-foreground hover:text-foreground cursor-pointer p-0.5 mt-0.5"
                       >
-                        <RiPushpin2Fill className="w-3.5 h-3.5" />
+                        <RiPushpin2Fill className="w-3.5 h-3.5 text-primary" />
                       </button>
                     )}
-                    <p className="text-[13.5px] font-medium text-gray-900 leading-snug break-words">
+
+                    <p className="text-[13.5px] font-medium text-foreground leading-snug break-words">
                       {stripMarkdownForPreview(displayTitle)}
                     </p>
                   </div>
 
                   {displayDescription && (
-                    <p className="text-[12px] text-gray-400 font-normal leading-relaxed mt-2 select-none break-words line-clamp-2">
+                    <p className="text-[12px] text-muted-foreground font-normal leading-relaxed mt-2 select-none break-words line-clamp-2">
                       {stripMarkdownForPreview(displayDescription)}
                     </p>
                   )}

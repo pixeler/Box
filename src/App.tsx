@@ -20,8 +20,10 @@ import {
   jalaliToDate,
   getFullPersianWeekdayName,
   getRelativeDayPrefix,
+  extractDateOnly,
 } from './lib/jalali';
 import { checkAndSeedDesignDemoData } from './lib/seed';
+import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
 import type { Task, EventItem, Note, Tag } from './types/models';
 
 export function App() {
@@ -32,6 +34,7 @@ export function App() {
   const [wallpaper, setWallpaper] = useState<string>(() => {
     return localStorage.getItem('second_brain_wallpaper') || WALLPAPER_LIST[0].id;
   });
+  const [theme, setTheme] = useState<ThemeId>(() => getStoredTheme());
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -46,6 +49,16 @@ export function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Apply active theme on mount and change
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const handleThemeChange = (newTheme: ThemeId) => {
+    setTheme(newTheme);
+    applyTheme(newTheme);
+  };
 
   // Wallpaper change with persistence
   const handleWallpaperChange = (wpId: string) => {
@@ -130,13 +143,13 @@ export function App() {
       const pinnedN = allNotes.filter((n) => n.pinned);
 
       const dayTasks = allTasksList.filter(
-        (t) => t.due_date === targetDateKey && t.status !== 'dropped' && !t.pinned
+        (t) => extractDateOnly(t.due_date) === targetDateKey && t.status !== 'dropped' && !t.pinned
       );
 
       const dayNotes = allNotes.filter((n) => {
         if (n.pinned) return false;
         if (n.date_key) {
-          return n.date_key === targetDateKey;
+          return extractDateOnly(n.date_key) === targetDateKey;
         }
         if (n.created_at) {
           try {
@@ -151,10 +164,11 @@ export function App() {
 
       const dSet = new Set<string>();
       allTasksList.forEach((t) => {
-        if (t.due_date && t.status !== 'dropped') dSet.add(t.due_date);
+        const dp = extractDateOnly(t.due_date);
+        if (dp && t.status !== 'dropped') dSet.add(dp);
       });
       allNotes.forEach((n) => {
-        if (n.date_key) dSet.add(n.date_key);
+        if (n.date_key) dSet.add(extractDateOnly(n.date_key));
         else if (n.created_at) {
           try {
             dSet.add(formatJalaliKey(getJalaliDate(new Date(n.created_at))));
@@ -162,15 +176,14 @@ export function App() {
         }
       });
       allEventsList.forEach((e) => {
-        if (e.start_at) {
-          const m = e.start_at.match(/\d{4}\/\d{2}\/\d{2}/);
-          if (m) dSet.add(m[0]);
-        }
+        const ep = extractDateOnly(e.start_at);
+        if (ep) dSet.add(ep);
       });
 
-      const futureEv = allEventsList.filter(
-        (e) => e.start_at.includes('/') && e.start_at > targetDateKey
-      );
+      const futureEv = allEventsList.filter((e) => {
+        const ep = extractDateOnly(e.start_at);
+        return ep !== '' && ep > targetDateKey;
+      });
 
       // Batch all updates together with displayedDateKey
       setTagsMap(tMap);
@@ -224,42 +237,42 @@ export function App() {
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
-      {/* Scrollable Content Area with auto-hiding flush scrollbar (24px inner padding) */}
-      <MobileScrollArea contentClassName="px-6 pt-6 pb-24 flex flex-col min-h-full">
+      {/* Scrollable Content Area with auto-hiding flush scrollbar */}
+      <MobileScrollArea contentClassName="pt-6 pb-24 flex flex-col min-h-full">
         {activeTab === 'day' && (
           <>
             {/* Top Greeting Header */}
-            <div className="w-full pb-2 px-1 select-none">
+            <div className="w-full pb-2 px-6 select-none">
               <div className="flex items-center justify-between min-h-[36px]">
                 {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal Dot */}
                 <div className="flex items-center gap-1.5">
                   {relativePrefix && (
                     <>
-                      <span className="text-xl md:text-2xl font-normal text-gray-400">
+                      <span className="text-xl md:text-2xl font-normal text-muted-foreground">
                         {relativePrefix}
                       </span>
-                      <RiArrowLeftSLine className="w-5 h-5 text-gray-400 -mx-0.5" />
+                      <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground -mx-0.5" />
                     </>
                   )}
-                  <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                  <h1 className="text-2xl font-bold text-foreground tracking-tight">
                     {currentWeekdayName}
                   </h1>
-                  <span className="w-2.5 h-2.5 rounded-full bg-teal-600 inline-block shrink-0" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
                 </div>
 
                 {/* Left side: Capsule "بازگشت به امروز" button (visible when viewing any other day) */}
                 {isSelectedOtherThanToday && (
                   <button
                     onClick={() => setSelectedDateKey(todayKey)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-800 text-[12px] font-medium border border-gray-200/50 shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
                     title="بازگشت به امروز"
                   >
                     <span>بازگشت به امروز</span>
-                    <RiCalendarEventLine className="w-4 h-4 text-gray-700 shrink-0" />
+                    <RiCalendarEventLine className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
                 )}
               </div>
-              <p className="text-[13px] text-gray-400 font-normal mt-1 text-right">
+              <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right">
                 هر روزی که شروع میشه یک فرصت تازه است!
               </p>
             </div>
@@ -326,6 +339,8 @@ export function App() {
         onClose={() => setSettingsOpen(false)}
         currentWallpaper={wallpaper}
         onWallpaperChange={handleWallpaperChange}
+        currentTheme={theme}
+        onThemeChange={handleThemeChange}
         onOpenSearch={() => {
           setSettingsOpen(false);
           setSearchOpen(true);

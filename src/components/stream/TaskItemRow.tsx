@@ -124,9 +124,9 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
             onDragEnd={onDragEnd}
             onDrop={onDrop}
             onClick={() => setEditModalOpen(true)}
-            className={`group relative w-full border-b border-dotted border-gray-200 py-3.5 px-1 select-none transition-all duration-150 ${
+            className={`group relative w-full border-b border-dotted border-border py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-            } hover:bg-black/[0.015] ${
+            } ${
               isDone ? 'opacity-55' : ''
             }`}
           >
@@ -142,14 +142,14 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   }}
                   className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
                     isDone
-                      ? 'bg-[#27272a] border-[#27272a] text-white'
+                      ? 'bg-primary border-primary text-primary-foreground'
                       : task.priority === 3
-                      ? 'border-rose-500 hover:border-rose-600 bg-white'
+                      ? 'border-rose-500 hover:border-rose-600 bg-card'
                       : task.priority === 2
-                      ? 'border-amber-500 hover:border-amber-600 bg-white'
+                      ? 'border-amber-500 hover:border-amber-600 bg-card'
                       : task.priority === 1
-                      ? 'border-blue-500 hover:border-blue-600 bg-white'
-                      : 'border-gray-400 hover:border-black bg-white'
+                      ? 'border-blue-500 hover:border-blue-600 bg-card'
+                      : 'border-muted-foreground/50 hover:border-foreground bg-card'
                   }`}
                   title={isDone ? 'بازگردانی' : 'انجام شد'}
                 >
@@ -168,17 +168,17 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                           handleTogglePin();
                         }}
                         title="برداشتن سنجاق"
-                        className="shrink-0 flex items-center text-gray-700 hover:text-black cursor-pointer p-0.5 mt-0.5"
+                        className="shrink-0 flex items-center text-muted-foreground hover:text-foreground cursor-pointer p-0.5 mt-0.5"
                       >
-                        <RiPushpin2Fill className="w-3.5 h-3.5" />
+                        <RiPushpin2Fill className="w-3.5 h-3.5 text-primary" />
                       </button>
                     )}
 
                     <span
                       className={`text-[13.5px] font-medium leading-snug transition-all break-words ${
                         isDone
-                          ? 'line-through text-gray-400 font-normal'
-                          : 'text-gray-900'
+                          ? 'line-through text-muted-foreground font-normal'
+                          : 'text-foreground'
                       }`}
                     >
                       {stripMarkdownForPreview(task.title)}
@@ -189,7 +189,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   {task.description && task.description.trim() && (
                     <p
                       className={`text-[12px] font-normal leading-relaxed mt-2 select-none break-words line-clamp-2 ${
-                        isDone ? 'line-through text-gray-300' : 'text-gray-400'
+                        isDone ? 'line-through text-muted-foreground/50' : 'text-muted-foreground'
                       }`}
                     >
                       {stripMarkdownForPreview(task.description)}
@@ -200,7 +200,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
 
               {/* 2. LEFT SIDE in RTL: Date/Time display */}
               {dateDisplay && (
-                <span className="text-[12px] text-gray-400 font-normal select-none shrink-0 mt-0.5 mr-2">
+                <span className="text-[12px] text-muted-foreground font-normal select-none shrink-0 mt-0.5 mr-2">
                   {dateDisplay}
                 </span>
               )}

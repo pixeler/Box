@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCreateBlockNote } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import { faDictionary } from '@/lib/editor/faDictionary';
@@ -106,6 +106,23 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     }
   }, [editor, editable]);
 
+  // Reactive theme detection for BlockNote (dark vs light)
+  const [isDark, setIsDark] = useState(() =>
+    typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : false
+  );
+
+  useEffect(() => {
+    if (typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme'],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
       dir="rtl"
@@ -114,7 +131,7 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     >
       <BlockNoteView
         editor={editor}
-        theme="light"
+        theme={isDark ? 'dark' : 'light'}
         className="w-full text-right"
       />
     </div>

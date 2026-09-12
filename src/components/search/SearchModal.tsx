@@ -114,24 +114,24 @@ export const SearchModal: React.FC<SearchModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full max-w-md bg-card text-card-foreground rounded-3xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[80vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Search Input */}
-        <div className="p-4 border-b border-gray-100 flex items-center gap-3">
-          <RiSearchLine className="w-5 h-5 text-gray-400 shrink-0" />
+        <div className="p-4 border-b border-border flex items-center gap-3">
+          <RiSearchLine className="w-5 h-5 text-muted-foreground shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
             placeholder="جستجوی آنی در تمام تسک‌ها، یادداشت‌ها و رویدادها..."
-            className="w-full text-sm outline-none text-gray-900 placeholder-gray-400 font-sans"
+            className="w-full text-sm outline-none text-foreground placeholder-muted-foreground font-sans bg-transparent"
             dir="rtl"
           />
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
           >
             <RiCloseLine className="w-5 h-5" />
           </button>
@@ -140,11 +140,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         {/* Results List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[220px]">
           {query.trim() === '' ? (
-            <div className="py-12 text-center text-xs text-gray-400">
+            <div className="py-12 text-center text-xs text-muted-foreground">
               یک کلمه، هشتگ یا عبارت را جستجو کنید.
             </div>
           ) : results.length === 0 ? (
-            <div className="py-12 text-center text-xs text-gray-400">
+            <div className="py-12 text-center text-xs text-muted-foreground">
               موردی مطابق با «{query}» پیدا نشد.
             </div>
           ) : (
@@ -157,25 +157,25 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                   }
                   onClose();
                 }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 cursor-pointer transition-colors border border-transparent hover:border-gray-200"
+                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary/70 cursor-pointer transition-colors border border-transparent hover:border-border"
               >
-                <div className="p-2 rounded-xl bg-gray-100 text-gray-600 shrink-0">
-                  {res.type === 'task' && <RiCheckboxCircleLine className="w-4 h-4 text-emerald-600" />}
-                  {res.type === 'note' && <RiStickyNoteLine className="w-4 h-4 text-blue-600" />}
-                  {res.type === 'event' && <RiCalendarEventLine className="w-4 h-4 text-purple-600" />}
+                <div className="p-2 rounded-xl bg-secondary text-secondary-foreground shrink-0">
+                  {res.type === 'task' && <RiCheckboxCircleLine className="w-4 h-4 text-emerald-500" />}
+                  {res.type === 'note' && <RiStickyNoteLine className="w-4 h-4 text-blue-500" />}
+                  {res.type === 'event' && <RiCalendarEventLine className="w-4 h-4 text-purple-500" />}
                 </div>
 
                 <div className="flex-1 min-w-0 text-right">
-                  <p className="text-sm font-bold text-gray-900 truncate">
+                  <p className="text-sm font-bold text-foreground truncate">
                     {res.title}
                   </p>
-                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
                     {res.content}
                   </p>
                 </div>
 
                 {res.date && (
-                  <span className="text-[11px] text-gray-400 font-mono shrink-0">
+                  <span className="text-[11px] text-muted-foreground font-mono shrink-0">
                     {res.date}
                   </span>
                 )}

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   type WeekDayInfo,
   getWeekDaysForDate,
@@ -40,63 +40,116 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
     onSelectDate(formatJalaliKey(nextJalali));
   };
 
-  // Touch and Mouse swipe/drag support for week navigation
-  const touchStartX = useRef<number | null>(null);
-  const mouseStartX = useRef<number | null>(null);
-  const isDraggingMouse = useRef(false);
+  // State for visual drag translation
+  const [dragOffset, setDragOffset] = useState<number>(0);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+  // Gesture tracking refs
+  const pointerStartX = useRef<number | null>(null);
+  const pointerStartY = useRef<number | null>(null);
+  const isHorizontalMove = useRef<boolean | null>(null);
+  const hasDraggedFar = useRef<boolean>(false);
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const diff = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(diff) > 35) {
-      if (diff > 0) {
-        // Swiped right (in RTL: previous week)
-        goToPrevWeek();
-      } else {
-        // Swiped left (in RTL: next week)
-        goToNextWeek();
-      }
-    }
-    touchStartX.current = null;
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    mouseStartX.current = e.clientX;
-    isDraggingMouse.current = true;
+    pointerStartX.current = e.clientX;
+    pointerStartY.current = e.clientY;
+    isHorizontalMove.current = null;
+    hasDraggedFar.current = false;
+    setIsDragging(true);
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDraggingMouse.current || mouseStartX.current === null) return;
-    const diff = e.clientX - mouseStartX.current;
-    if (Math.abs(diff) > 35) {
-      if (diff > 0) {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerStartX.current === null || pointerStartY.current === null) return;
+    const deltaX = e.clientX - pointerStartX.current;
+    const deltaY = e.clientY - pointerStartY.current;
+
+    if (isHorizontalMove.current === null) {
+      if (Math.abs(deltaX) > 6 || Math.abs(deltaY) > 6) {
+        if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+          isHorizontalMove.current = true;
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {}
+        } else {
+          isHorizontalMove.current = false;
+        }
+      }
+    }
+
+    if (isHorizontalMove.current) {
+      if (Math.abs(deltaX) > 8) {
+        hasDraggedFar.current = true;
+      }
+      // Damped horizontal offset (max 80px)
+      const damped = Math.sign(deltaX) * Math.min(Math.abs(deltaX) * 0.85, 80);
+      setDragOffset(damped);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointerStartX.current === null) return;
+    const deltaX = dragOffset;
+
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {}
+
+    pointerStartX.current = null;
+    pointerStartY.current = null;
+    setIsDragging(false);
+
+    // Threshold of 30px to switch week
+    if (Math.abs(deltaX) >= 30) {
+      if (deltaX > 0) {
+        // Dragged to right in RTL -> previous week
         goToPrevWeek();
       } else {
+        // Dragged to left in RTL -> next week
         goToNextWeek();
       }
     }
-    mouseStartX.current = null;
-    isDraggingMouse.current = false;
+
+    // Reset translation back to 0
+    setDragOffset(0);
+
+    // Keep hasDraggedFar flag active for 150ms to prevent accidental click on day buttons
+    setTimeout(() => {
+      hasDraggedFar.current = false;
+    }, 150);
+  };
+
+  const handlePointerCancel = () => {
+    pointerStartX.current = null;
+    pointerStartY.current = null;
+    setIsDragging(false);
+    setDragOffset(0);
+    setTimeout(() => {
+      hasDraggedFar.current = false;
+    }, 150);
   };
 
   return (
     <div
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      className="w-full flex flex-col items-center pt-1 pb-1 select-none cursor-grab active:cursor-grabbing"
-      title="برای تغییر هفته به چپ یا راست بکشید"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      style={{ touchAction: 'pan-y' }}
+      className={`w-full flex flex-col items-center pt-1 pb-1 select-none ${
+        isDragging ? 'cursor-grabbing' : 'cursor-grab'
+      }`}
+      title="برای رفتن به هفته قبل یا بعد، به چپ یا راست بکشید"
     >
-      {/* 7 Days of the week in Persian order (شنبه to جمعه) */}
+      {/* 7 Days of the week in Persian order (شنبه to جمعه) with drag translation */}
       <div
-        key={weekDays[0]?.formattedDate}
-        className="w-full flex items-center justify-between px-0.5"
+        style={{
+          transform: `translateX(${dragOffset}px)`,
+          transition: isDragging ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+        className="w-full flex items-center justify-between px-6 will-change-transform"
       >
         {weekDays.map((day) => {
           const todayKey = getTodayJalaliKey();
@@ -110,33 +163,40 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
           return (
             <button
               key={day.formattedDate}
-              onClick={() => onSelectDate(day.formattedDate)}
+              type="button"
+              onClick={(e) => {
+                if (hasDraggedFar.current) {
+                  e.preventDefault();
+                  return;
+                }
+                onSelectDate(day.formattedDate);
+              }}
               className="group flex flex-col items-center justify-center flex-1 outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none select-none cursor-pointer"
             >
-              {/* Capsule container (encompasses day letter, number and absolute event dot within 40x48px) */}
+              {/* Capsule container */}
               <div
                 className={`relative w-[40px] h-[48px] rounded-full flex flex-col items-center justify-center transition-all duration-150 border-[1.5px] ${
                   isSelected
-                    ? 'add-btn-dark-glass text-white shadow-xs border-transparent'
+                    ? 'theme-glass-pill border-transparent'
                     : isToday
                     ? isHoliday
-                      ? 'border-rose-400 text-rose-600 bg-transparent font-bold'
-                      : 'border-gray-400 dark:border-gray-500 text-gray-900 bg-transparent font-bold'
-                    : 'border-transparent bg-transparent text-gray-700'
+                      ? 'border-rose-400 text-rose-500 bg-transparent font-bold'
+                      : 'border-border text-foreground bg-transparent font-bold'
+                    : 'border-transparent bg-transparent text-foreground/80'
                 }`}
               >
-                {/* 1. Day Abbreviation Letter on TOP */}
+                {/* 1. Day Abbreviation Letter on TOP (Bright white text when selected) */}
                 <span
                   className={`text-[12px] leading-none transition-colors ${
                     isSelected
-                      ? 'text-gray-200 font-medium'
+                      ? 'text-white font-medium'
                       : isToday
                       ? isHoliday
-                        ? 'text-rose-600 font-bold'
-                        : 'text-gray-900 font-bold'
+                        ? 'text-rose-500 font-bold'
+                        : 'text-foreground font-bold'
                       : isHoliday
                       ? 'text-rose-500 font-medium'
-                      : 'text-gray-400 group-hover:text-gray-600'
+                      : 'text-muted-foreground group-hover:text-foreground'
                   }`}
                 >
                   {day.dayShortName}
@@ -145,18 +205,18 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
                 {/* Gap between title and number */}
                 <div className="h-[5px]" />
 
-                {/* 2. Day Number BELOW letter */}
+                {/* 2. Day Number BELOW letter (Bright white bold text when selected) */}
                 <span
                   className={`text-[15px] leading-none transition-colors ${
                     isSelected
                       ? 'text-white font-bold'
                       : isToday
                       ? isHoliday
-                        ? 'text-rose-600 font-bold'
-                        : 'text-gray-900 font-bold'
+                        ? 'text-rose-500 font-bold'
+                        : 'text-foreground font-bold'
                       : isHoliday
                       ? 'text-rose-500 font-medium'
-                      : 'text-gray-700 font-medium group-hover:text-black'
+                      : 'text-foreground/85 font-medium group-hover:text-foreground'
                   }`}
                 >
                   {toPersianDigits(day.dayNumber)}
@@ -164,7 +224,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
 
                 {/* 3. Event dot indicator with absolute positioning */}
                 {!isSelected && hasDot && (
-                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-gray-400/90 pointer-events-none" />
+                  <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-muted-foreground/80 pointer-events-none" />
                 )}
               </div>
             </button>

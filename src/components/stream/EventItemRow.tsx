@@ -48,7 +48,7 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDrop={onDrop}
-      className="w-full border-b border-dotted border-gray-200 py-3.5 px-1 select-none hover:bg-black/[0.015] transition-colors cursor-pointer"
+      className="w-full border-b border-dotted border-border py-3.5 px-6 select-none stream-row-hover cursor-pointer"
     >
       <div className="flex items-center justify-between w-full">
         {/* 1. RIGHT SIDE in RTL: Dashed rounded square + Title */}
@@ -59,8 +59,8 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
             onClick={() => setChecked(!checked)}
             className={`w-5 h-5 rounded-[5px] border border-dashed flex items-center justify-center shrink-0 transition-all cursor-pointer ${
               checked
-                ? 'border-gray-800 bg-gray-50 text-gray-800'
-                : 'border-gray-400 hover:border-gray-700 bg-white'
+                ? 'border-primary bg-secondary text-primary'
+                : 'border-muted-foreground/50 hover:border-foreground bg-card'
             }`}
           >
             {checked && <RiCheckLine className="w-3.5 h-3.5 stroke-[2.5]" />}
@@ -69,7 +69,7 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
           {/* Title */}
           <span
             className={`text-[13.5px] font-medium transition-all ${
-              checked ? 'line-through text-gray-400 font-normal' : 'text-gray-900'
+              checked ? 'line-through text-muted-foreground font-normal' : 'text-foreground'
             }`}
           >
             {event.title}
@@ -77,7 +77,7 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
         </div>
 
         {/* 2. LEFT SIDE in RTL: Time (۱۲:۰۰ شب) */}
-        <span className="text-[12px] text-gray-400 font-normal">
+        <span className="text-[12px] text-muted-foreground font-normal">
           {timeDisplay}
         </span>
       </div>

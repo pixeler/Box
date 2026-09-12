@@ -1,7 +1,7 @@
 import { db } from '@/lib/db/dexie';
 import type { Task, TaskFilter } from '@/types/models';
 import type { TaskRepository } from '../interfaces';
-import { getTodayJalaliKey } from '@/lib/jalali';
+import { getTodayJalaliKey, extractDateOnly } from '@/lib/jalali';
 
 export class DexieTaskRepository implements TaskRepository {
   async create(taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
@@ -124,21 +124,31 @@ export class DexieTaskRepository implements TaskRepository {
   }
 
   async getOverdueOpen(beforeDate: string): Promise<Task[]> {
+    const normBefore = extractDateOnly(beforeDate);
     const allOpen = await db.tasks.where('status').equals('open').toArray();
     return allOpen
-      .filter((t): t is Task & { due_date: string } => !!t.due_date && t.due_date < beforeDate)
+      .filter((t): t is Task & { due_date: string } => {
+        if (!t.due_date) return false;
+        const taskDate = extractDateOnly(t.due_date);
+        return taskDate !== '' && taskDate < normBefore;
+      })
       .sort((a, b) => {
-        const dateCmp = a.due_date.localeCompare(b.due_date);
+        const dateCmp = extractDateOnly(a.due_date).localeCompare(extractDateOnly(b.due_date));
         if (dateCmp !== 0) return dateCmp;
         return (b.priority || 0) - (a.priority || 0);
       });
   }
 
   async getFutureOpen(afterDate: string): Promise<Task[]> {
+    const normAfter = extractDateOnly(afterDate);
     const allOpen = await db.tasks.where('status').equals('open').toArray();
     return allOpen
-      .filter((t): t is Task & { due_date: string } => !!t.due_date && t.due_date > afterDate)
-      .sort((a, b) => a.due_date.localeCompare(b.due_date));
+      .filter((t): t is Task & { due_date: string } => {
+        if (!t.due_date) return false;
+        const taskDate = extractDateOnly(t.due_date);
+        return taskDate !== '' && taskDate > normAfter;
+      })
+      .sort((a, b) => extractDateOnly(a.due_date).localeCompare(extractDateOnly(b.due_date)));
   }
 
   async duplicate(id: string): Promise<Task> {

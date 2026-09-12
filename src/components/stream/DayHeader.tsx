@@ -25,10 +25,10 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   const dayHolidays = getHolidaysForDate(selectedDateKey);
 
   return (
-    <div className="w-full flex items-center justify-between mt-5 mb-2 relative select-none">
+    <div className="w-full flex items-center justify-between mt-5 mb-2 relative select-none px-6">
       {/* 1. Date title and occasions on the FAR RIGHT (First child in RTL) */}
       <div className="flex flex-col text-right">
-        <h2 className="text-[14px] font-semibold text-gray-900 tracking-tight">
+        <h2 className="text-[14px] font-semibold text-foreground tracking-tight">
           {formattedDate}
         </h2>
         {dayHolidays.length > 0 && (
@@ -37,7 +37,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
               <span
                 key={i}
                 className={`inline-flex items-center gap-1 text-[11px] font-medium ${
-                  h.isOfficial ? 'text-rose-600' : 'text-emerald-700'
+                  h.isOfficial ? 'text-rose-500' : 'text-emerald-500'
                 }`}
               >
                 <span
@@ -56,10 +56,10 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
       <div className="relative">
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="p-1 rounded-lg text-gray-700 hover:text-black hover:bg-gray-100 transition-colors flex items-center justify-center cursor-pointer"
+          className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors flex items-center justify-center cursor-pointer"
           title="فیلتر و مرتب‌سازی"
         >
-          <RiFilter3Line className="w-5 h-5 text-gray-700" />
+          <RiFilter3Line className="w-5 h-5 text-muted-foreground" />
         </button>
 
         {/* Dropdown Menu */}
@@ -69,8 +69,8 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
               className="fixed inset-0 z-20"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute left-0 mt-1.5 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl z-30 p-2 text-xs">
-              <div className="px-2 py-1 text-[11px] font-semibold text-gray-400">
+            <div className="absolute left-0 mt-1.5 w-48 bg-popover text-popover-foreground border border-border rounded-2xl shadow-xl z-30 p-2 text-xs">
+              <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground">
                 فیلتر بر اساس نوع
               </div>
               <button
@@ -78,45 +78,45 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                   onFilterTypeChange('all');
                   setMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700 cursor-pointer"
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-secondary text-foreground cursor-pointer"
               >
                 <span>همه موارد</span>
-                {filterType === 'all' && <RiCheckLine className="w-3.5 h-3.5 text-black" />}
+                {filterType === 'all' && <RiCheckLine className="w-3.5 h-3.5 text-primary" />}
               </button>
               <button
                 onClick={() => {
                   onFilterTypeChange('task');
                   setMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700 cursor-pointer"
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-secondary text-foreground cursor-pointer"
               >
                 <span>فقط تسک‌ها</span>
-                {filterType === 'task' && <RiCheckLine className="w-3.5 h-3.5 text-black" />}
+                {filterType === 'task' && <RiCheckLine className="w-3.5 h-3.5 text-primary" />}
               </button>
               <button
                 onClick={() => {
                   onFilterTypeChange('note');
                   setMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700 cursor-pointer"
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-secondary text-foreground cursor-pointer"
               >
                 <span>فقط یادداشت‌ها</span>
-                {filterType === 'note' && <RiCheckLine className="w-3.5 h-3.5 text-black" />}
+                {filterType === 'note' && <RiCheckLine className="w-3.5 h-3.5 text-primary" />}
               </button>
               <button
                 onClick={() => {
                   onFilterTypeChange('event');
                   setMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700 cursor-pointer"
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-secondary text-foreground cursor-pointer"
               >
                 <span>فقط رویدادها</span>
-                {filterType === 'event' && <RiCheckLine className="w-3.5 h-3.5 text-black" />}
+                {filterType === 'event' && <RiCheckLine className="w-3.5 h-3.5 text-primary" />}
               </button>
 
-              <div className="border-t border-gray-100 my-1.5" />
+              <div className="border-t border-border my-1.5" />
 
-              <div className="px-2 py-1 text-[11px] font-semibold text-gray-400">
+              <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground">
                 مرتب‌سازی
               </div>
               <button
@@ -124,20 +124,20 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
                   onSortByChange('priority');
                   setMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700 cursor-pointer"
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-secondary text-foreground cursor-pointer"
               >
                 <span>بر اساس اولویت</span>
-                {sortBy === 'priority' && <RiCheckLine className="w-3.5 h-3.5 text-black" />}
+                {sortBy === 'priority' && <RiCheckLine className="w-3.5 h-3.5 text-primary" />}
               </button>
               <button
                 onClick={() => {
                   onSortByChange('created');
                   setMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 text-gray-700 cursor-pointer"
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-secondary text-foreground cursor-pointer"
               >
                 <span>جدیدترین به قدیمی‌ترین</span>
-                {sortBy === 'created' && <RiCheckLine className="w-3.5 h-3.5 text-black" />}
+                {sortBy === 'created' && <RiCheckLine className="w-3.5 h-3.5 text-primary" />}
               </button>
             </div>
           </>

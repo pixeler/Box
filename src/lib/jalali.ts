@@ -103,6 +103,16 @@ export function formatJalaliKey(j: JalaliDate): string {
 }
 
 /**
+ * استخراج بخش تاریخ استاندارد جلالی به صورت YYYY/MM/DD از هر رشته تاریخ/زمان
+ */
+export function extractDateOnly(dateStr?: string | null): string {
+  if (!dateStr) return '';
+  const m = dateStr.match(/(\d{4})[/\\-](\d{1,2})[/\\-](\d{1,2})/);
+  if (!m) return dateStr.slice(0, 10);
+  return `${m[1]}/${m[2].padStart(2, '0')}/${m[3].padStart(2, '0')}`;
+}
+
+/**
  * تبدیل کلید "1404/10/30" به شیء JalaliDate
  */
 export function parseJalaliKey(key: string): JalaliDate {

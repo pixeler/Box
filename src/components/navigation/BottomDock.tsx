@@ -270,14 +270,14 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           onClick={() => onTabChange(activeTab === 'notebook' ? 'day' : 'notebook')}
           className={`h-12 px-3.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
             activeTab === 'notebook'
-              ? 'liquid-glass-pill-active text-[#f95721]'
-              : 'text-gray-600 hover:text-gray-950 hover:bg-white/40 active:scale-95'
+              ? 'liquid-glass-pill-active text-primary'
+              : 'text-foreground/75 hover:text-foreground hover:bg-foreground/10 active:scale-95'
           }`}
           title="دفترچه یادداشت و آرشیو"
         >
           <RiInboxLine
             className={`w-[22px] h-[22px] transition-colors ${
-              activeTab === 'notebook' ? 'text-[#f95721]' : 'text-gray-700'
+              activeTab === 'notebook' ? 'text-primary' : 'text-foreground/75'
             }`}
           />
         </button>
@@ -287,14 +287,14 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           <button
             type="button"
             onClick={onOpenAdd}
-            className="h-[48px] px-6 rounded-full text-white flex items-center justify-center gap-1 font-medium cursor-pointer select-none add-btn-dark-glass"
+            className="h-[48px] px-6 rounded-full flex items-center justify-center gap-1 font-medium cursor-pointer select-none theme-glass-pill theme-add-btn"
             title="اضافه کردن (N)"
           >
-            <RiAddLine className="w-[18px] h-[18px] text-white stroke-[0.5]" />
-            <span className="text-[13.5px] font-medium tracking-tight text-white">
+            <RiAddLine className="w-[18px] h-[18px] stroke-[0.5]" />
+            <span className="text-[13.5px] font-medium tracking-tight">
               اضافه کردن
             </span>
-            <kbd className="hidden sm:inline-flex items-center justify-center text-[10px] font-bold text-white/80 bg-white/15 px-1.5 py-0.5 rounded mr-1 font-mono tracking-normal select-none">
+            <kbd className="hidden sm:inline-flex items-center justify-center text-[10px] font-bold text-current/80 bg-black/15 dark:bg-white/20 px-1.5 py-0.5 rounded mr-1 font-mono tracking-normal select-none">
               N
             </kbd>
           </button>
@@ -306,14 +306,14 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}
           className={`h-12 px-3.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
             activeTab === 'profile'
-              ? 'liquid-glass-pill-active text-[#f95721]'
-              : 'text-gray-600 hover:text-gray-950 hover:bg-white/40 active:scale-95'
+              ? 'liquid-glass-pill-active text-primary'
+              : 'text-foreground/75 hover:text-foreground hover:bg-foreground/10 active:scale-95'
           }`}
           title="پروفایل و تنظیمات"
         >
           <RiUser3Line
             className={`w-[22px] h-[22px] transition-colors ${
-              activeTab === 'profile' ? 'text-[#f95721]' : 'text-gray-700'
+              activeTab === 'profile' ? 'text-primary' : 'text-foreground/75'
             }`}
           />
         </button>

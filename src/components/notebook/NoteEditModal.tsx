@@ -270,7 +270,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
+        className={`bg-card text-card-foreground border-t border-border font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
           isFullscreen
             ? 'fixed inset-0 z-50 w-full h-full pb-5 px-6 pt-6 md:px-16 lg:px-24'
             : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] ${
@@ -331,7 +331,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                 }
               }}
               placeholder="چی تو ذهنته؟"
-              className={`w-full font-bold text-gray-900 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal transition-all ${
+              className={`w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground placeholder:font-normal transition-all ${
                 isFullscreen ? 'text-2xl md:text-3xl pl-32' : 'text-xl pl-24'
               }`}
               dir="rtl"
@@ -410,7 +410,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
             </div>
 
             {/* BlockNote Notion-like Editor */}
-            <div className={`flex-1 overflow-y-auto mt-4 border-t border-gray-100/70 pt-3 ${
+            <div className={`flex-1 overflow-y-auto mt-4 border-t border-border/70 pt-3 ${
               isFullscreen ? 'min-h-[300px]' : 'min-h-[180px] max-h-[46vh]'
             }`}>
               <BlockNoteEditor

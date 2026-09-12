@@ -116,20 +116,20 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
       <div className="w-full">
         <button
           onClick={() => setOpenPrevious(!openPrevious)}
-          className="w-full flex items-center justify-between py-2 transition-colors cursor-pointer text-right"
+          className="w-full flex items-center justify-between py-2 px-6 transition-colors cursor-pointer text-right"
         >
           {/* 1. Text and count on FAR RIGHT (First child in RTL) */}
           <div className="flex items-center gap-2">
-            <span className="text-gray-700 font-medium text-[13.5px]">
+            <span className="text-foreground font-medium text-[13.5px]">
               از روزهای قبل
             </span>
-            <span className="text-gray-400 font-normal text-[13px]">
+            <span className="text-muted-foreground font-normal text-[13px]">
               {toPersianDigits(overdueCount)}
             </span>
           </div>
 
           {/* 2. Chevron on FAR LEFT (Second child in RTL) */}
-          <div className="text-gray-400">
+          <div className="text-muted-foreground">
             {openPrevious ? (
               <RiArrowUpSLine className="w-4 h-4" />
             ) : (
@@ -140,7 +140,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
 
         {openPrevious && (
           <div
-            className="pt-2 pr-1 space-y-1"
+            className="pt-1 w-full"
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = 'move';
@@ -159,7 +159,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
             }}
           >
             {localOverdueTasks.length === 0 ? (
-              <p className="text-xs text-gray-400 py-2">موردی برای نمایش وجود ندارد.</p>
+              <p className="text-xs text-muted-foreground py-2 px-6">موردی برای نمایش وجود ندارد.</p>
             ) : (
               <>
                 {dropSlotOverdueIndex === 0 &&
@@ -180,7 +180,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                           const targetSlot = isLowerHalf ? idx + 1 : idx;
                           handleDropAtSlot(e, targetSlot);
                         }}
-                        className={`transition-opacity duration-150 relative rounded-xl ${
+                        className={`transition-opacity duration-150 relative w-full ${
                           isDragging ? 'opacity-30' : 'opacity-100'
                         }`}
                       >
@@ -216,20 +216,20 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
       <div className="w-full">
         <button
           onClick={() => setOpenFuture(!openFuture)}
-          className="w-full flex items-center justify-between py-2 transition-colors cursor-pointer text-right"
+          className="w-full flex items-center justify-between py-2 px-6 transition-colors cursor-pointer text-right"
         >
           {/* 1. Text on FAR RIGHT (First child in RTL) */}
           <div className="flex items-center gap-2">
-            <span className="text-gray-700 font-medium text-[13.5px]">
+            <span className="text-foreground font-medium text-[13.5px]">
               برای بعدا
             </span>
-            <span className="text-gray-400 font-normal text-[13px]">
+            <span className="text-muted-foreground font-normal text-[13px]">
               {toPersianDigits(futureTaskCount + futureEventCount)}
             </span>
           </div>
 
           {/* 2. Chevron on FAR LEFT (Second child in RTL) */}
-          <div className="text-gray-400">
+          <div className="text-muted-foreground">
             {openFuture ? (
               <RiArrowUpSLine className="w-4 h-4" />
             ) : (
@@ -239,9 +239,9 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
         </button>
 
         {openFuture && (
-          <div className="pt-2 pr-1 space-y-1">
+          <div className="pt-1 w-full">
             {futureTasks.length === 0 && futureEvents.length === 0 ? (
-              <p className="text-xs text-gray-400 py-2">موردی برای نمایش وجود ندارد.</p>
+              <p className="text-xs text-muted-foreground py-2">موردی برای نمایش وجود ندارد.</p>
             ) : (
               <>
                 {futureTasks.map((task) => (

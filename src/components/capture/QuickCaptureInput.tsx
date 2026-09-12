@@ -292,10 +292,10 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
+        className={`bg-card text-card-foreground font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
           isFullscreen && activeTab === 'note'
             ? 'fixed inset-0 z-50 w-full h-full pb-5 px-6 pt-6 md:px-16 lg:px-24'
-            : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] ${
+            : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] border-t border-border ${
                 isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
               }`
         }`}

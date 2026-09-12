@@ -63,17 +63,17 @@ export const NotebookView: React.FC = () => {
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <RiBookletLine className="w-5 h-5 text-gray-800" />
-            <h2 className="text-base font-bold text-gray-900">دفترچه یادداشت و ایده‌ها</h2>
+            <RiBookletLine className="w-5 h-5 text-foreground" />
+            <h2 className="text-base font-bold text-foreground">دفترچه یادداشت و ایده‌ها</h2>
           </div>
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted-foreground">
             {notes.length} یادداشت
           </span>
         </div>
 
         {/* Quick note creator */}
         <form onSubmit={handleCreateNote} className="mb-4">
-          <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-3 focus-within:border-gray-400 transition-colors">
+          <div className="w-full bg-secondary/60 border border-border rounded-2xl p-3 focus-within:border-primary/60 transition-colors">
             <textarea
               value={newNoteText}
               onChange={(e) => setNewNoteText(e.target.value)}
@@ -86,15 +86,15 @@ export const NotebookView: React.FC = () => {
               }}
               placeholder="نوشتن یک فکر، یادداشت یا ایده جدید... (Enter برای ثبت)"
               rows={2}
-              className="w-full bg-transparent text-sm outline-none resize-none text-gray-800 placeholder-gray-400"
+              className="w-full bg-transparent text-sm outline-none resize-none text-foreground placeholder-muted-foreground"
               dir="rtl"
             />
-            <div className="flex items-center justify-between pt-2 border-t border-gray-200/60 mt-1">
+            <div className="flex items-center justify-between pt-2 border-t border-border/60 mt-1">
               <div className="flex items-center gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => setNoteType(noteType === 'note' ? 'idea' : 'note')}
-                  className="flex items-center gap-1 text-gray-600 hover:text-black font-medium"
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground font-medium cursor-pointer"
                 >
                   <RiLightbulbLine className="w-3.5 h-3.5 text-amber-500" />
                   <span>{noteType === 'idea' ? 'نوع: ایده' : 'نوع: یادداشت'}</span>
@@ -104,7 +104,7 @@ export const NotebookView: React.FC = () => {
               <button
                 type="submit"
                 disabled={!newNoteText.trim()}
-                className="px-3 py-1 rounded-xl bg-black text-white text-xs font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors flex items-center gap-1"
+                className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <span>ثبت</span>
                 <RiAddLine className="w-3.5 h-3.5" />
@@ -118,10 +118,10 @@ export const NotebookView: React.FC = () => {
           <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-3">
             <button
               onClick={() => setSelectedTag(null)}
-              className={`text-xs px-2.5 py-1 rounded-lg transition-colors shrink-0 ${
+              className={`text-xs px-2.5 py-1 rounded-lg transition-colors shrink-0 cursor-pointer ${
                 selectedTag === null
-                  ? 'bg-black text-white font-bold'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-primary text-primary-foreground font-bold'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
               }`}
             >
               همه
@@ -130,10 +130,10 @@ export const NotebookView: React.FC = () => {
               <button
                 key={tag.id}
                 onClick={() => setSelectedTag(tag.id === selectedTag ? null : tag.id)}
-                className={`text-xs px-2.5 py-1 rounded-lg transition-colors shrink-0 flex items-center gap-1 ${
+                className={`text-xs px-2.5 py-1 rounded-lg transition-colors shrink-0 flex items-center gap-1 cursor-pointer ${
                   selectedTag === tag.id
-                    ? 'bg-black text-white font-bold'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-primary text-primary-foreground font-bold'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                 }`}
               >
                 <RiPriceTag3Line className="w-3 h-3" />
@@ -146,7 +146,7 @@ export const NotebookView: React.FC = () => {
         {/* Notes list */}
         <div className="space-y-1">
           {filteredNotes.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 text-xs">
+            <div className="py-12 text-center text-muted-foreground text-xs">
               هنوز یادداشتی در این بخش ثبت نشده است.
             </div>
           ) : (

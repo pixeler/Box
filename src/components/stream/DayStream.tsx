@@ -378,25 +378,25 @@ export const DayStream: React.FC<DayStreamProps> = ({
             >
               <RiCalendarLine
                 className={`w-7 h-7 mb-3 transition-colors duration-200 ${
-                  isDragOverEmpty ? 'text-gray-600' : 'text-gray-400'
+                  isDragOverEmpty ? 'text-foreground' : 'text-muted-foreground'
                 }`}
               />
 
               {isDragOverEmpty ? (
-                <p className="text-[12px] text-gray-400 font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
+                <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
                   {isToday
                     ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
                     : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
                 </p>
               ) : (
-                <p className="text-[12px] text-gray-400 font-normal leading-relaxed max-w-[340px] mx-auto">
+                <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto">
                   {isToday ? (
                     <>
                       <span>می‌تونی از دکمه </span>
                       <button
                         type="button"
                         onClick={onOpenAdd}
-                        className="font-bold text-gray-800 underline underline-offset-4 decoration-gray-400 hover:decoration-gray-800 transition-colors cursor-pointer inline"
+                        className="font-bold text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors cursor-pointer inline"
                       >
                         اضافه کردن
                       </button>
@@ -408,7 +408,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                       <button
                         type="button"
                         onClick={onOpenAdd}
-                        className="font-bold text-gray-800 underline underline-offset-4 decoration-gray-400 hover:decoration-gray-800 transition-colors cursor-pointer inline"
+                        className="font-bold text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors cursor-pointer inline"
                       >
                         اضافه کردن
                       </button>

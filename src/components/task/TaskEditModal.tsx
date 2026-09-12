@@ -254,7 +254,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full bg-white rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 font-sans text-right flex flex-col min-h-[440px] max-h-[92%] overflow-hidden ${
+        className={`relative w-full bg-card text-card-foreground border-t border-border rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 font-sans text-right flex flex-col min-h-[440px] max-h-[92%] overflow-hidden ${
           isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
         }`}
         dir="rtl"
@@ -299,12 +299,12 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                 }
               }}
               placeholder="چی کاره‌ای؟"
-              className="w-full text-xl font-bold text-gray-900 bg-transparent outline-none placeholder:text-gray-400 placeholder:font-normal"
+              className="w-full text-xl font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground placeholder:font-normal"
               dir="rtl"
             />
 
             {/* BlockNote Description Editor */}
-            <div className="flex-1 overflow-y-auto mt-3 min-h-[140px] max-h-[38vh] border-t border-gray-100/70 pt-2">
+            <div className="flex-1 overflow-y-auto mt-3 min-h-[140px] max-h-[38vh] border-t border-border/70 pt-2">
               <BlockNoteEditor
                 key={`${task.id}-${isOpen ? 'open' : 'closed'}`}
                 initialContent={description}
