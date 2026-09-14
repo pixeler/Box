@@ -225,6 +225,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     totalNotes: 0,
     totalEvents: 0,
   });
+  const [unsplashModalOpen, setUnsplashModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Drag hooks for horizontal theme & wallpaper rails
@@ -345,7 +346,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
-  const [unsplashModalOpen, setUnsplashModalOpen] = useState(false);
   const cachedUnsplashUrl = localStorage.getItem('second_brain_cached_unsplash_wallpaper');
   const cachedUnsplashTitle =
     localStorage.getItem('second_brain_custom_wallpaper_title') || 'Unsplash';
