@@ -120,10 +120,10 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
         >
           {/* 1. Text and count on FAR RIGHT (First child in RTL) */}
           <div className="flex items-center gap-2">
-            <span className="text-foreground font-medium text-[13.5px]">
+            <span className="text-foreground font-normal text-[12px]">
               از روزهای قبل
             </span>
-            <span className="text-muted-foreground font-normal text-[13px]">
+            <span className="text-muted-foreground font-normal text-[12px]">
               {toPersianDigits(overdueCount)}
             </span>
           </div>
@@ -220,10 +220,10 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
         >
           {/* 1. Text on FAR RIGHT (First child in RTL) */}
           <div className="flex items-center gap-2">
-            <span className="text-foreground font-medium text-[13.5px]">
+            <span className="text-foreground font-normal text-[12px]">
               برای بعدا
             </span>
-            <span className="text-muted-foreground font-normal text-[13px]">
+            <span className="text-muted-foreground font-normal text-[12px]">
               {toPersianDigits(futureTaskCount + futureEventCount)}
             </span>
           </div>

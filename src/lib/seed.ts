@@ -1,4 +1,4 @@
-import { taskRepo, noteRepo, eventRepo, tagRepo, entryRepo } from '@/repositories';
+import { taskRepo, noteRepo, eventRepo, tagRepo, entryRepo, boxRepo } from '@/repositories';
 import {
   getTodayJalaliKey,
   parseJalaliKey,
@@ -7,8 +7,61 @@ import {
   formatJalaliKey,
 } from './jalali';
 
+export async function checkAndSeedDemoBoxes() {
+  try {
+    const existingBoxes = await boxRepo.list();
+    if (existingBoxes.length === 0) {
+      const b1 = await boxRepo.create({
+        title: 'روزنوشت‌ها',
+        image: 'Box 5.png',
+        order: 1,
+      });
+
+      await boxRepo.create({
+        title: 'یوتیوب',
+        image: 'Bix 2.png',
+        icon: 'RiYoutubeFill',
+        order: 2,
+      });
+
+      await boxRepo.create({
+        title: 'دستور غذا',
+        image: 'Box6.png',
+        order: 3,
+      });
+
+
+      const b4 = await boxRepo.create({
+        title: 'روزا',
+        image: 'Box 1.png',
+        icon: 'RiSunLine',
+        badge_icon: 'RiGroupLine',
+        order: 4,
+      });
+
+      // Link existing tasks/notes to boxes if appropriate
+      const allTasks = await taskRepo.list();
+      const taskRoza = allTasks.find((t) => t.title.includes('روزا'));
+      if (taskRoza && !taskRoza.box_id) {
+        await taskRepo.update(taskRoza.id, { box_id: b4.id });
+      }
+
+      const allNotes = await noteRepo.list();
+      if (allNotes.length > 0 && !allNotes[0].box_id) {
+        await noteRepo.update(allNotes[0].id, { box_id: b1.id });
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to seed demo boxes:', err);
+  }
+}
+
+
 export async function checkAndSeedDesignDemoData() {
+  await checkAndSeedDemoBoxes();
+
   const todayKey = getTodayJalaliKey();
+
   const todayJ = parseJalaliKey(todayKey);
   const nowDate = jalaliToDate(todayJ.jy, todayJ.jm, todayJ.jd);
 
@@ -118,7 +171,9 @@ export async function checkAndSeedDesignDemoData() {
     });
 
     localStorage.setItem('second_brain_demo_seeded', 'true');
+
   } catch (err) {
     console.error('Failed to seed design demo data:', err);
   }
 }
+

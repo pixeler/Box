@@ -9,7 +9,9 @@ import { NotebookView } from './components/notebook/NotebookView';
 import { ProfileView, WALLPAPER_LIST } from './components/profile/ProfileView';
 import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
 import { SearchModal } from './components/search/SearchModal';
+import { BoxesModal } from './components/boxes/BoxesModal';
 import { ToastContainer } from './components/ui/Toast';
+
 import { taskRepo, noteRepo, eventRepo, tagRepo } from './repositories';
 import { RiCalendarEventLine, RiArrowLeftSLine } from '@remixicon/react';
 import {
@@ -49,6 +51,8 @@ export function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [boxesOpen, setBoxesOpen] = useState(false);
+  const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
 
   // Apply active theme on mount and change
   useEffect(() => {
@@ -98,7 +102,7 @@ export function App() {
         !e.altKey &&
         (e.key === 'n' || e.key === 'N' || e.key === 'د' || e.code === 'KeyN')
       ) {
-        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
+        if (!quickCaptureOpen && !searchOpen && !settingsOpen && !boxesOpen) {
           e.preventDefault();
           setQuickCaptureOpen(true);
         }
@@ -111,16 +115,30 @@ export function App() {
         !e.altKey &&
         (e.key === '/' || e.key === 'م' || e.code === 'Slash')
       ) {
-        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
+        if (!quickCaptureOpen && !searchOpen && !settingsOpen && !boxesOpen) {
           e.preventDefault();
           setSearchOpen(true);
+        }
+      }
+
+      // 4. Boxes shortcut: 'B' or Persian 'ذ' (KeyB)
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        (e.key === 'b' || e.key === 'B' || e.key === 'ذ' || e.code === 'KeyB')
+      ) {
+        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
+          e.preventDefault();
+          setBoxesOpen((prev) => !prev);
         }
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [quickCaptureOpen, searchOpen, settingsOpen]);
+  }, [quickCaptureOpen, searchOpen, settingsOpen, boxesOpen]);
+
 
   // Parallelized fetch for day data
   const fetchDayData = useCallback(async (targetDateKey: string) => {
@@ -237,53 +255,61 @@ export function App() {
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
+      {/* Top Header & Weekly Strip: Anchored in the frame at top of card */}
+      {activeTab === 'day' && (
+        <div className="w-full shrink-0 pt-6 select-none z-10">
+          {/* Top Greeting Header */}
+          <div className="w-full pb-2 px-6">
+            <div className="flex items-center justify-between min-h-[36px]">
+              {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal Dot */}
+              <div className="flex items-center gap-1.5">
+                {relativePrefix && (
+                  <>
+                    <span className="text-xl md:text-2xl font-normal text-muted-foreground">
+                      {relativePrefix}
+                    </span>
+                    <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground -mx-0.5" />
+                  </>
+                )}
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                  {currentWeekdayName}
+                </h1>
+                <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
+              </div>
+
+              {/* Left side: Capsule "بازگشت به امروز" button (visible when viewing any other day) */}
+              {isSelectedOtherThanToday && (
+                <button
+                  onClick={() => setSelectedDateKey(todayKey)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
+                  title="بازگشت به امروز"
+                >
+                  <span>بازگشت به امروز</span>
+                  <RiCalendarEventLine className="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+              )}
+            </div>
+            <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right">
+              هر روزی که شروع میشه یک فرصت تازه است!
+            </p>
+          </div>
+
+          {/* Weekly ribbon calendar */}
+          <WeeklyStrip
+            selectedDateKey={selectedDateKey}
+            onSelectDate={setSelectedDateKey}
+            datesWithItems={datesWithItems}
+          />
+        </div>
+      )}
+
       {/* Scrollable Content Area with auto-hiding flush scrollbar */}
-      <MobileScrollArea contentClassName="pt-6 pb-24 flex flex-col min-h-full">
+      <MobileScrollArea
+        className="flex-1 min-h-0"
+        contentClassName={`${activeTab === 'day' ? 'pt-2' : 'pt-6'} pb-24 flex flex-col min-h-full`}
+      >
         {activeTab === 'day' && (
           <>
-            {/* Top Greeting Header */}
-            <div className="w-full pb-2 px-6 select-none">
-              <div className="flex items-center justify-between min-h-[36px]">
-                {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal Dot */}
-                <div className="flex items-center gap-1.5">
-                  {relativePrefix && (
-                    <>
-                      <span className="text-xl md:text-2xl font-normal text-muted-foreground">
-                        {relativePrefix}
-                      </span>
-                      <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground -mx-0.5" />
-                    </>
-                  )}
-                  <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                    {currentWeekdayName}
-                  </h1>
-                  <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
-                </div>
-
-                {/* Left side: Capsule "بازگشت به امروز" button (visible when viewing any other day) */}
-                {isSelectedOtherThanToday && (
-                  <button
-                    onClick={() => setSelectedDateKey(todayKey)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
-                    title="بازگشت به امروز"
-                  >
-                    <span>بازگشت به امروز</span>
-                    <RiCalendarEventLine className="w-4 h-4 text-muted-foreground shrink-0" />
-                  </button>
-                )}
-              </div>
-              <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right">
-                هر روزی که شروع میشه یک فرصت تازه است!
-              </p>
-            </div>
-
-            {/* Weekly ribbon calendar */}
-            <WeeklyStrip
-              selectedDateKey={selectedDateKey}
-              onSelectDate={setSelectedDateKey}
-              datesWithItems={datesWithItems}
-            />
-
             {/* Pinned Items Section (سنجاق شده) - Below WeeklyStrip and above DayStream */}
             {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
               <PinnedSection
@@ -320,18 +346,35 @@ export function App() {
       {/* Floating Bottom Navigation Dock in Liquid Glass Apple style */}
       <div className="absolute bottom-5 inset-x-0 z-20 flex justify-center pointer-events-none px-4">
         <BottomDock
-          activeTab={settingsOpen ? 'profile' : activeTab}
+          activeTab={settingsOpen ? 'profile' : boxesOpen ? 'boxes' : activeTab}
+          isBoxesOpen={boxesOpen}
           onTabChange={(tab) => {
             if (tab === 'profile') {
               setSettingsOpen((prev) => !prev);
+              setBoxesOpen(false);
+            } else if (tab === 'boxes') {
+              setBoxesOpen((prev) => !prev);
+              setSettingsOpen(false);
             } else {
               setSettingsOpen(false);
+              setBoxesOpen(false);
               setActiveTab(tab);
             }
           }}
           onOpenAdd={() => setQuickCaptureOpen(true)}
         />
       </div>
+
+      {/* Boxes Modal Sheet (matching design) */}
+      <BoxesModal
+        isOpen={boxesOpen}
+        onClose={() => setBoxesOpen(false)}
+        onOpenAddForBox={(boxId) => {
+          setDefaultBoxForAdd(boxId);
+          setQuickCaptureOpen(true);
+        }}
+        tagsMap={tagsMap}
+      />
 
       {/* Settings / Profile Modal Sheet over bottom navigation */}
       <ProfileView
@@ -352,8 +395,12 @@ export function App() {
         currentSelectedDateKey={selectedDateKey}
         onItemCreated={loadDayData}
         isOpen={quickCaptureOpen}
-        onClose={() => setQuickCaptureOpen(false)}
+        onClose={() => {
+          setQuickCaptureOpen(false);
+          setDefaultBoxForAdd(null);
+        }}
         onOpen={() => setQuickCaptureOpen(true)}
+        defaultBoxId={defaultBoxForAdd}
       />
 
       {/* Search Modal */}
@@ -365,6 +412,7 @@ export function App() {
           setActiveTab('day');
         }}
       />
+
     </AppContainer>
   );
 }

@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import type { Note, Tag } from '@/types/models';
-import { noteRepo, tagRepo } from '@/repositories';
+import type { Note, Tag, Box } from '@/types/models';
+import { noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { TagPickerPopover } from '../tags/TagPickerPopover';
 import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
 import {
   RiCloseLine,
   RiPushpinLine,
@@ -29,7 +24,7 @@ interface NoteEditModalProps {
 }
 
 const extractNoteData = (n: Note | null) => {
-  if (!n) return { title: '', description: '', isPinned: false, tagIds: [] };
+  if (!n) return { title: '', description: '', isPinned: false, tagIds: [], boxId: null };
   const noteTitle = n.title?.trim() || '';
   let bodyText = '';
   if (n.description !== undefined && n.description !== null && n.description.trim() !== '') {
@@ -49,6 +44,7 @@ const extractNoteData = (n: Note | null) => {
     description: bodyText,
     isPinned: !!n.pinned,
     tagIds: n.tag_ids || [],
+    boxId: n.box_id || null,
   };
 };
 
@@ -66,12 +62,13 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   const [isPinned, setIsPinned] = useState(initialData.isPinned);
   const [tagIds, setTagIds] = useState<string[]>(initialData.tagIds);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
-  const [selectedBox, setSelectedBox] = useState<string>('');
+  const [boxes, setBoxes] = useState<Box[]>([]);
+  const [selectedBox, setSelectedBox] = useState<string>(initialData.boxId || '');
 
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
 
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const prevNoteIdRef = useRef(note?.id);
@@ -82,11 +79,13 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
     description: string;
     isPinned: boolean;
     tagIds: string[];
+    boxId: string | null;
   }>({
     title: initialData.title,
     description: initialData.description,
     isPinned: initialData.isPinned,
     tagIds: initialData.tagIds,
+    boxId: initialData.boxId,
   });
 
   useEffect(() => {
@@ -95,6 +94,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       all.forEach((t) => (m[t.id] = t));
       setTagsMap(m);
     });
+    boxRepo.list().then(setBoxes);
   }, []);
 
   // Sync only on opening or note ID change (prevents re-syncing while typing)
@@ -108,16 +108,22 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       setDescription(data.description);
       setIsPinned(data.isPinned);
       setTagIds(data.tagIds);
+      setSelectedBox(data.boxId || '');
       setIsClosing(false);
       lastSavedRef.current = {
         title: data.title,
         description: data.description,
         isPinned: data.isPinned,
         tagIds: [...data.tagIds],
+        boxId: data.boxId,
       };
 
       const timer = setTimeout(() => {
-        titleInputRef.current?.focus();
+        if (titleInputRef.current) {
+          titleInputRef.current.style.height = 'auto';
+          titleInputRef.current.style.height = `${titleInputRef.current.scrollHeight}px`;
+          titleInputRef.current.focus();
+        }
       }, 50);
       return () => clearTimeout(timer);
     }
@@ -125,12 +131,21 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
     prevIsOpenRef.current = isOpen;
   }, [note?.id, isOpen]);
 
+  // Auto-resize title textarea as user types or changes content
+  useEffect(() => {
+    if (titleInputRef.current) {
+      titleInputRef.current.style.height = 'auto';
+      titleInputRef.current.style.height = `${titleInputRef.current.scrollHeight}px`;
+    }
+  }, [title, isOpen]);
+
   const performSave = useCallback(
     async (overrides?: {
       title?: string;
       description?: string;
       isPinned?: boolean;
       tagIds?: string[];
+      boxId?: string | null;
     }) => {
       if (!note) return;
 
@@ -138,6 +153,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       const currentDesc = (overrides?.description !== undefined ? overrides.description : description).trim();
       const currentPinned = overrides?.isPinned !== undefined ? overrides.isPinned : isPinned;
       const currentTags = overrides?.tagIds !== undefined ? overrides.tagIds : tagIds;
+      const currentBoxId = overrides?.boxId !== undefined ? overrides.boxId : selectedBox;
 
       if (!currentTitle && !currentDesc) return;
 
@@ -150,6 +166,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
         currentTitle === last.title &&
         currentDesc === last.description &&
         currentPinned === last.isPinned &&
+        currentBoxId === last.boxId &&
         tagsUnchanged
       ) {
         return; // Nothing changed
@@ -169,6 +186,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
           description: currentDesc || undefined,
           pinned: currentPinned,
           tag_ids: currentTags,
+          box_id: currentBoxId || null,
         });
 
         lastSavedRef.current = {
@@ -176,13 +194,14 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
           description: currentDesc,
           isPinned: currentPinned,
           tagIds: [...currentTags],
+          boxId: currentBoxId || null,
         };
         onSaved();
       } catch (err) {
         console.error('Failed to auto-save note:', err);
       }
     },
-    [note, title, description, isPinned, tagIds, onSaved]
+    [note, title, description, isPinned, tagIds, selectedBox, onSaved]
   );
 
   const scheduleSave = useCallback(
@@ -256,6 +275,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   if (!note) return null;
 
   const selectedTags = tagIds.map((id) => tagsMap[id]).filter(Boolean);
+  const selectedBoxObj = boxes.find((b) => b.id === selectedBox);
 
   const portalTarget = typeof document !== 'undefined' ? (document.getElementById('app-main') || document.body) : null;
   if (!portalTarget) return null;
@@ -270,21 +290,21 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       <div
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-card text-card-foreground border-t border-border font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
+        className={`bg-card text-card-foreground font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
           isFullscreen
-            ? 'fixed inset-0 z-50 w-full h-full pb-5 px-6 pt-6 md:px-16 lg:px-24'
-            : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] ${
+            ? 'absolute inset-0 z-50 w-full h-full pb-5 px-6 pt-6'
+            : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] border-t border-border/80 dark:border-white/10 ${
                 isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
               }`
         }`}
         dir="rtl"
       >
-        {/* Top Action Buttons: Fullscreen, Delete and Close */}
+        {/* Top Left Action Buttons */}
         <div className="absolute left-6 top-6 flex items-center gap-1 z-10">
           <button
             type="button"
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title={isFullscreen ? 'کوچک کردن' : 'تمام‌صفحه'}
           >
             {isFullscreen ? (
@@ -296,7 +316,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
           <button
             type="button"
             onClick={handleDelete}
-            className="p-1.5 text-gray-400 hover:text-rose-600 rounded-full hover:bg-rose-50 transition-colors cursor-pointer"
+            className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-full hover:bg-rose-500/10 transition-colors cursor-pointer"
             title="حذف یادداشت"
           >
             <RiDeleteBinLine className="w-5 h-5" />
@@ -304,7 +324,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
           <button
             type="button"
             onClick={handleClose}
-            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title="بستن"
           >
             <RiCloseLine className="w-5 h-5" />
@@ -314,14 +334,16 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
         <form onSubmit={(e) => { e.preventDefault(); handleClose(); }} className={`flex-1 flex flex-col justify-between ${isFullscreen ? 'max-w-4xl mx-auto w-full h-full' : ''}`}>
           {/* Main Top Input Area */}
           <div className="flex-1 flex flex-col pt-3 min-h-0">
-            {/* Title Input */}
-            <input
+            {/* Title Textarea: auto-expanding to multiple lines with word wrap */}
+            <textarea
               ref={titleInputRef}
-              type="text"
+              rows={1}
               value={title}
               onChange={(e) => {
                 const val = e.target.value;
                 setTitle(val);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
                 scheduleSave(400, { title: val });
               }}
               onKeyDown={(e) => {
@@ -330,9 +352,9 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   handleClose();
                 }
               }}
-              placeholder="چی تو ذهنته؟"
-              className={`w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground placeholder:font-normal transition-all ${
-                isFullscreen ? 'text-2xl md:text-3xl pl-32' : 'text-xl pl-24'
+              placeholder="عنوان یادداشت..."
+              className={`w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition-all resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] ${
+                isFullscreen ? 'text-2xl md:text-3xl pl-28' : 'text-xl pl-28'
               }`}
               dir="rtl"
             />
@@ -345,14 +367,14 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                 onClick={handleTogglePin}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer border ${
                   isPinned
-                    ? 'bg-gray-100 border-gray-300 text-gray-900 font-bold'
-                    : 'border-transparent text-gray-400 hover:text-gray-600 font-normal'
+                    ? 'bg-secondary border-border text-foreground font-bold dark:bg-white/15 dark:border-white/20'
+                    : 'border-transparent text-muted-foreground hover:text-foreground font-normal'
                 }`}
               >
                 {isPinned ? (
-                  <RiPushpinFill className="w-3.5 h-3.5 text-gray-800" />
+                  <RiPushpinFill className="w-3.5 h-3.5 text-primary" />
                 ) : (
-                  <RiPushpinLine className="w-3.5 h-3.5 text-gray-400" />
+                  <RiPushpinLine className="w-3.5 h-3.5 text-muted-foreground" />
                 )}
                 <span>پین‌کردن</span>
               </button>
@@ -363,13 +385,13 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                 onClick={() => setTagPickerOpen(!tagPickerOpen)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer ${
                   selectedTags.length > 0
-                    ? 'text-gray-900 font-semibold'
-                    : 'text-gray-400 hover:text-gray-600 font-normal'
+                    ? 'text-foreground font-semibold'
+                    : 'text-muted-foreground hover:text-foreground font-normal'
                 }`}
               >
                 <RiPriceTag3Line
                   className={`w-3.5 h-3.5 ${
-                    selectedTags.length > 0 ? 'text-gray-900' : 'text-gray-400'
+                    selectedTags.length > 0 ? 'text-foreground' : 'text-muted-foreground'
                   }`}
                 />
                 <span>
@@ -380,39 +402,28 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
               </button>
 
               {/* جعبه */}
-              <DropdownMenu open={boxPickerOpen} onOpenChange={setBoxPickerOpen}>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer ${
-                      selectedBox
-                        ? 'text-gray-900 font-semibold'
-                        : 'text-gray-400 hover:text-gray-600 font-normal'
-                    }`}
-                  >
-                    <RiInboxArchiveLine
-                      className={`w-3.5 h-3.5 ${
-                        selectedBox ? 'text-gray-900' : 'text-gray-400'
-                      }`}
-                    />
-                    <span>{selectedBox || 'جعبه'}</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-36 p-1 text-xs" dir="rtl">
-                  <DropdownMenuItem onClick={() => setSelectedBox('کار')}>کار</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedBox('شخصی')}>شخصی</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedBox('ایده‌ها')}>ایده‌ها</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setSelectedBox('')} className="text-gray-400">
-                    بدون جعبه
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                type="button"
+                onClick={() => setBoxPickerOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  selectedBox
+                    ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
+                    : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <RiInboxArchiveLine
+                  className={`w-3.5 h-3.5 ${selectedBox ? 'text-foreground' : 'text-muted-foreground'}`}
+                />
+                <span>{selectedBoxObj?.title || 'جعبه'}</span>
+              </button>
             </div>
 
-            {/* BlockNote Notion-like Editor */}
-            <div className={`flex-1 overflow-y-auto mt-4 border-t border-border/70 pt-3 ${
-              isFullscreen ? 'min-h-[300px]' : 'min-h-[180px] max-h-[46vh]'
-            }`}>
+            {/* BlockNote Body Editor */}
+            <div
+              className={`flex-1 overflow-y-auto mt-3 border-t border-border/70 dark:border-white/10 pt-2 ${
+                isFullscreen ? 'min-h-[350px]' : 'min-h-[160px] max-h-[46vh]'
+              }`}
+            >
               <BlockNoteEditor
                 key={`${note.id}-${isOpen ? 'open' : 'closed'}`}
                 initialContent={description}
@@ -421,27 +432,24 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   scheduleSave(400, { description: md });
                 }}
                 placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
-                minHeight={isFullscreen ? '350px' : '180px'}
+                minHeight={isFullscreen ? '350px' : '160px'}
               />
             </div>
           </div>
 
-          {/* Bottom Actions Bar */}
-          <div className="w-full">
-            {/* Common Bottom Bar */}
-            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-              {/* Right side in RTL: Auto-save status indicator */}
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 font-normal">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>ذخیره خودکار</span>
-              </div>
+          {/* Common Bottom Bar */}
+          <div className="flex items-center justify-between pt-3 border-t border-border/70 dark:border-white/10">
+            {/* Right side in RTL: Auto-save status indicator */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>ذخیره خودکار</span>
+            </div>
 
-              {/* Left side in RTL: Mode label pill */}
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200/80">
-                  <span>ویرایش یادداشت</span>
-                </span>
-              </div>
+            {/* Left side in RTL: Mode label pill */}
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-muted/60 dark:bg-white/10 text-foreground border border-border/70 dark:border-white/10">
+                <span>ویرایش یادداشت</span>
+              </span>
             </div>
           </div>
         </form>
@@ -461,6 +469,18 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Box Picker Sheet */}
+        <BoxPickerSheet
+          isOpen={boxPickerOpen}
+          onClose={() => setBoxPickerOpen(false)}
+          boxes={boxes}
+          selectedBoxId={selectedBox}
+          onSelectBox={(bId) => {
+            setSelectedBox(bId || '');
+            performSave({ boxId: bId || null });
+          }}
+        />
       </div>
     </div>,
     portalTarget

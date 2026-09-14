@@ -14,7 +14,9 @@ import {
   RiContrastLine,
   RiArrowLeftSLine,
   RiCheckDoubleLine,
+  RiSparklingLine,
 } from '@remixicon/react';
+import { UnsplashPickerModal } from './UnsplashPickerModal';
 import {
   type ThemeId,
   type ThemeMode,
@@ -343,8 +345,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
+  const [unsplashModalOpen, setUnsplashModalOpen] = useState(false);
+  const cachedUnsplashUrl = localStorage.getItem('second_brain_cached_unsplash_wallpaper');
+  const cachedUnsplashTitle =
+    localStorage.getItem('second_brain_custom_wallpaper_title') || 'Unsplash';
+
   const activeWallpaperItem =
-    WALLPAPER_LIST.find((w) => w.id === currentWallpaper) || WALLPAPER_LIST[0];
+    currentWallpaper === 'custom-unsplash'
+      ? {
+          id: 'custom-unsplash',
+          title: cachedUnsplashTitle,
+          url: cachedUnsplashUrl || undefined,
+        }
+      : WALLPAPER_LIST.find((w) => w.id === currentWallpaper) || WALLPAPER_LIST[0];
 
   return (
     <div
@@ -504,6 +517,51 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               onPointerUp={wallpaperDrag.onPointerUp}
               className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 scroll-smooth cursor-grab active:cursor-grabbing select-none"
             >
+              {/* Unsplash Card */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (wallpaperDrag.hasDragged.current) return;
+                  if (currentWallpaper === 'custom-unsplash') {
+                    setUnsplashModalOpen(true);
+                  } else if (cachedUnsplashUrl) {
+                    onWallpaperChange('custom-unsplash');
+                  } else {
+                    setUnsplashModalOpen(true);
+                  }
+                }}
+                className={`w-[76px] shrink-0 rounded-xl overflow-hidden border text-right transition-all flex flex-col cursor-pointer ${
+                  currentWallpaper === 'custom-unsplash'
+                    ? 'border-foreground/80 ring-1 ring-foreground/20 shadow-xs'
+                    : 'border-border/80 hover:border-foreground/40'
+                }`}
+              >
+                <div className="w-full h-12 bg-muted/40 relative overflow-hidden flex flex-col items-center justify-center">
+                  {cachedUnsplashUrl ? (
+                    <img
+                      src={cachedUnsplashUrl}
+                      alt={cachedUnsplashTitle}
+                      className="w-full h-full object-cover select-none pointer-events-none"
+                    />
+                  ) : (
+                    <RiSparklingLine className="w-4 h-4 text-muted-foreground" />
+                  )}
+
+                  {currentWallpaper === 'custom-unsplash' && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <div className="w-4 h-4 rounded-full bg-foreground text-background flex items-center justify-center shadow">
+                        <RiCheckLine className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="px-1 py-0.5 bg-card border-t border-border/60 text-center">
+                  <p className="text-[9px] text-foreground font-medium truncate leading-tight">
+                    {currentWallpaper === 'custom-unsplash' ? cachedUnsplashTitle : 'Unsplash'}
+                  </p>
+                </div>
+              </button>
               {WALLPAPER_LIST.map((wp) => {
                 const isSelected = currentWallpaper === wp.id;
 
@@ -562,6 +620,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 );
               })}
             </div>
+
+            {/* Button to open Unsplash Search modal */}
+            <button
+              type="button"
+              onClick={() => setUnsplashModalOpen(true)}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-muted/30 hover:bg-muted/60 text-foreground border border-border/60 text-xs font-medium transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <RiSparklingLine className="w-4 h-4 text-muted-foreground" />
+                <span>جستجو و انتخاب پس‌زمینه از Unsplash</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">دانلود و کش خودکار</span>
+            </button>
           </div>
 
           {/* Section: Monochrome Grouped Settings Rows */}
@@ -663,6 +734,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           accept=".json"
           onChange={handleImportFile}
           className="hidden"
+        />
+
+        {/* Unsplash Wallpaper Picker Modal */}
+        <UnsplashPickerModal
+          isOpen={unsplashModalOpen}
+          onClose={() => setUnsplashModalOpen(false)}
+          onSelectAndCacheWallpaper={(dataUrl, title) => {
+            try {
+              localStorage.setItem('second_brain_cached_unsplash_wallpaper', dataUrl);
+              localStorage.setItem('second_brain_custom_wallpaper_title', title);
+            } catch (e) {
+              console.warn('LocalStorage quota exceeded for base64 wallpaper, saving title:', e);
+            }
+            onWallpaperChange('custom-unsplash');
+          }}
         />
       </div>
     </div>

@@ -23,7 +23,7 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
 
   return (
     <div className="w-full mt-5 mb-2 select-none">
-      <h3 className="text-[12px] font-semibold text-foreground px-6 text-right mb-1.5">
+      <h3 className="text-[12px] font-normal text-foreground px-6 text-right mb-1.5">
         سنجاق شده
       </h3>
       <div className="w-full">

@@ -13,6 +13,7 @@ export type ItemStatus = "open" | "done" | "dropped" | "migrated";
 export interface Task {
   id: string;
   entry_id: string | null; // null یعنی مستقیم ساخته شده، نه از dump
+  box_id?: string | null; // شناسه باکس متعلق به آن
   title: string;
   description?: string;
   status: ItemStatus;
@@ -42,6 +43,7 @@ export interface EventItem {
 export interface Note {
   id: string;
   entry_id: string | null;
+  box_id?: string | null; // شناسه باکس متعلق به آن
   type: "note" | "idea";
   title: string;
   body: string;
@@ -68,6 +70,20 @@ export interface Tag {
   source: "manual" | "ai";
 }
 
+export interface Box {
+  id: string;
+  title: string;
+  image: string; // e.g. "/Boxs/Box 1.png"
+  icon?: string; // e.g. "RiSunLine", "RiYoutubeLine"
+  icon_color?: string;
+  badge_icon?: string; // e.g. "RiGroupLine"
+  badge_color?: string;
+  description?: string;
+  order?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Relation {
   id: string;
   entry_id_1: string;
@@ -87,4 +103,6 @@ export interface TaskFilter {
   older_than_days?: number;
   search_query?: string;
   tag_id?: string;
+  box_id?: string | null;
 }
+

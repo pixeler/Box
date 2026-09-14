@@ -193,10 +193,11 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
 
   // --- 2. Container Drag-To-Scroll (Mouse & Hand/Touch) ---
   const handleContainerMouseDown = (e: React.MouseEvent) => {
-    // Ignore right clicks or clicks on form inputs
+    // Ignore right clicks or clicks on form inputs, buttons, and drag handles
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
-    if (['input', 'textarea', 'select'].includes(target.tagName.toLowerCase())) return;
+    if (['input', 'textarea', 'select', 'button'].includes(target.tagName.toLowerCase())) return;
+    if (target.closest('button, [data-no-drag-scroll], [role="button"], input, textarea, select')) return;
     if (target.isContentEditable) return;
 
     if (momentumRafRef.current) {

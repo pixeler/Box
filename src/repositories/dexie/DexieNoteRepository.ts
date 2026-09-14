@@ -32,7 +32,7 @@ export class DexieNoteRepository implements NoteRepository {
     return n || null;
   }
 
-  async list(filter?: { type?: 'note' | 'idea'; tag_id?: string }): Promise<Note[]> {
+  async list(filter?: { type?: 'note' | 'idea'; tag_id?: string; box_id?: string | null }): Promise<Note[]> {
     let items = await db.notes.orderBy('created_at').reverse().toArray();
     if (filter?.type) {
       items = items.filter((n) => n.type === filter.type);
@@ -40,8 +40,12 @@ export class DexieNoteRepository implements NoteRepository {
     if (filter?.tag_id) {
       items = items.filter((n) => n.tag_ids.includes(filter.tag_id!));
     }
+    if (filter?.box_id !== undefined) {
+      items = items.filter((n) => (n.box_id || null) === (filter.box_id || null));
+    }
     return items;
   }
+
 
   async softDelete(id: string): Promise<void> {
     // We can tag as dropped or remove from main view

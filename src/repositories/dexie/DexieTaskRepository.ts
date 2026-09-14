@@ -58,6 +58,10 @@ export class DexieTaskRepository implements TaskRepository {
       items = items.filter((item) => item.tag_ids.includes(filter.tag_id!));
     }
 
+    if (filter?.box_id !== undefined) {
+      items = items.filter((item) => (item.box_id || null) === (filter.box_id || null));
+    }
+
     if (filter?.search_query) {
       const q = filter.search_query.toLowerCase();
       items = items.filter(

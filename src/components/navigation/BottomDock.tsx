@@ -5,13 +5,15 @@ import {
   RiAddLine,
 } from '@remixicon/react';
 
-export type ActiveTab = 'day' | 'notebook' | 'profile';
+export type ActiveTab = 'day' | 'notebook' | 'profile' | 'boxes';
 
 interface BottomDockProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd: () => void;
+  isBoxesOpen?: boolean;
 }
+
 
 /**
  * Generates an accurate normal displacement map for a pill glass shape
@@ -88,7 +90,9 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   activeTab,
   onTabChange,
   onOpenAdd,
+  isBoxesOpen,
 }) => {
+
   const dockRef = useRef<HTMLElement>(null);
   const rawId = useId();
   const filterId = `figma-glass-${rawId.replace(/:/g, '')}`;
@@ -264,23 +268,24 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           }}
         />
 
-        {/* 1. FAR RIGHT in RTL: Notebook / Archive Icon */}
+        {/* 1. FAR RIGHT in RTL: Boxes / Inbox Modal Button */}
         <button
           type="button"
-          onClick={() => onTabChange(activeTab === 'notebook' ? 'day' : 'notebook')}
+          onClick={() => onTabChange('boxes')}
           className={`h-12 px-3.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            activeTab === 'notebook'
+            isBoxesOpen || activeTab === 'boxes'
               ? 'liquid-glass-pill-active text-primary'
               : 'text-foreground/75 hover:text-foreground hover:bg-foreground/10 active:scale-95'
           }`}
-          title="دفترچه یادداشت و آرشیو"
+          title="باکس‌ها"
         >
           <RiInboxLine
             className={`w-[22px] h-[22px] transition-colors ${
-              activeTab === 'notebook' ? 'text-primary' : 'text-foreground/75'
+              isBoxesOpen || activeTab === 'boxes' ? 'text-primary' : 'text-foreground/75'
             }`}
           />
         </button>
+
 
         {/* 2. CENTER in RTL: Premium Dark Glass Pill Button */}
         <div className="relative z-10">

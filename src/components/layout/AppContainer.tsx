@@ -13,6 +13,24 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   const currentItem = WALLPAPER_LIST.find((w) => w.id === wallpaper) || WALLPAPER_LIST[0];
 
   const getBackgroundStyle = (): React.CSSProperties => {
+    // 1. Check for custom cached Unsplash wallpaper
+    if (wallpaper === 'custom-unsplash' || wallpaper.startsWith('data:') || wallpaper.startsWith('http')) {
+      const cached =
+        wallpaper === 'custom-unsplash'
+          ? localStorage.getItem('second_brain_cached_unsplash_wallpaper')
+          : wallpaper;
+
+      if (cached) {
+        return {
+          backgroundImage: `url('${cached}')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+        };
+      }
+    }
+
     if (currentItem?.url) {
       return {
         backgroundImage: `url('${currentItem.url}')`,

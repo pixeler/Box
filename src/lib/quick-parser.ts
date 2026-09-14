@@ -19,6 +19,25 @@ export interface ParsedQuickEntry {
   mentions: string[];
 }
 
+export interface HighlightSpan {
+  start: number;
+  end: number;
+  type: 'date' | 'priority' | 'tag' | 'time';
+  text: string;
+  label?: string;
+  value?: any;
+}
+
+export interface QuickTokensResult {
+  rawText: string;
+  cleanTitle: string;
+  tokens: HighlightSpan[];
+  dueDate?: string;
+  priority?: 1 | 2 | 3;
+  tags: string[];
+  time?: string;
+}
+
 const ACTION_VERBS_REGEX =
   /^(باید|بخر|خرید|تماس|زنگ|بزن|بگیر|انجام|برو|ارسال|بفرست|فرستادن|جلسه|پیگیری|پرداخت|چک|کامل|تکمیل|حل|بنویس|آماده|یادآوری|ورزش|تمرین|کار|بررسی|مصرف)\b/i;
 
@@ -45,10 +64,201 @@ function getNextWeekdayDate(baseKey: string, targetIranianDay: number): string {
   return addJalaliDays(baseKey, diff);
 }
 
+/**
+ * Extract tokens with exact start/end indices for inline highlighting and clean title generation.
+ */
+export function extractQuickTokens(
+  text: string,
+  currentSelectedDate?: string
+): QuickTokensResult {
+  if (!text) {
+    return {
+      rawText: '',
+      cleanTitle: '',
+      tokens: [],
+      tags: [],
+    };
+  }
+
+  const todayKey = getTodayJalaliKey();
+  let detectedDueDate: string | undefined = undefined;
+  let detectedPriority: 1 | 2 | 3 | undefined = undefined;
+  let detectedTime: string | undefined = undefined;
+  const detectedTags: string[] = [];
+
+  const foundSpans: HighlightSpan[] = [];
+
+  // Helper to test regex matches while recording start & end
+  const scanPattern = (
+    regex: RegExp,
+    type: HighlightSpan['type'],
+    handler: (match: RegExpExecArray) => { value: any; label?: string } | null
+  ) => {
+    // Clone regex with 'g' flag
+    const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+    const r = new RegExp(regex.source, flags);
+    let m: RegExpExecArray | null;
+    while ((m = r.exec(text)) !== null) {
+      const matchIndex = m.index;
+      // If there's a capture group for boundary like (?:^|[\s،,])(word), offset appropriately
+      let tokenText = m[0];
+      let startIndex = matchIndex;
+      let endIndex = matchIndex + tokenText.length;
+
+      // Handle leading separator if matched
+      if (m[1] !== undefined && m[0] !== m[1]) {
+        const prefixLen = m[0].indexOf(m[1]);
+        startIndex += prefixLen;
+        tokenText = m[1];
+        endIndex = startIndex + tokenText.length;
+      }
+
+      const res = handler(m);
+      if (res) {
+        foundSpans.push({
+          start: startIndex,
+          end: endIndex,
+          type,
+          text: tokenText,
+          label: res.label,
+          value: res.value,
+        });
+      }
+    }
+  };
+
+  // 1. Tags (#tag)
+  scanPattern(/(?:^|[\s])(#[\p{L}\w_-]+)/gu, 'tag', (m) => {
+    const rawTag = (m[1] || m[0]).trim();
+    const cleanTag = rawTag.replace(/^#/, '');
+    if (cleanTag && !detectedTags.includes(cleanTag)) {
+      detectedTags.push(cleanTag);
+    }
+    return { value: cleanTag, label: `#${cleanTag}` };
+  });
+
+  // 2. Priority: p1/p2/p3 or !1/!2/!3 or !فوری/!متوسط/!کم
+  scanPattern(
+    /(?:^|[\s])(!{1,3}|![123]|![فوریزاید]+|!متوسط|!کم|[pP][123])(?=$|[\s،,])/gu,
+    'priority',
+    (m) => {
+      const token = (m[1] || m[0]).trim();
+      let p: 1 | 2 | 3 = 1;
+      let label = 'کم';
+      if (/!{3}|!3|!(?:فوری|زیاد)|[pP]1/.test(token)) {
+        p = 3;
+        label = 'فوری (P1)';
+      } else if (/!{2}|!2|!متوسط|[pP]2/.test(token)) {
+        p = 2;
+        label = 'متوسط (P2)';
+      } else if (/!{1}|!1|!کم|[pP]3/.test(token)) {
+        p = 1;
+        label = 'کم (P3)';
+      }
+      detectedPriority = p;
+      return { value: p, label };
+    }
+  );
+
+  // 3. Time: ساعت N:MM or ساعت N
+  scanPattern(
+    /(?:^|[\s])((?:ساعت\s*)\d{1,2}(?::\d{2})?)(?=$|[\s،,])/giu,
+    'time',
+    (m) => {
+      const fullTimeStr = (m[1] || m[0]).trim();
+      const timeParts = fullTimeStr.match(/(?:ساعت\s*)(\d{1,2})(?::(\d{2}))?/i);
+      if (timeParts) {
+        const hour = timeParts[1].padStart(2, '0');
+        const min = (timeParts[2] || '00').padStart(2, '0');
+        detectedTime = `${hour}:${min}`;
+        return { value: detectedTime, label: detectedTime };
+      }
+      return null;
+    }
+  );
+
+  // 4. Dates: امروز، فردا، پس‌فردا، آخر هفته، هفته بعد، روزهای هفته
+  scanPattern(
+    /(?:^|[\s،,])(امروز|فردا|پس‌?فردا|پس\s+فردا|آخر\s*هفته|آخرهفته|هفته\s*(?:بعد|آینده)|شنبه|یکشنبه|دوشنبه|سه‌شنبه|سه\s+شنبه|چهارشنبه|پنج‌شنبه|پنج\s+شنبه|جمعه)(?=$|[\s،,])/giu,
+    'date',
+    (m) => {
+      const word = (m[1] || m[0]).trim();
+      let d = todayKey;
+      let label = word;
+
+      if (word === 'امروز') {
+        d = todayKey;
+        label = 'امروز';
+      } else if (word === 'فردا') {
+        d = addJalaliDays(todayKey, 1);
+        label = 'فردا';
+      } else if (/^پس‌?فردا$|^پس\s+فردا$/.test(word)) {
+        d = addJalaliDays(todayKey, 2);
+        label = 'پس‌فردا';
+      } else if (/^آخر\s*هفته$|^آخرهفته$/.test(word)) {
+        d = nextWeekendFrom(todayKey);
+        label = 'آخر هفته';
+      } else if (/^هفته\s*(?:بعد|آینده)$/.test(word)) {
+        d = addJalaliDays(todayKey, 7);
+        label = 'هفته بعد';
+      } else {
+        const normalized = word.replace(/\s+/g, ' ');
+        for (const [name, dow] of Object.entries(WEEKDAY_MAP)) {
+          if (name === normalized || name === word) {
+            d = getNextWeekdayDate(todayKey, dow);
+            label = name;
+            break;
+          }
+        }
+      }
+
+      detectedDueDate = d;
+      return { value: d, label };
+    }
+  );
+
+  // Sort spans by startIndex and eliminate any overlaps
+  foundSpans.sort((a, b) => a.start - b.start);
+  const resolvedSpans: HighlightSpan[] = [];
+  let lastEnd = 0;
+  for (const span of foundSpans) {
+    if (span.start >= lastEnd) {
+      resolvedSpans.push(span);
+      lastEnd = span.end;
+    }
+  }
+
+  // Generate clean title by removing all matched spans
+  let cleanTitle = '';
+  let cursor = 0;
+  for (const span of resolvedSpans) {
+    if (span.start > cursor) {
+      cleanTitle += text.substring(cursor, span.start);
+    }
+    cursor = span.end;
+  }
+  if (cursor < text.length) {
+    cleanTitle += text.substring(cursor);
+  }
+
+  cleanTitle = cleanTitle.replace(/\s+/g, ' ').trim();
+
+  return {
+    rawText: text,
+    cleanTitle: cleanTitle || text.trim(),
+    tokens: resolvedSpans,
+    dueDate: detectedDueDate || currentSelectedDate,
+    priority: detectedPriority,
+    tags: detectedTags,
+    time: detectedTime,
+  };
+}
+
 export function parseQuickInput(
   text: string,
   currentSelectedDate?: string
 ): ParsedQuickEntry {
+  const tokenized = extractQuickTokens(text, currentSelectedDate);
   const trimmed = text.trim();
   if (!trimmed) {
     return {
@@ -60,72 +270,16 @@ export function parseQuickInput(
     };
   }
 
-  let workText = trimmed;
-  const todayKey = getTodayJalaliKey();
-  let dueDate: string | undefined = currentSelectedDate || todayKey;
-
-  // 1. Priority: !3 / !!! / !فوری / p1 / p2 / p3
-  let priority: 1 | 2 | 3 | undefined;
-  if (
-    /\b!{3}\b/.test(workText) ||
-    workText.endsWith('!!!') ||
-    /\b!3\b/.test(workText) ||
-    /\b!(?:فوری|زیاد)\b/.test(workText) ||
-    /\b[pP]1\b/.test(workText)
-  ) {
-    priority = 3;
-    workText = workText
-      .replace(/!{3}/g, '')
-      .replace(/\b!3\b/g, '')
-      .replace(/\b!(?:فوری|زیاد)\b/g, '')
-      .replace(/\b[pP]1\b/g, '')
-      .trim();
-  } else if (
-    /\b!{2}\b/.test(workText) ||
-    workText.endsWith('!!') ||
-    /\b!2\b/.test(workText) ||
-    /\b!متوسط\b/.test(workText) ||
-    /\b[pP]2\b/.test(workText)
-  ) {
-    priority = 2;
-    workText = workText
-      .replace(/!{2}/g, '')
-      .replace(/\b!2\b/g, '')
-      .replace(/\b!متوسط\b/g, '')
-      .replace(/\b[pP]2\b/g, '')
-      .trim();
-  } else if (
-    /\b!{1}\b/.test(workText) ||
-    workText.endsWith('!') ||
-    /\b!1\b/.test(workText) ||
-    /\b!کم\b/.test(workText) ||
-    /\b[pP]3\b/.test(workText)
-  ) {
-    priority = 1;
-    workText = workText
-      .replace(/!{1}/g, '')
-      .replace(/\b!1\b/g, '')
-      .replace(/\b!کم\b/g, '')
-      .replace(/\b[pP]3\b/g, '')
-      .trim();
+  // Recurrence rule (هر روز، هر هفته...)
+  let recurrenceRule: string | undefined;
+  const recurrenceMatch = trimmed.match(RECURRENCE_REGEX);
+  if (recurrenceMatch) {
+    recurrenceRule = recurrenceMatch[0].trim();
   }
 
-  // 2. Tags (#tag)
-  const tags: string[] = [];
-  const tagMatches = workText.match(/#([\p{L}\w_-]+)/gu);
-  if (tagMatches) {
-    tagMatches.forEach((t) => {
-      const cleanTag = t.replace('#', '').trim();
-      if (cleanTag && !tags.includes(cleanTag)) {
-        tags.push(cleanTag);
-      }
-    });
-    workText = workText.replace(/#([\p{L}\w_-]+)/gu, '').trim();
-  }
-
-  // 3. Mentions (@name)
+  // Mentions (@name)
   const mentions: string[] = [];
-  const mentionMatches = workText.match(/@([\p{L}\w_-]+)/gu);
+  const mentionMatches = trimmed.match(/@([\p{L}\w_-]+)/gu);
   if (mentionMatches) {
     mentionMatches.forEach((m) => {
       const cleanMention = m.replace('@', '').trim();
@@ -133,71 +287,21 @@ export function parseQuickInput(
         mentions.push(cleanMention);
       }
     });
-    workText = workText.replace(/@([\p{L}\w_-]+)/gu, '').trim();
   }
-
-  // 4. Recurrence rule (هر روز، هر هفته...)
-  let recurrenceRule: string | undefined;
-  const recurrenceMatch = workText.match(RECURRENCE_REGEX);
-  if (recurrenceMatch) {
-    recurrenceRule = recurrenceMatch[0].trim();
-    workText = workText.replace(recurrenceMatch[0], '').trim();
-  }
-
-  // 5. Time extraction (ساعت N:MM or HH:MM)
-  let time: string | undefined;
-  const explicitTimeMatch = workText.match(/(?:ساعت\s*)(\d{1,2})(?::(\d{2}))?/i);
-  if (explicitTimeMatch) {
-    const hour = explicitTimeMatch[1].padStart(2, '0');
-    const minute = (explicitTimeMatch[2] || '00').padStart(2, '0');
-    time = `${hour}:${minute}`;
-    workText = workText.replace(explicitTimeMatch[0], '').trim();
-  }
-
-  // 6. Relative & Specific Date extraction
-  if (/\bامروز\b/.test(workText)) {
-    dueDate = todayKey;
-    workText = workText.replace(/\bامروز\b/g, '').trim();
-  } else if (/\bفردا\b/.test(workText)) {
-    dueDate = addJalaliDays(todayKey, 1);
-    workText = workText.replace(/\bفردا\b/g, '').trim();
-  } else if (/\bپس‌?فردا\b/.test(workText)) {
-    dueDate = addJalaliDays(todayKey, 2);
-    workText = workText.replace(/\bپس‌?فردا\b/g, '').trim();
-  } else if (/\bآخر\s*هفته\b/.test(workText) || /\bآخرهفته\b/.test(workText)) {
-    dueDate = nextWeekendFrom(todayKey);
-    workText = workText.replace(/\b(?:آخر\s*هفته|آخرهفته)\b/g, '').trim();
-  } else if (/\bهفته\s*(?:بعد|آینده)\b/.test(workText)) {
-    dueDate = addJalaliDays(todayKey, 7);
-    workText = workText.replace(/\bهفته\s*(?:بعد|آینده)\b/g, '').trim();
-  } else {
-    // Check for named weekday (e.g. دوشنبه، سه‌شنبه)
-    for (const [name, dow] of Object.entries(WEEKDAY_MAP)) {
-      const re = new RegExp(`\\b${name}\\b`);
-      if (re.test(workText)) {
-        dueDate = getNextWeekdayDate(todayKey, dow);
-        workText = workText.replace(re, '').trim();
-        break;
-      }
-    }
-  }
-
-  // Clean extra spaces
-  const cleanTitle = workText.replace(/\s+/g, ' ').trim() || trimmed;
 
   // 7. Type detection
   let detectedType: 'task' | 'note' | 'event' = 'note';
   if (
     recurrenceRule ||
-    (time &&
-      (cleanTitle.includes('جلسه') ||
-        cleanTitle.includes('دکتر') ||
-        cleanTitle.includes('دارو') ||
-        cleanTitle.includes('قرار')))
+    (tokenized.time &&
+      (tokenized.cleanTitle.includes('جلسه') ||
+        tokenized.cleanTitle.includes('دکتر') ||
+        tokenized.cleanTitle.includes('دارو') ||
+        tokenized.cleanTitle.includes('قرار')))
   ) {
     detectedType = 'event';
   } else if (
-    priority !== undefined ||
+    tokenized.priority !== undefined ||
     ACTION_VERBS_REGEX.test(trimmed) ||
     trimmed.startsWith('/') ||
     trimmed.includes('باید')
@@ -207,13 +311,13 @@ export function parseQuickInput(
 
   return {
     rawText: trimmed,
-    cleanTitle: cleanTitle || trimmed,
+    cleanTitle: tokenized.cleanTitle || trimmed,
     detectedType,
-    priority,
-    dueDate,
-    time,
+    priority: tokenized.priority,
+    dueDate: tokenized.dueDate,
+    time: tokenized.time,
     recurrenceRule,
-    tags,
+    tags: tokenized.tags,
     mentions,
   };
 }

@@ -511,6 +511,37 @@ button:active {
   animation: sheetSlideDown 0.24s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+/* Day Tooltip Smooth Fade Keyframes */
+@keyframes tooltipFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes tooltipFadeOut {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px) scale(0.95);
+  }
+}
+
+.animate-tooltip-in {
+  animation: tooltipFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-tooltip-out {
+  animation: tooltipFadeOut 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Persian number font feature */
 .persian-nums {
   font-feature-settings: "ss01";
