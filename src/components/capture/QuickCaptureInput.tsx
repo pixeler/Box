@@ -134,6 +134,19 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     }
   }, [currentSelectedDateKey]);
 
+  // Close on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   // Real-time synchronization of parsed properties with chips/state
   useEffect(() => {
     if (activeTab !== 'task') return;
@@ -564,12 +577,16 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         dir="rtl"
       >
         {/* Top Left Action Buttons: Fullscreen & Close */}
-        <div className="absolute left-6 top-6 flex items-center gap-1 z-10">
+        <div className="absolute left-6 top-6 flex items-center gap-1 z-30 pointer-events-auto">
           {activeTab === 'note' && (
             <button
               type="button"
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsFullscreen(!isFullscreen);
+              }}
+              className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 dark:hover:bg-white/10 transition-colors cursor-pointer relative z-30 pointer-events-auto"
               title={isFullscreen ? 'کوچک کردن' : 'تمام‌صفحه'}
             >
               {isFullscreen ? (
@@ -581,8 +598,13 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           )}
           <button
             type="button"
-            onClick={handleClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              handleClose();
+            }}
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 dark:hover:bg-white/10 transition-colors cursor-pointer relative z-30 pointer-events-auto"
             title="بستن"
           >
             <RiCloseLine className="w-5 h-5" />

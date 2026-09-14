@@ -15,7 +15,7 @@ import {
   PERSIAN_MONTH_NAMES,
   PERSIAN_WEEKDAY_SHORT_NAMES,
 } from '@/lib/jalali';
-import { isOfficialHoliday, getHolidaysForDate } from '@/lib/holidays';
+import { isOfficialHoliday, getHolidaysForDate, IranianHoliday } from '@/lib/holidays';
 import { RiArrowRightSLine, RiArrowLeftSLine } from '@remixicon/react';
 
 interface WeeklyStripProps {
@@ -33,7 +33,7 @@ interface MonthData {
   monthName: string;
 }
 
-const WEEK_HEIGHT = 68; // 48px day capsules + 4px spacing + 16px dragger
+const WEEK_HEIGHT = 74; // 48px day capsules + 8px padding + 18px dragger
 
 const EN_MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -47,6 +47,7 @@ export interface ThreeCalendarsInfo {
   gregMonth: string;
   gregYear: number;
   gregFull: string;
+  holidays: IranianHoliday[];
   holidayText?: string;
   mainText: string;
 }
@@ -102,6 +103,7 @@ function formatThreeCalendars(
     gregMonth,
     gregYear,
     gregFull,
+    holidays,
     holidayText,
     mainText,
   };
@@ -310,9 +312,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
   }, []);
 
   // Calculated target height for full month view:
-  // 32px Month Header + 20px weekday header + (rowCount * 42px) + 8px padding + 16px bottom handle
+  // 32px Month Header + 24px weekday header + (rowCount * 46px) + 26px bottom breathing room
   const targetMonthHeight = useMemo(() => {
-    return 32 + 20 + currentMonthData.rowCount * 42 + 8 + 16;
+    return 32 + 24 + currentMonthData.rowCount * 46 + 26;
   }, [currentMonthData.rowCount]);
 
   // Current active height
@@ -737,7 +739,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
   const renderMonthGrid = (mData: MonthData) => {
     const { jy, jm, daysInMonth, firstDayOffset } = mData;
     return (
-      <div className="grid grid-cols-7 gap-y-1.5 text-center select-none px-6">
+      <div className="grid grid-cols-7 gap-y-1.5 text-center select-none px-6 pb-3">
         {/* Empty leading slots */}
         {Array.from({ length: firstDayOffset }).map((_, i) => (
           <div key={`empty-${i}`} className="h-10 flex items-center justify-center" />
@@ -843,12 +845,18 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
           ? 'none'
           : 'height 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
-      className="w-full relative overflow-hidden flex flex-col justify-between select-none"
+      className={`w-full relative flex flex-col justify-between select-none ${
+        isExpanded || isVerticalDragging ? 'overflow-hidden' : 'overflow-visible'
+      }`}
     >
       {/* -------------------------------------------------------------
           MAIN CALENDAR BODY (Week row OR Month grid)
          ------------------------------------------------------------- */}
-      <div className="w-full flex-1 relative overflow-hidden flex flex-col">
+      <div
+        className={`w-full flex-1 relative flex flex-col ${
+          isExpanded || isVerticalDragging ? 'overflow-hidden' : 'overflow-visible'
+        }`}
+      >
         {!isExpanded && !isVerticalDragging ? (
           /* 1. WEEK VIEW CAROUSEL (Visible when collapsed) */
           <div
@@ -860,10 +868,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
             onTouchStart={(e) => e.stopPropagation()}
             data-no-drag-scroll="true"
             style={{ touchAction: 'pan-y' }}
-            className={`w-full h-full flex flex-col justify-center will-change-transform group/week relative ${
+            className={`w-full h-full flex flex-col justify-center will-change-transform group/week relative py-0.5 ${
               weekDragOffset !== 0 ? 'cursor-grabbing' : 'cursor-grab'
             }`}
-            title="برای رفتن به هفته قبل یا بعد، به چپ یا راست بکشید"
           >
             {/* Desktop-only hover navigation chevrons for Week view: Clean icons, no border, no background */}
             {/* Right Chevron: Previous Week (هفته قبل) in RTL */}
@@ -893,7 +900,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
             </button>
 
             <div
-              className="w-full h-[48px] relative will-change-transform"
+              className="w-full h-[52px] relative will-change-transform"
               style={{
                 transform: getWeekTransform(),
                 transition: getWeekTransition(),
@@ -1001,7 +1008,6 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
               className={`w-full flex-1 relative will-change-transform ${
                 monthDragOffset !== 0 ? 'cursor-grabbing' : 'cursor-grab'
               }`}
-              title="برای رفتن به ماه قبل یا بعد، به چپ یا راست بکشید"
             >
               <div
                 className="w-full relative will-change-transform"
@@ -1050,16 +1056,17 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
               position: 'fixed',
               left: `${hoveredTooltip.x}px`,
               top: `${hoveredTooltip.y}px`,
+              transform: 'translateX(-50%)',
               transition: 'left 150ms ease-out, top 150ms ease-out',
             }}
-            className={`fixed z-[9999] pointer-events-none flex flex-col items-center will-change-transform ${
+            className={`fixed z-[9999] pointer-events-none flex flex-col items-center will-change-transform max-w-[92vw] sm:max-w-md ${
               isTooltipVisible ? 'animate-tooltip-in' : 'animate-tooltip-out'
             }`}
           >
             {/* Popover Bubble */}
             <div
               dir="rtl"
-              className="relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-secondary/95 dark:bg-zinc-900/95 text-foreground border border-border/85 shadow-xl backdrop-blur-md text-[11px] font-medium whitespace-nowrap select-none"
+              className="relative flex flex-col gap-1.5 px-3.5 py-2 rounded-xl bg-secondary/95 dark:bg-zinc-900/95 text-foreground border border-border/85 shadow-xl backdrop-blur-md select-none text-right min-w-[210px]"
             >
               {/* Caret pointing straight up to hovered day */}
               <div
@@ -1069,42 +1076,63 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
                 className="absolute -top-1 -translate-x-1/2 w-2 h-2 rotate-45 bg-secondary/95 dark:bg-zinc-900/95 border-t border-l border-border/85"
               />
 
-              {/* 1. Solar Jalali */}
-              <span className="font-bold text-foreground">
-                {hoveredTooltip.solar}
-              </span>
+              {/* 1. Top Section: 3 Calendars (Solar / Lunar / Gregorian) */}
+              <div className="inline-flex items-center justify-center gap-2 text-[11px] font-medium whitespace-nowrap">
+                {/* Solar Jalali */}
+                <span className="font-bold text-foreground">
+                  {hoveredTooltip.solar}
+                </span>
 
-              <span className="text-muted-foreground/40 font-light select-none">/</span>
+                <span className="text-muted-foreground/40 font-light select-none">/</span>
 
-              {/* 2. Islamic Lunar Hijri */}
-              {hoveredTooltip.lunar && (
-                <>
-                  <span className="text-foreground/80 font-medium">
-                    {hoveredTooltip.lunar}
-                  </span>
-                  <span className="text-muted-foreground/40 font-light select-none">/</span>
-                </>
-              )}
+                {/* Islamic Lunar Hijri */}
+                {hoveredTooltip.lunar && (
+                  <>
+                    <span className="text-foreground/80 font-medium">
+                      {hoveredTooltip.lunar}
+                    </span>
+                    <span className="text-muted-foreground/40 font-light select-none">/</span>
+                  </>
+                )}
 
-              {/* 3. Gregorian: strictly isolated with dir="ltr" and bdi */}
-              <bdi
-                dir="ltr"
-                style={{ unicodeBidi: 'isolate' }}
-                className="inline-flex items-center gap-1 font-semibold text-foreground/90 tabular-nums"
-              >
-                <span>{hoveredTooltip.gregDay}</span>
-                <span>{hoveredTooltip.gregMonth}</span>
-                <span>{hoveredTooltip.gregYear}</span>
-              </bdi>
+                {/* Gregorian: strictly isolated with dir="ltr" and bdi */}
+                <bdi
+                  dir="ltr"
+                  style={{ unicodeBidi: 'isolate' }}
+                  className="inline-flex items-center gap-1 font-semibold text-foreground/90 tabular-nums"
+                >
+                  <span>{hoveredTooltip.gregDay}</span>
+                  <span>{hoveredTooltip.gregMonth}</span>
+                  <span>{hoveredTooltip.gregYear}</span>
+                </bdi>
+              </div>
 
-              {/* 4. Holiday Tag (full text, not truncated) */}
-              {hoveredTooltip.holidayText && (
-                <>
-                  <span className="h-3 w-[1px] bg-border mx-0.5" />
-                  <span className="text-rose-500 font-semibold whitespace-nowrap">
-                    {hoveredTooltip.holidayText}
-                  </span>
-                </>
+              {/* 2. Bottom Section: Occasions / Holidays as a bulleted list below */}
+              {hoveredTooltip.holidays && hoveredTooltip.holidays.length > 0 && (
+                <div className="pt-1.5 border-t border-border/50 flex flex-col gap-1">
+                  {hoveredTooltip.holidays.map((h, idx) => {
+                    const isHolidayRed = h.isOfficial;
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-start gap-1.5 text-[11px] leading-snug font-medium ${
+                          isHolidayRed
+                            ? 'text-rose-500'
+                            : 'text-foreground/90 dark:text-zinc-200'
+                        }`}
+                      >
+                        <span
+                          className={`text-[13px] leading-none select-none shrink-0 ${
+                            isHolidayRed ? 'text-rose-500' : 'text-foreground/70 dark:text-zinc-400'
+                          }`}
+                        >
+                          •
+                        </span>
+                        <span className="leading-tight">{h.title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>,
@@ -1131,12 +1159,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
         onPointerCancel={handleHandlePointerCancel}
         onClick={handleHandleClick}
         data-no-drag-scroll="true"
-        className="w-full flex items-center justify-center py-2 cursor-grab active:cursor-grabbing touch-none select-none group shrink-0"
-        title={
-          isExpanded
-            ? 'برای جمع شدن تقویم به بالا بکشید یا کلیک کنید'
-            : 'برای نمایش کامل ماه به پایین بکشید یا کلیک کنید'
-        }
+        className="w-full flex items-center justify-center pt-2.5 pb-2 cursor-grab active:cursor-grabbing touch-none select-none group shrink-0"
       >
         <div
           className={`h-1 rounded-full transition-all duration-200 ${

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppContainer } from './components/layout/AppContainer';
 import { MobileScrollArea } from './components/layout/MobileScrollArea';
 import { WeeklyStrip } from './components/calendar/WeeklyStrip';
@@ -13,7 +13,7 @@ import { BoxesModal } from './components/boxes/BoxesModal';
 import { ToastContainer } from './components/ui/Toast';
 
 import { taskRepo, noteRepo, eventRepo, tagRepo } from './repositories';
-import { RiCalendarEventLine, RiArrowLeftSLine } from '@remixicon/react';
+import { RiCalendarEventLine, RiArrowLeftSLine, RiMedal2Line } from '@remixicon/react';
 import {
   getTodayJalaliKey,
   formatJalaliKey,
@@ -23,10 +23,12 @@ import {
   getFullPersianWeekdayName,
   getRelativeDayPrefix,
   extractDateOnly,
+  toPersianDigits,
 } from './lib/jalali';
 import { checkAndSeedDesignDemoData } from './lib/seed';
 import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
 import type { Task, EventItem, Note, Tag } from './types/models';
+import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('day');
@@ -53,6 +55,11 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [boxesOpen, setBoxesOpen] = useState(false);
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
+
+  // Daily 5 Tasks Target state
+  const [todayDoneCount, setTodayDoneCount] = useState<number>(0);
+  const [celebrationCoords, setCelebrationCoords] = useState<{ x: number; y: number } | null>(null);
+  const goalPillRef = useRef<HTMLDivElement | null>(null);
 
   // Apply active theme on mount and change
   useEffect(() => {
@@ -198,6 +205,24 @@ export function App() {
         if (ep) dSet.add(ep);
       });
 
+      // Count all tasks marked done today (regardless of due date or overdue status)
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const doneToday = allTasksList.filter(
+        (t) => t.status === 'done' && t.updated_at && t.updated_at.slice(0, 10) === todayISO
+      ).length;
+
+      setTodayDoneCount((prev) => {
+        if (prev < 5 && doneToday >= 5) {
+          if (goalPillRef.current) {
+            const rect = goalPillRef.current.getBoundingClientRect();
+            setCelebrationCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+          } else {
+            setCelebrationCoords({ x: 80, y: 50 });
+          }
+        }
+        return doneToday;
+      });
+
       const futureEv = allEventsList.filter((e) => {
         const ep = extractDateOnly(e.start_at);
         return ep !== '' && ep > targetDateKey;
@@ -277,17 +302,49 @@ export function App() {
                 <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
               </div>
 
-              {/* Left side: Capsule "بازگشت به امروز" button (visible when viewing any other day) */}
-              {isSelectedOtherThanToday && (
-                <button
-                  onClick={() => setSelectedDateKey(todayKey)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
-                  title="بازگشت به امروز"
+              {/* Left side: Daily goal counter pill + Capsule "بازگشت به امروز" button */}
+              <div className="flex items-center gap-2">
+                {/* Daily Goal Counter Pill (Matching User Screenshot: Medal Icon + X/5) */}
+                <div
+                  ref={goalPillRef}
+                  dir="ltr"
+                  onClick={() => {
+                    if (goalPillRef.current) {
+                      const rect = goalPillRef.current.getBoundingClientRect();
+                      setCelebrationCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                    } else {
+                      setCelebrationCoords({ x: 80, y: 50 });
+                    }
+                  }}
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-all select-none border ${
+                    todayDoneCount >= 5
+                      ? 'bg-amber-500/15 dark:bg-amber-400/20 text-amber-600 dark:text-amber-300 border-amber-500/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95'
+                      : 'bg-muted/80 dark:bg-white/10 text-muted-foreground/90 border-transparent hover:border-border/60 hover:text-foreground cursor-pointer hover:bg-muted'
+                  }`}
+                  title={`هدف روزانه: ۵ تسک (${toPersianDigits(todayDoneCount)} از ۵ تسک امروز انجام شد)`}
                 >
-                  <span>بازگشت به امروز</span>
-                  <RiCalendarEventLine className="w-4 h-4 text-muted-foreground shrink-0" />
-                </button>
-              )}
+                  <RiMedal2Line
+                    className={`w-4.5 h-4.5 shrink-0 ${
+                      todayDoneCount >= 5 ? 'text-amber-500' : 'text-muted-foreground/80'
+                    }`}
+                  />
+                  <span className="font-semibold text-sm leading-none pt-0.5">
+                    {toPersianDigits(todayDoneCount)}/۵
+                  </span>
+                </div>
+
+                {/* Back to Today Button (visible when viewing any other day) */}
+                {isSelectedOtherThanToday && (
+                  <button
+                    onClick={() => setSelectedDateKey(todayKey)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
+                    title="بازگشت به امروز"
+                  >
+                    <span>امروز</span>
+                    <RiCalendarEventLine className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right">
               هر روزی که شروع میشه یک فرصت تازه است!
@@ -412,6 +469,16 @@ export function App() {
           setActiveTab('day');
         }}
       />
+
+      {/* Celebration particle burst when reaching 5 daily tasks */}
+      {celebrationCoords && (
+        <DailyGoalCelebration
+          originX={celebrationCoords.x}
+          originY={celebrationCoords.y}
+          theme={theme}
+          onComplete={() => setCelebrationCoords(null)}
+        />
+      )}
 
     </AppContainer>
   );
