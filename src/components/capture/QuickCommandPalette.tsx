@@ -199,23 +199,15 @@ export const QuickCommandPalette: React.FC<QuickCommandPaletteProps> = ({
 
   return (
     <div
-      className="absolute top-full right-0 mt-2 z-50 w-72 max-w-[92vw] bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-2xl border border-border/80 dark:border-white/15 shadow-2xl overflow-hidden animate-sheet-up text-right select-none"
+      className="absolute top-full right-0 mt-1.5 z-50 w-64 max-w-[92vw] bg-card/85 dark:bg-card/90 backdrop-blur-xl rounded-xl border border-border/60 dark:border-white/10 shadow-xl overflow-hidden animate-popover-fade text-right select-none"
       dir="rtl"
     >
-      <div className="px-3 py-2 border-b border-border/50 dark:border-white/10 flex items-center justify-between text-xs text-muted-foreground font-medium bg-muted/30">
-        <span className="flex items-center gap-1.5">
-          <span className="font-mono text-primary font-bold">/</span>
-          <span>دستورات سریع تسک</span>
-        </span>
-        <span className="text-[10px] opacity-70">↑↓ ناوبری • ↵ اعمال</span>
-      </div>
-
       <div
         ref={listRef}
-        className="max-h-64 overflow-y-auto p-1.5 space-y-0.5"
+        className="max-h-56 overflow-y-auto p-1 space-y-0.5"
       >
         {filteredItems.length === 0 ? (
-          <div className="py-4 text-center text-xs text-muted-foreground">
+          <div className="py-3 text-center text-xs text-muted-foreground">
             دستوری یافت نشد
           </div>
         ) : (
@@ -227,25 +219,25 @@ export const QuickCommandPalette: React.FC<QuickCommandPaletteProps> = ({
                 type="button"
                 onClick={item.action}
                 onMouseEnter={() => setActiveIndex(idx)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer text-right ${
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer text-right ${
                   isSelected
-                    ? 'bg-muted text-foreground font-semibold shadow-2xs'
-                    : 'hover:bg-muted/50 text-foreground/80'
+                    ? 'bg-black/[0.04] dark:bg-white/[0.055] text-foreground font-medium'
+                    : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.035] text-foreground/80'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="shrink-0">{item.icon}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="shrink-0 text-muted-foreground">{item.icon}</span>
                   <div className="flex flex-col min-w-0">
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate leading-tight">{item.label}</span>
                     {item.subLabel && (
-                      <span className="text-[10px] truncate text-muted-foreground">
+                      <span className="text-[9.5px] truncate text-muted-foreground leading-tight mt-0.5">
                         {item.subLabel}
                       </span>
                     )}
                   </div>
                 </div>
                 <span
-                  className="text-[9.5px] px-2 py-0.5 rounded-full shrink-0 bg-muted/60 text-muted-foreground border border-border/40"
+                  className="text-[9px] px-1.5 py-0.5 rounded shrink-0 bg-black/[0.03] dark:bg-white/[0.04] text-muted-foreground border border-border/30"
                 >
                   {item.category}
                 </span>

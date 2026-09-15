@@ -20,6 +20,7 @@ import {
   RiArrowDownSLine,
 } from '@remixicon/react';
 import { toast } from '@/lib/toast';
+import { playPencilWriteSound } from '@/lib/sound';
 
 interface TaskInlineFormProps {
   initialDate?: string;
@@ -107,6 +108,7 @@ export const TaskInlineForm: React.FC<TaskInlineFormProps> = ({
         processed: true,
       });
 
+      playPencilWriteSound();
       await taskRepo.create({
         entry_id: entry.id,
         title: cleanTitle,

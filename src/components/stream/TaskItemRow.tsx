@@ -50,6 +50,7 @@ interface TaskItemRowProps {
   onDragOver?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
+  isNewlyAdded?: boolean;
 }
 
 export const TaskItemRow: React.FC<TaskItemRowProps> = ({
@@ -63,11 +64,13 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   onDragOver,
   onDragEnd,
   onDrop,
+  isNewlyAdded = false,
 }) => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const isDone = task.status === 'done';
+  const [isCompleting, setIsCompleting] = useState(false);
+  const isDone = task.status === 'done' || isCompleting;
   const isPinned = !!task.pinned;
   const todayKey = getTodayJalaliKey();
   const tomorrowKey = addJalaliDays(todayKey, 1);
@@ -82,10 +85,17 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   const handleToggle = async () => {
     if (!isDone) {
       playTaskDoneSound();
+      setIsCompleting(true);
+      // Wait for the full hand-drawn pencil strike animation to finish in-place before re-sorting
+      await new Promise((resolve) => setTimeout(resolve, 480));
+      await taskRepo.toggleDone(task.id);
+      setIsCompleting(false);
+      onStatusChanged();
       toast.show('تسک دان شد');
+    } else {
+      await taskRepo.toggleDone(task.id);
+      onStatusChanged();
     }
-    await taskRepo.toggleDone(task.id);
-    onStatusChanged();
   };
 
   const handleTogglePin = async () => {
@@ -128,6 +138,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             } ${
               isDone ? 'opacity-55' : ''
+            } ${
+              isNewlyAdded ? 'animate-task-insert' : ''
             }`}
           >
             <div className="flex items-start justify-between w-full">
@@ -177,7 +189,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                     <span
                       className={`text-[13.5px] font-medium leading-snug transition-all break-words ${
                         isDone
-                          ? 'line-through text-muted-foreground font-normal'
+                          ? 'pencil-strike text-muted-foreground font-normal'
                           : 'text-foreground'
                       }`}
                     >

@@ -28,6 +28,7 @@ interface DayStreamProps {
   onMigrateTask: (taskId: string, targetDate?: string) => void;
   onGoToToday?: () => void;
   onOpenAdd?: () => void;
+  newlyAddedTaskId?: string | null;
 }
 
 function getPriorityScore(item: UnifiedStreamItem): number {
@@ -117,6 +118,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
   onMigrateTask,
   onGoToToday,
   onOpenAdd,
+  newlyAddedTaskId,
 }) => {
   const [filterType, setFilterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
   const [sortBy, setSortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
@@ -311,6 +313,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                       draggable
                       onDragStart={(e) => handleDragStart(e, idx)}
                       onDragEnd={handleDragEnd}
+                      isNewlyAdded={item.data.id === newlyAddedTaskId}
                     />
                   )}
 

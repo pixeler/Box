@@ -191,13 +191,40 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     el.scrollTo({ top: scrollTarget, behavior: 'smooth' });
   };
 
+  // Global cleanup on native HTML5 drag operations
+  useEffect(() => {
+    const handleGlobalDragEvent = () => {
+      setIsDraggingContent(false);
+      hasDraggedContentRef.current = false;
+      if (momentumRafRef.current) {
+        cancelAnimationFrame(momentumRafRef.current);
+      }
+    };
+
+    window.addEventListener('dragstart', handleGlobalDragEvent);
+    window.addEventListener('dragend', handleGlobalDragEvent);
+    window.addEventListener('drop', handleGlobalDragEvent);
+
+    return () => {
+      window.removeEventListener('dragstart', handleGlobalDragEvent);
+      window.removeEventListener('dragend', handleGlobalDragEvent);
+      window.removeEventListener('drop', handleGlobalDragEvent);
+    };
+  }, []);
+
   // --- 2. Container Drag-To-Scroll (Mouse & Hand/Touch) ---
   const handleContainerMouseDown = (e: React.MouseEvent) => {
-    // Ignore right clicks or clicks on form inputs, buttons, and drag handles
+    // Ignore right clicks or clicks on form inputs, buttons, drag handles, and draggable task cards
     if (e.button !== 0) return;
     const target = e.target as HTMLElement;
     if (['input', 'textarea', 'select', 'button'].includes(target.tagName.toLowerCase())) return;
-    if (target.closest('button, [data-no-drag-scroll], [role="button"], input, textarea, select')) return;
+    if (
+      target.closest(
+        '[draggable="true"], [data-draggable], button, [data-no-drag-scroll], [role="button"], input, textarea, select, a'
+      )
+    ) {
+      return;
+    }
     if (target.isContentEditable) return;
 
     if (momentumRafRef.current) {
@@ -213,6 +240,23 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     lastYRef.current = e.clientY;
     lastTimeRef.current = performance.now();
     velocityRef.current = 0;
+
+    const cleanup = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('dragstart', onDragCancel);
+      window.removeEventListener('dragend', onDragCancel);
+      window.removeEventListener('drop', onDragCancel);
+      window.removeEventListener('blur', onDragCancel);
+      setIsDraggingContent(false);
+      setTimeout(() => {
+        hasDraggedContentRef.current = false;
+      }, 50);
+    };
+
+    const onDragCancel = () => {
+      cleanup();
+    };
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       const deltaY = moveEvent.clientY - dragStartYRef.current;
@@ -236,12 +280,9 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     };
 
     const onMouseUp = () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      cleanup();
 
       if (hasDraggedContentRef.current) {
-        setIsDraggingContent(false);
-
         // Apply smooth momentum gliding
         if (Math.abs(velocityRef.current) > 0.15) {
           let v = velocityRef.current * 16;
@@ -254,16 +295,36 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
           };
           momentumRafRef.current = requestAnimationFrame(step);
         }
-
-        // Reset drag state on next tick to allow click capture to intercept
-        setTimeout(() => {
-          hasDraggedContentRef.current = false;
-        }, 50);
       }
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('dragstart', onDragCancel);
+    window.addEventListener('dragend', onDragCancel);
+    window.addEventListener('drop', onDragCancel);
+    window.addEventListener('blur', onDragCancel);
+  };
+
+  // Auto-scroll when dragging tasks near top or bottom edges
+  const handleContainerDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const mouseY = e.clientY;
+    const topEdge = rect.top + 60;
+    const bottomEdge = rect.bottom - 60;
+
+    if (mouseY < topEdge && el.scrollTop > 0) {
+      const ratio = Math.max(0.2, (topEdge - mouseY) / 60);
+      el.scrollTop -= Math.round(ratio * 12);
+      triggerScrollVisibility();
+    } else if (mouseY > bottomEdge && el.scrollTop < el.scrollHeight - el.clientHeight) {
+      const ratio = Math.max(0.2, (mouseY - bottomEdge) / 60);
+      el.scrollTop += Math.round(ratio * 12);
+      triggerScrollVisibility();
+    }
   };
 
   // Intercept and prevent accidental clicks after dragging
@@ -276,11 +337,12 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
 
   return (
     <div className={`relative w-full flex-1 min-h-0 overflow-hidden ${className}`}>
-      {/* Scrollable Container (Drag-to-scroll enabled with mouse and touch) */}
+      {/* Scrollable Container (Drag-to-scroll enabled with mouse and touch, auto-scroll during card drag) */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
         onMouseDown={handleContainerMouseDown}
+        onDragOver={handleContainerDragOver}
         onClickCapture={handleClickCapture}
         className={`w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar select-none ${
           isDraggingContent ? 'cursor-grabbing select-none' : 'cursor-default'

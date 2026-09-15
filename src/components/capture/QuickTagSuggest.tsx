@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Tag } from '@/types/models';
-import { RiPriceTag3Line, RiAddLine, RiCheckLine } from '@remixicon/react';
+import { RiAddLine, RiCheckLine } from '@remixicon/react';
 
 interface QuickTagSuggestProps {
   query: string;
@@ -89,23 +89,15 @@ export const QuickTagSuggest: React.FC<QuickTagSuggestProps> = ({
 
   return (
     <div
-      className="absolute top-full right-0 mt-2 z-50 w-64 max-w-[90vw] bg-popover/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-2xl border border-border/80 dark:border-white/15 shadow-2xl overflow-hidden animate-sheet-up text-right select-none"
+      className="absolute top-full right-0 mt-1.5 z-50 w-64 max-w-[92vw] bg-card/85 dark:bg-card/90 backdrop-blur-xl rounded-xl border border-border/60 dark:border-white/10 shadow-xl overflow-hidden animate-popover-fade text-right select-none"
       dir="rtl"
     >
-      <div className="px-3 py-2 border-b border-border/50 dark:border-white/10 flex items-center justify-between text-xs text-muted-foreground font-medium bg-muted/30">
-        <span className="flex items-center gap-1.5">
-          <RiPriceTag3Line className="w-3.5 h-3.5 text-primary" />
-          <span>انتخاب یا ساخت برچسب</span>
-        </span>
-        <span className="text-[10px] opacity-70">↑↓ ناوبری • ↵ انتخاب</span>
-      </div>
-
       <div
         ref={listRef}
-        className="max-h-52 overflow-y-auto p-1.5 space-y-0.5"
+        className="max-h-56 overflow-y-auto p-1 space-y-0.5"
       >
         {items.length === 0 ? (
-          <div className="py-4 text-center text-xs text-muted-foreground">
+          <div className="py-3 text-center text-xs text-muted-foreground">
             برچسبی یافت نشد
           </div>
         ) : (
@@ -119,18 +111,18 @@ export const QuickTagSuggest: React.FC<QuickTagSuggestProps> = ({
                   type="button"
                   onClick={() => onSelectTag(item.tag.name)}
                   onMouseEnter={() => setActiveIndex(idx)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer text-right ${
+                  className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer text-right ${
                     isSelected
-                      ? 'bg-muted text-foreground font-semibold shadow-2xs'
-                      : 'hover:bg-muted/50 text-foreground/80'
+                      ? 'bg-black/[0.04] dark:bg-white/[0.055] text-foreground font-medium'
+                      : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.035] text-foreground/80'
                   }`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-muted-foreground/60" />
-                    <span>#{item.tag.name}</span>
+                    <span className="truncate leading-tight">#{item.tag.name}</span>
                   </div>
                   {isAlreadyAdded && (
-                    <RiCheckLine className="w-3.5 h-3.5 text-foreground" />
+                    <RiCheckLine className="w-3.5 h-3.5 text-foreground/80 shrink-0" />
                   )}
                 </button>
               );
@@ -141,14 +133,14 @@ export const QuickTagSuggest: React.FC<QuickTagSuggestProps> = ({
                   type="button"
                   onClick={() => onSelectTag(item.name)}
                   onMouseEnter={() => setActiveIndex(idx)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-colors cursor-pointer text-right ${
+                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors cursor-pointer text-right ${
                     isSelected
-                      ? 'bg-muted text-foreground font-semibold shadow-2xs'
-                      : 'hover:bg-muted/50 text-muted-foreground'
+                      ? 'bg-black/[0.04] dark:bg-white/[0.055] text-foreground font-medium'
+                      : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.035] text-muted-foreground'
                   }`}
                 >
-                  <RiAddLine className="w-4 h-4 shrink-0 text-muted-foreground" />
-                  <span>ایجاد برچسب «{item.name}»</span>
+                  <RiAddLine className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate leading-tight">ایجاد برچسب «{item.name}»</span>
                 </button>
               );
             }

@@ -29,6 +29,7 @@ import { checkAndSeedDesignDemoData } from './lib/seed';
 import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
 import type { Task, EventItem, Note, Tag } from './types/models';
 import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
+import { getDailyQuote } from './lib/quotes';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('day');
@@ -39,6 +40,9 @@ export function App() {
     return localStorage.getItem('second_brain_wallpaper') || WALLPAPER_LIST[0].id;
   });
   const [theme, setTheme] = useState<ThemeId>(() => getStoredTheme());
+  const [glassBackground, setGlassBackground] = useState<boolean>(() => {
+    return localStorage.getItem('second_brain_glass_background') === 'true';
+  });
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -55,6 +59,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [boxesOpen, setBoxesOpen] = useState(false);
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
+  const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
 
   // Daily 5 Tasks Target state
   const [todayDoneCount, setTodayDoneCount] = useState<number>(0);
@@ -75,6 +80,12 @@ export function App() {
   const handleWallpaperChange = (wpId: string) => {
     setWallpaper(wpId);
     localStorage.setItem('second_brain_wallpaper', wpId);
+  };
+
+  // Glass background toggle with persistence
+  const handleGlassBackgroundChange = (enabled: boolean) => {
+    setGlassBackground(enabled);
+    localStorage.setItem('second_brain_glass_background', String(enabled));
   };
 
   // Global keyboard shortcuts (supports both English and Persian layouts)
@@ -268,6 +279,16 @@ export function App() {
     loadDayData();
   };
 
+  const handleItemCreated = async (createdId?: string) => {
+    if (createdId) {
+      setNewlyAddedTaskId(createdId);
+      setTimeout(() => {
+        setNewlyAddedTaskId((prev) => (prev === createdId ? null : prev));
+      }, 1500);
+    }
+    await loadDayData();
+  };
+
   const todayKey = getTodayJalaliKey();
   const selectedJalali = parseJalaliKey(selectedDateKey);
   const selectedGregorianDate = jalaliToDate(selectedJalali.jy, selectedJalali.jm, selectedJalali.jd);
@@ -276,7 +297,7 @@ export function App() {
   const isSelectedOtherThanToday = selectedDateKey !== todayKey;
 
   return (
-    <AppContainer wallpaper={wallpaper}>
+    <AppContainer wallpaper={wallpaper} glassBackground={glassBackground}>
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
@@ -346,8 +367,8 @@ export function App() {
                 )}
               </div>
             </div>
-            <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right">
-              هر روزی که شروع میشه یک فرصت تازه است!
+            <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right truncate" title={getDailyQuote(selectedDateKey)}>
+              {getDailyQuote(selectedDateKey)}
             </p>
           </div>
 
@@ -393,6 +414,7 @@ export function App() {
               onMigrateTask={handleMigrateTask}
               onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
               onOpenAdd={() => setQuickCaptureOpen(true)}
+              newlyAddedTaskId={newlyAddedTaskId}
             />
           </>
         )}
@@ -441,6 +463,8 @@ export function App() {
         onWallpaperChange={handleWallpaperChange}
         currentTheme={theme}
         onThemeChange={handleThemeChange}
+        glassBackground={glassBackground}
+        onGlassBackgroundChange={handleGlassBackgroundChange}
         onOpenSearch={() => {
           setSettingsOpen(false);
           setSearchOpen(true);
@@ -450,7 +474,7 @@ export function App() {
       {/* Quick Capture Modal */}
       <QuickCaptureInput
         currentSelectedDateKey={selectedDateKey}
-        onItemCreated={loadDayData}
+        onItemCreated={handleItemCreated}
         isOpen={quickCaptureOpen}
         onClose={() => {
           setQuickCaptureOpen(false);

@@ -14,9 +14,10 @@ import {
   RiContrastLine,
   RiArrowLeftSLine,
   RiCheckDoubleLine,
-  RiSparklingLine,
+  RiDropLine,
+  RiImageAddLine,
 } from '@remixicon/react';
-import { UnsplashPickerModal } from './UnsplashPickerModal';
+
 import {
   type ThemeId,
   type ThemeMode,
@@ -159,6 +160,8 @@ interface ProfileViewProps {
   onOpenSearch: () => void;
   isOpen?: boolean;
   onClose?: () => void;
+  glassBackground?: boolean;
+  onGlassBackgroundChange?: (enabled: boolean) => void;
 }
 
 // Custom hook for mouse/pointer drag-to-scroll on horizontal rails
@@ -213,6 +216,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onOpenSearch,
   isOpen = true,
   onClose,
+  glassBackground = false,
+  onGlassBackgroundChange,
 }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -225,8 +230,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     totalNotes: 0,
     totalEvents: 0,
   });
-  const [unsplashModalOpen, setUnsplashModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const customImageInputRef = useRef<HTMLInputElement>(null);
+
+  const [customWallpaperUrl, setCustomWallpaperUrl] = useState<string | null>(() => {
+    return (
+      localStorage.getItem('second_brain_custom_wallpaper') ||
+      localStorage.getItem('second_brain_cached_unsplash_wallpaper') ||
+      null
+    );
+  });
+  const [customWallpaperTitle, setCustomWallpaperTitle] = useState<string>(() => {
+    return (
+      localStorage.getItem('second_brain_custom_wallpaper_title') ||
+      'تصویر دلخواه'
+    );
+  });
 
   // Drag hooks for horizontal theme & wallpaper rails
   const themeDrag = useHorizontalDrag();
@@ -346,16 +365,65 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
-  const cachedUnsplashUrl = localStorage.getItem('second_brain_cached_unsplash_wallpaper');
-  const cachedUnsplashTitle =
-    localStorage.getItem('second_brain_custom_wallpaper_title') || 'Unsplash';
+  const handleCustomImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (!dataUrl) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1920;
+        const MAX_HEIGHT = 1080;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+          const cleanTitle = file.name.replace(/\.[^/.]+$/, '').slice(0, 24);
+          try {
+            localStorage.setItem('second_brain_custom_wallpaper', optimizedDataUrl);
+            localStorage.setItem('second_brain_custom_wallpaper_title', cleanTitle);
+          } catch (err) {
+            console.warn('LocalStorage quota exceeded:', err);
+          }
+          setCustomWallpaperUrl(optimizedDataUrl);
+          setCustomWallpaperTitle(cleanTitle);
+          onWallpaperChange('custom-image');
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const activeWallpaperItem =
-    currentWallpaper === 'custom-unsplash'
+    currentWallpaper === 'custom-image' || currentWallpaper === 'custom-unsplash'
       ? {
-          id: 'custom-unsplash',
-          title: cachedUnsplashTitle,
-          url: cachedUnsplashUrl || undefined,
+          id: currentWallpaper,
+          title: customWallpaperTitle,
+          url: customWallpaperUrl || undefined,
         }
       : WALLPAPER_LIST.find((w) => w.id === currentWallpaper) || WALLPAPER_LIST[0];
 
@@ -517,37 +585,36 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               onPointerUp={wallpaperDrag.onPointerUp}
               className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 scroll-smooth cursor-grab active:cursor-grabbing select-none"
             >
-              {/* Unsplash Card */}
+              {/* Custom Computer Image Card */}
               <button
                 type="button"
                 onClick={() => {
                   if (wallpaperDrag.hasDragged.current) return;
-                  if (currentWallpaper === 'custom-unsplash') {
-                    setUnsplashModalOpen(true);
-                  } else if (cachedUnsplashUrl) {
-                    onWallpaperChange('custom-unsplash');
+                  if (customWallpaperUrl) {
+                    onWallpaperChange('custom-image');
                   } else {
-                    setUnsplashModalOpen(true);
+                    customImageInputRef.current?.click();
                   }
                 }}
                 className={`w-[76px] shrink-0 rounded-xl overflow-hidden border text-right transition-all flex flex-col cursor-pointer ${
-                  currentWallpaper === 'custom-unsplash'
+                  currentWallpaper === 'custom-image' || currentWallpaper === 'custom-unsplash'
                     ? 'border-foreground/80 ring-1 ring-foreground/20 shadow-xs'
                     : 'border-border/80 hover:border-foreground/40'
                 }`}
+                title={customWallpaperUrl ? 'انتخاب تصویر شخصی' : 'بارگذاری تصویر از کامپیوتر'}
               >
                 <div className="w-full h-12 bg-muted/40 relative overflow-hidden flex flex-col items-center justify-center">
-                  {cachedUnsplashUrl ? (
+                  {customWallpaperUrl ? (
                     <img
-                      src={cachedUnsplashUrl}
-                      alt={cachedUnsplashTitle}
+                      src={customWallpaperUrl}
+                      alt={customWallpaperTitle}
                       className="w-full h-full object-cover select-none pointer-events-none"
                     />
                   ) : (
-                    <RiSparklingLine className="w-4 h-4 text-muted-foreground" />
+                    <RiImageAddLine className="w-4 h-4 text-muted-foreground" />
                   )}
 
-                  {currentWallpaper === 'custom-unsplash' && (
+                  {(currentWallpaper === 'custom-image' || currentWallpaper === 'custom-unsplash') && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <div className="w-4 h-4 rounded-full bg-foreground text-background flex items-center justify-center shadow">
                         <RiCheckLine className="w-2.5 h-2.5 stroke-[3]" />
@@ -558,7 +625,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
                 <div className="px-1 py-0.5 bg-card border-t border-border/60 text-center">
                   <p className="text-[9px] text-foreground font-medium truncate leading-tight">
-                    {currentWallpaper === 'custom-unsplash' ? cachedUnsplashTitle : 'Unsplash'}
+                    {customWallpaperUrl ? customWallpaperTitle : 'افزودن عکس'}
                   </p>
                 </div>
               </button>
@@ -621,18 +688,57 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               })}
             </div>
 
-            {/* Button to open Unsplash Search modal */}
+            {/* Button to open file picker for custom wallpaper from computer */}
             <button
               type="button"
-              onClick={() => setUnsplashModalOpen(true)}
+              onClick={() => customImageInputRef.current?.click()}
               className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-muted/30 hover:bg-muted/60 text-foreground border border-border/60 text-xs font-medium transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <RiSparklingLine className="w-4 h-4 text-muted-foreground" />
-                <span>جستجو و انتخاب پس‌زمینه از Unsplash</span>
+                <RiImageAddLine className="w-4 h-4 text-primary shrink-0" />
+                <span className="font-medium">انتخاب پس‌زمینه دلخواه از کامپیوتر</span>
               </div>
-              <span className="text-[10px] text-muted-foreground">دانلود و کش خودکار</span>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                {customWallpaperUrl ? 'تغییر تصویر' : 'آپلود فایل عکس'}
+              </span>
             </button>
+          </div>
+
+          {/* Section: Glass Background Setting Option */}
+          <div className="space-y-1.5 pt-1">
+            <p className="text-[10.5px] font-semibold text-muted-foreground px-1">شخصی‌سازی ظاهر شیشه‌ای</p>
+            <div className="p-3 rounded-2xl border border-border/80 bg-secondary/25 flex items-center justify-between transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
+                  <RiDropLine className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-foreground">پس‌زمینه شیشه‌ای</p>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">مشابه داک</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">افکت بلور و شیشه‌ای مایع روی کادر اصلی برنامه</p>
+                </div>
+              </div>
+
+              {/* Modern iOS / Liquid style Switch Toggle */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={glassBackground}
+                onClick={() => onGlassBackgroundChange?.(!glassBackground)}
+                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer p-0.5 select-none shrink-0 ${
+                  glassBackground ? 'bg-primary' : 'bg-muted-foreground/30'
+                }`}
+                title="تغییر حالت پس‌زمینه شیشه‌ای"
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
+                    glassBackground ? '-translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Section: Monochrome Grouped Settings Rows */}
@@ -736,19 +842,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           className="hidden"
         />
 
-        {/* Unsplash Wallpaper Picker Modal */}
-        <UnsplashPickerModal
-          isOpen={unsplashModalOpen}
-          onClose={() => setUnsplashModalOpen(false)}
-          onSelectAndCacheWallpaper={(dataUrl, title) => {
-            try {
-              localStorage.setItem('second_brain_cached_unsplash_wallpaper', dataUrl);
-              localStorage.setItem('second_brain_custom_wallpaper_title', title);
-            } catch (e) {
-              console.warn('LocalStorage quota exceeded for base64 wallpaper, saving title:', e);
-            }
-            onWallpaperChange('custom-unsplash');
-          }}
+        {/* Hidden File Input for Custom Wallpaper */}
+        <input
+          ref={customImageInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleCustomImageUpload}
+          className="hidden"
         />
       </div>
     </div>

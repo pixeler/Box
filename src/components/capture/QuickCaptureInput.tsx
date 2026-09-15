@@ -4,7 +4,6 @@ import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories'
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey } from '@/lib/jalali';
 import { extractQuickTokens } from '@/lib/quick-parser';
 import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
-import { TagPickerPopover } from '../tags/TagPickerPopover';
 import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
@@ -29,10 +28,11 @@ import {
 } from '@remixicon/react';
 
 import { toast } from '@/lib/toast';
+import { playPencilWriteSound } from '@/lib/sound';
 
 interface QuickCaptureInputProps {
   currentSelectedDateKey: string;
-  onItemCreated: () => void | Promise<void>;
+  onItemCreated: (createdItemId?: string) => void | Promise<void>;
   isOpen?: boolean;
   onClose?: () => void;
   onOpen?: () => void;
@@ -64,7 +64,6 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
   // Pickers modal states
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
   const [priorityPickerOpen, setPriorityPickerOpen] = useState(false);
 
@@ -221,10 +220,6 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
             setDatePickerOpen(false);
             return;
           }
-          if (tagPickerOpen) {
-            setTagPickerOpen(false);
-            return;
-          }
           if (boxPickerOpen) {
             setBoxPickerOpen(false);
             return;
@@ -243,7 +238,6 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   }, [
     isOpen,
     datePickerOpen,
-    tagPickerOpen,
     boxPickerOpen,
     priorityPickerOpen,
     tagSuggestQuery,
@@ -282,12 +276,6 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     }
   };
 
-  const handleToggleTag = (tagId: string) => {
-    setTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-    );
-  };
-
   const handleSelectTagFromSuggest = async (tagName: string) => {
     let tag = Object.values(tagsMap).find(
       (t) => t.name.toLowerCase() === tagName.toLowerCase()
@@ -301,25 +289,35 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       setTagIds((prev) => [...prev, tag.id]);
     }
 
-    // Replace `#query` in title with `#tagName `
+    // Replace `#query` in title with `#tagName ` or append if triggered via button
     const textarea = titleInputRef.current;
     const cursorPos = textarea ? textarea.selectionStart : title.length;
     const beforeCursor = title.substring(0, cursorPos);
     const afterCursor = title.substring(cursorPos);
 
-    const updatedBefore = beforeCursor.replace(/(?:^|\s)#([^\s]*)$/, (match) => {
-      const hasLeadingSpace = match.startsWith(' ');
-      return `${hasLeadingSpace ? ' ' : ''}#${tagName} `;
-    });
+    let newTitle: string;
+    let newPos: number;
 
-    const newTitle = updatedBefore + afterCursor;
+    const hasHashMatch = /(?:^|\s)#([^\s]*)$/.test(beforeCursor);
+    if (hasHashMatch) {
+      const updatedBefore = beforeCursor.replace(/(?:^|\s)#([^\s]*)$/, (match) => {
+        const hasLeadingSpace = match.startsWith(' ');
+        return `${hasLeadingSpace ? ' ' : ''}#${tagName} `;
+      });
+      newTitle = updatedBefore + afterCursor;
+      newPos = updatedBefore.length;
+    } else {
+      const trimmed = title.trim();
+      newTitle = trimmed ? `${trimmed} #${tagName} ` : `#${tagName} `;
+      newPos = newTitle.length;
+    }
+
     setTitle(newTitle);
     setTagSuggestQuery(null);
 
     setTimeout(() => {
       if (textarea) {
         textarea.focus();
-        const newPos = updatedBefore.length;
         textarea.setSelectionRange(newPos, newPos);
       }
     }, 10);
@@ -369,7 +367,6 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setIsPinned(false);
     setIsFullscreen(false);
     setDatePickerOpen(false);
-    setTagPickerOpen(false);
     setBoxPickerOpen(false);
     setDueDate(currentSelectedDateKey);
     setTagSuggestQuery(null);
@@ -417,8 +414,10 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         }
       }
 
+      let createdId: string | undefined;
       if (activeTab === 'task') {
-        await taskRepo.create({
+        playPencilWriteSound();
+        const createdTask = await taskRepo.create({
           entry_id: entry.id,
           box_id: selectedBox || null,
           title: finalCleanTitle,
@@ -428,6 +427,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           priority: effectivePriority,
           tag_ids: finalTagIds,
         });
+        createdId = createdTask?.id;
         toast.show(
           effectiveDueDate === currentSelectedDateKey
             ? 'تسک به کارهای امروز اضافه شد'
@@ -435,7 +435,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         );
       } else {
         const bodyContent = description.trim();
-        await noteRepo.create({
+        const createdNote = await noteRepo.create({
           entry_id: entry.id,
           box_id: selectedBox || null,
           type: 'note',
@@ -446,10 +446,11 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           tag_ids: finalTagIds,
           pinned: isPinned,
         });
+        createdId = createdNote?.id;
         toast.show('یادداشت جدید با موفقیت ثبت شد');
       }
 
-      await onItemCreated();
+      await onItemCreated(createdId);
       setIsClosing(true);
       setTimeout(() => {
         setIsClosing(false);
@@ -722,7 +723,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   }}
                   onOpenTagPicker={() => {
                     removeSlashFromTitle();
-                    setTagPickerOpen(true);
+                    setTagSuggestQuery('');
                   }}
                   onSelectBox={(bId) => {
                     setSelectedBox(bId);
@@ -794,7 +795,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* برچسب */}
                 <button
                   type="button"
-                  onClick={() => setTagPickerOpen(true)}
+                  onClick={() => setTagSuggestQuery((prev) => (prev !== null ? null : ''))}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -927,7 +928,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* برچسب */}
                 <button
                   type="button"
-                  onClick={() => setTagPickerOpen(true)}
+                  onClick={() => setTagSuggestQuery((prev) => (prev !== null ? null : ''))}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -1089,21 +1090,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           </div>
         )}
 
-        {/* Tag Picker Modal */}
-        {tagPickerOpen && (
-          <div
-            className="absolute inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs"
-            onClick={() => setTagPickerOpen(false)}
-          >
-            <div onClick={(e) => e.stopPropagation()} className="animate-sheet-up">
-              <TagPickerPopover
-                selectedTagIds={tagIds}
-                onToggleTag={handleToggleTag}
-                onClose={() => setTagPickerOpen(false)}
-              />
-            </div>
-          </div>
-        )}
+
 
         {/* Priority Picker Sheet */}
         <PriorityPickerSheet

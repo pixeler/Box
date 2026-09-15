@@ -24,6 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { playTaskDoneSound } from '@/lib/sound';
 
 interface BoxDetailViewProps {
   box: Box;
@@ -46,17 +47,18 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
-
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('date_desc');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   const todayKey = getTodayJalaliKey();
 
   const loadItems = useCallback(async () => {
     try {
+      setIsLoading(true);
       const data = await boxRepo.getItems(box.id);
       setTasks(data.tasks);
       setNotes(data.notes);
@@ -74,10 +76,21 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
   const handleToggleTask = async (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation();
     try {
-      await taskRepo.toggleDone(taskId);
-      loadItems();
+      const targetTask = tasks.find((t) => t.id === taskId);
+      if (targetTask && targetTask.status !== 'done') {
+        playTaskDoneSound();
+        setCompletingTaskId(taskId);
+        await new Promise((resolve) => setTimeout(resolve, 480));
+        await taskRepo.toggleDone(taskId);
+        setCompletingTaskId(null);
+        loadItems();
+      } else {
+        await taskRepo.toggleDone(taskId);
+        loadItems();
+      }
     } catch (err) {
       console.error('Failed to toggle task:', err);
+      setCompletingTaskId(null);
     }
   };
 
@@ -298,7 +311,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
           filteredItems.map((u) => {
             if (u.kind === 'task') {
               const task = u.item;
-              const isDone = task.status === 'done';
+              const isDone = task.status === 'done' || completingTaskId === task.id;
 
               return (
                 <div
@@ -327,7 +340,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                   <div className="flex-1 min-w-0">
                     <span
                       className={`text-xs font-semibold block truncate leading-snug ${
-                        isDone ? 'line-through text-muted-foreground' : 'text-foreground'
+                        isDone ? 'pencil-strike text-muted-foreground' : 'text-foreground'
                       }`}
                     >
                       {task.title}
