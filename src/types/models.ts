@@ -18,9 +18,11 @@ export interface Task {
   description?: string;
   status: ItemStatus;
   due_date?: string; // تاریخ شمسی YYYY/MM/DD یا ISO YYYY-MM-DD
+  due_time?: string; // زمان مثلا 10:30 یا 10:30-11:30
+  duration_minutes?: number; // مدت زمان به دقیقه
   priority?: 1 | 2 | 3; // ! / !! / !!!
   tag_ids: string[];
-  recurrence_rule?: string; // RRULE-like string
+  recurrence_rule?: string; // RRULE-like string یا "daily", "weekly", etc.
   migrated_from_id?: string; // زنجیره‌ی تاریخچه‌ی migrate
   pinned?: boolean;
   order?: number;

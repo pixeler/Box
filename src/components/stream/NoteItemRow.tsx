@@ -137,7 +137,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
 
         {/* Right Click Context Menu */}
         <ContextMenuContent
-          className="w-48 p-1"
+          className="w-48 p-1.5"
           dir="rtl"
           onClick={(e) => e.stopPropagation()}
         >
@@ -148,7 +148,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
             }}
             className="gap-2 cursor-pointer"
           >
-            <RiFileTextLine className="size-4 text-gray-500" />
+            <RiFileTextLine className="size-4 text-muted-foreground" />
             <span>باز کردن یادداشت</span>
           </ContextMenuItem>
 
@@ -161,12 +161,12 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
           >
             {isPinned ? (
               <>
-                <RiPushpin2Line className="size-4 text-gray-500" />
+                <RiPushpin2Line className="size-4 text-primary" />
                 <span>برداشتن سنجاق</span>
               </>
             ) : (
               <>
-                <RiPushpin2Fill className="size-4 text-gray-700" />
+                <RiPushpin2Fill className="size-4 text-muted-foreground" />
                 <span>سنجاق کردن</span>
               </>
             )}
@@ -179,7 +179,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
             }}
             className="gap-2 cursor-pointer"
           >
-            <RiFileCopyLine className="size-4 text-gray-500" />
+            <RiFileCopyLine className="size-4 text-muted-foreground" />
             <span>تکثیر کردن (کپی)</span>
           </ContextMenuItem>
 
@@ -193,7 +193,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
             }}
             className="gap-2 cursor-pointer"
           >
-            <RiDeleteBinLine className="size-4 text-gray-600" />
+            <RiDeleteBinLine className="size-4 text-destructive" />
             <span>حذف یادداشت</span>
           </ContextMenuItem>
         </ContextMenuContent>

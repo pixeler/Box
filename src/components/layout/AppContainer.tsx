@@ -1,15 +1,19 @@
 import React from 'react';
 import { WALLPAPER_LIST } from '../profile/ProfileView';
 
+export type DesktopPosition = 'right' | 'center' | 'left';
+
 interface AppContainerProps {
   wallpaper: string;
   glassBackground?: boolean;
+  desktopPosition?: DesktopPosition;
   children: React.ReactNode;
 }
 
 export const AppContainer: React.FC<AppContainerProps> = ({
   wallpaper,
   glassBackground = false,
+  desktopPosition = 'center',
   children,
 }) => {
   const currentItem = WALLPAPER_LIST.find((w) => w.id === wallpaper) || WALLPAPER_LIST[0];
@@ -69,7 +73,13 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   return (
     <div
       style={getBackgroundStyle()}
-      className="min-h-screen w-full flex items-center justify-center p-2 sm:p-4 transition-all duration-500 font-sans"
+      className={`min-h-screen w-full flex items-center p-2 sm:p-4 md:px-10 transition-all duration-500 font-sans ${
+        desktopPosition === 'right'
+          ? 'justify-center sm:justify-start'
+          : desktopPosition === 'left'
+          ? 'justify-center sm:justify-end'
+          : 'justify-center'
+      }`}
       dir="rtl"
     >
       {/* Central App Card matching desktop width 460px, height 720px and rounded 16px */}

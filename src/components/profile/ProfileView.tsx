@@ -16,6 +16,7 @@ import {
   RiCheckDoubleLine,
   RiDropLine,
   RiImageAddLine,
+  RiComputerLine,
 } from '@remixicon/react';
 
 import {
@@ -162,6 +163,8 @@ interface ProfileViewProps {
   onClose?: () => void;
   glassBackground?: boolean;
   onGlassBackgroundChange?: (enabled: boolean) => void;
+  desktopPosition?: 'right' | 'center' | 'left';
+  onDesktopPositionChange?: (pos: 'right' | 'center' | 'left') => void;
 }
 
 // Custom hook for mouse/pointer drag-to-scroll on horizontal rails
@@ -218,6 +221,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onClose,
   glassBackground = false,
   onGlassBackgroundChange,
+  desktopPosition = 'center',
+  onDesktopPositionChange,
 }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -738,6 +743,62 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   }`}
                 />
               </button>
+            </div>
+          </div>
+
+          {/* Section: Desktop Window Position Setting Option (راست / وسط / چپ) */}
+          <div className="space-y-1.5 pt-1">
+            <p className="text-[10.5px] font-semibold text-muted-foreground px-1">چیدمان دسکتاپ</p>
+            <div className="p-3 rounded-2xl border border-border/80 bg-secondary/25 flex items-center justify-between transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
+                  <RiComputerLine className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-foreground">جای پنجره</p>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">دسکتاپ</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">موقعیت قرارگیری کادر برنامه روی مانیتور</p>
+                </div>
+              </div>
+
+              {/* Segmented Controller: راست / وسط / چپ */}
+              <div className="flex items-center bg-muted/60 dark:bg-zinc-800/80 p-0.5 rounded-xl border border-border/70 text-[11px] font-medium gap-0.5 select-none shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onDesktopPositionChange?.('right')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    desktopPosition === 'right'
+                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  راست
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDesktopPositionChange?.('center')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    desktopPosition === 'center'
+                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  وسط
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDesktopPositionChange?.('left')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    desktopPosition === 'left'
+                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  چپ
+                </button>
+              </div>
             </div>
           </div>
 

@@ -200,18 +200,14 @@ export const TaskInlineForm: React.FC<TaskInlineFormProps> = ({
             </button>
 
             {datePickerOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-2xs" onClick={() => setDatePickerOpen(false)}>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <JalaliDatePicker
-                    value={dueDate}
-                    onChange={(d) => {
-                      setDueDate(d);
-                      setDatePickerOpen(false);
-                    }}
-                    onClose={() => setDatePickerOpen(false)}
-                  />
-                </div>
-              </div>
+              <JalaliDatePicker
+                value={dueDate}
+                onChange={(d) => {
+                  setDueDate(d);
+                  setDatePickerOpen(false);
+                }}
+                onClose={() => setDatePickerOpen(false)}
+              />
             )}
           </div>
 

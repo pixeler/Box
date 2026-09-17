@@ -163,24 +163,47 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
       }
     });
 
-    // 2. Process tasks if they have a start/end time in title or description
+    // 2. Process tasks if they have a start/end time in due_time or title or description
     tasks.forEach((t) => {
-      const combined = `${t.title} ${t.description || ''}`;
-      const rangeMatch = combined.match(/(\d{1,2}:\d{2})\s*(?:تا|-)\s*(\d{1,2}:\d{2})/);
-      if (rangeMatch) {
-        const s = parseTimeToMinutes(rangeMatch[1]);
-        const e = parseTimeToMinutes(rangeMatch[2]);
-        if (s && e && e.minutes > s.minutes) {
-          list.push({
-            id: `task-${t.id}`,
-            title: t.title,
-            startMinute: s.minutes,
-            endMinute: e.minutes,
-            startFormatted: s.formatted,
-            endFormatted: e.formatted,
-            rawTask: t,
-          });
+      let s: { minutes: number; formatted: string } | null = null;
+      let e: { minutes: number; formatted: string } | null = null;
+
+      if (t.due_time) {
+        const parts = t.due_time.split(/[-–—]/);
+        s = parseTimeToMinutes(parts[0]);
+        if (parts[1]) {
+          e = parseTimeToMinutes(parts[1]);
+        } else if (s) {
+          const duration = t.duration_minutes || 60;
+          const endMin = Math.min(1440, s.minutes + duration);
+          const endH = Math.floor(endMin / 60);
+          const endM = endMin % 60;
+          e = {
+            minutes: endMin,
+            formatted: `${toPersianDigits(endH)}:${toPersianDigits(String(endM).padStart(2, '0'))}`,
+          };
         }
+      }
+
+      if (!s) {
+        const combined = `${t.title} ${t.description || ''}`;
+        const rangeMatch = combined.match(/(\d{1,2}:\d{2})\s*(?:تا|-)\s*(\d{1,2}:\d{2})/);
+        if (rangeMatch) {
+          s = parseTimeToMinutes(rangeMatch[1]);
+          e = parseTimeToMinutes(rangeMatch[2]);
+        }
+      }
+
+      if (s && e && e.minutes > s.minutes) {
+        list.push({
+          id: `task-${t.id}`,
+          title: t.title,
+          startMinute: s.minutes,
+          endMinute: e.minutes,
+          startFormatted: s.formatted,
+          endFormatted: e.formatted,
+          rawTask: t,
+        });
       }
     });
 

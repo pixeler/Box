@@ -93,6 +93,16 @@ export function App() {
     localStorage.setItem('second_brain_glass_background', String(enabled));
   };
 
+  // Desktop window position state with persistence ('right' | 'center' | 'left')
+  const [desktopPosition, setDesktopPosition] = useState<'right' | 'center' | 'left'>(() => {
+    return (localStorage.getItem('second_brain_desktop_position') as 'right' | 'center' | 'left') || 'center';
+  });
+
+  const handleDesktopPositionChange = (pos: 'right' | 'center' | 'left') => {
+    setDesktopPosition(pos);
+    localStorage.setItem('second_brain_desktop_position', pos);
+  };
+
   // Global keyboard shortcuts (supports both English and Persian layouts)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -302,7 +312,11 @@ export function App() {
   const isSelectedOtherThanToday = selectedDateKey !== todayKey;
 
   return (
-    <AppContainer wallpaper={wallpaper} glassBackground={glassBackground}>
+    <AppContainer
+      wallpaper={wallpaper}
+      glassBackground={glassBackground}
+      desktopPosition={desktopPosition}
+    >
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
@@ -485,6 +499,8 @@ export function App() {
         onThemeChange={handleThemeChange}
         glassBackground={glassBackground}
         onGlassBackgroundChange={handleGlassBackgroundChange}
+        desktopPosition={desktopPosition}
+        onDesktopPositionChange={handleDesktopPositionChange}
         onOpenSearch={() => {
           setSettingsOpen(false);
           setSearchOpen(true);

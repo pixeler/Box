@@ -41,7 +41,7 @@ const ContextMenuSubContent = React.forwardRef<
   <ContextMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      'z-50 min-w-[8rem] overflow-hidden rounded-lg border border-gray-200 bg-white p-1 text-gray-800 shadow-lg text-xs animate-in fade-in-80',
+      'z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-popover/95 backdrop-blur-md p-1 text-popover-foreground shadow-xl text-xs animate-in fade-in-80 font-sans',
       className
     )}
     {...props}
@@ -59,7 +59,7 @@ const ContextMenuContent = React.forwardRef<
     <ContextMenuPrimitive.Content
       ref={ref}
       className={cn(
-        'z-50 min-w-[8rem] overflow-hidden rounded-[8px] border border-gray-200 bg-white p-1 text-gray-800 shadow-xl text-xs animate-in fade-in-80 font-sans',
+        'z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-popover/95 backdrop-blur-md p-1.5 text-popover-foreground shadow-2xl text-xs animate-in fade-in-80 font-sans',
         className
       )}
       {...props}
@@ -78,9 +78,9 @@ const ContextMenuItem = React.forwardRef<
   <ContextMenuPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center gap-2 rounded-[6px] px-2 py-1.5 text-xs outline-none transition-colors focus:bg-gray-100 hover:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-gray-700',
+      'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground/85',
       variant === 'destructive' &&
-        'text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50 hover:text-rose-700',
+        'text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive',
       inset && 'pr-8',
       className
     )}
@@ -96,7 +96,7 @@ const ContextMenuCheckboxItem = React.forwardRef<
   <ContextMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-gray-100 hover:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-gray-700',
+      'relative flex cursor-pointer select-none items-center rounded-lg py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground/85',
       className
     )}
     checked={checked}
@@ -104,7 +104,7 @@ const ContextMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <ContextMenuPrimitive.ItemIndicator>
-        <RiCheckLine className="h-3.5 w-3.5 text-black" />
+        <RiCheckLine className="h-3.5 w-3.5 text-primary" />
       </ContextMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -119,14 +119,14 @@ const ContextMenuRadioItem = React.forwardRef<
   <ContextMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-gray-100 hover:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-gray-700',
+      'relative flex cursor-pointer select-none items-center rounded-lg py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground/85',
       className
     )}
     {...props}
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <ContextMenuPrimitive.ItemIndicator>
-        <RiCheckboxBlankCircleLine className="h-2 w-2 fill-current text-black" />
+        <RiCheckboxBlankCircleLine className="h-2 w-2 fill-current text-primary" />
       </ContextMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -143,7 +143,7 @@ const ContextMenuLabel = React.forwardRef<
   <ContextMenuPrimitive.Label
     ref={ref}
     className={cn(
-      'px-2 py-1 text-[11px] font-semibold text-gray-400',
+      'px-2.5 py-1 text-[10.5px] font-semibold text-muted-foreground',
       inset && 'pr-8',
       className
     )}
@@ -158,7 +158,7 @@ const ContextMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ContextMenuPrimitive.Separator
     ref={ref}
-    className={cn('-mx-1 my-1 h-px bg-gray-100', className)}
+    className={cn('-mx-1 my-1 h-px bg-border/70', className)}
     {...props}
   />
 ));
@@ -174,7 +174,7 @@ export function MenuSectionLabel({
   return (
     <p
       className={cn(
-        'px-2 pb-1 pt-1.5 text-[11px] font-medium text-gray-400 select-none text-right',
+        'px-2.5 pb-1 pt-1.5 text-[10.5px] font-semibold text-muted-foreground select-none text-right',
         className
       )}
     >

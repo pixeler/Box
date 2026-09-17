@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { Task, Tag, Box } from '@/types/models';
 import { taskRepo, tagRepo, boxRepo } from '@/repositories';
-import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey } from '@/lib/jalali';
+import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { JalaliDatePicker } from '@/components/calendar/JalaliDatePicker';
 import { TagPickerPopover } from '../tags/TagPickerPopover';
 import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
@@ -35,6 +35,9 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
   const [dueDate, setDueDate] = useState<string | null>(task?.due_date || null);
+  const [dueTime, setDueTime] = useState<string | null>(task?.due_time || null);
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(task?.duration_minutes || null);
+  const [recurrenceRule, setRecurrenceRule] = useState<string | null>(task?.recurrence_rule || null);
   const [priority, setPriority] = useState<1 | 2 | 3 | undefined>(task?.priority);
   const [tagIds, setTagIds] = useState<string[]>(task?.tag_ids || []);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
@@ -88,6 +91,9 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       setTitle(task.title || '');
       setDescription(task.description || '');
       setDueDate(task.due_date || null);
+      setDueTime(task.due_time || null);
+      setDurationMinutes(task.duration_minutes || null);
+      setRecurrenceRule(task.recurrence_rule || null);
       setPriority(task.priority);
       setTagIds(task.tag_ids || []);
       setSelectedBox(task.box_id || '');
@@ -127,6 +133,9 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       title?: string;
       description?: string;
       dueDate?: string | null;
+      dueTime?: string | null;
+      durationMinutes?: number | null;
+      recurrenceRule?: string | null;
       priority?: 1 | 2 | 3 | undefined;
       tagIds?: string[];
       boxId?: string | null;
@@ -138,31 +147,21 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 
       const currentDesc = (overrides?.description !== undefined ? overrides.description : description).trim();
       const currentDue = overrides?.dueDate !== undefined ? overrides.dueDate : dueDate;
+      const currentDueTime = overrides?.dueTime !== undefined ? overrides.dueTime : dueTime;
+      const currentDuration = overrides?.durationMinutes !== undefined ? overrides.durationMinutes : durationMinutes;
+      const currentRecurrence = overrides?.recurrenceRule !== undefined ? overrides.recurrenceRule : recurrenceRule;
       const currentPriority = overrides?.priority !== undefined ? overrides.priority : priority;
       const currentTags = overrides?.tagIds !== undefined ? overrides.tagIds : tagIds;
       const currentBoxId = overrides?.boxId !== undefined ? overrides.boxId : selectedBox;
-
-      const last = lastSavedRef.current;
-      const tagsUnchanged =
-        currentTags.length === last.tagIds.length &&
-        currentTags.every((id, idx) => id === last.tagIds[idx]);
-
-      if (
-        currentTitle === last.title &&
-        currentDesc === last.description &&
-        currentDue === last.dueDate &&
-        currentPriority === last.priority &&
-        currentBoxId === last.boxId &&
-        tagsUnchanged
-      ) {
-        return;
-      }
 
       try {
         await taskRepo.update(task.id, {
           title: currentTitle,
           description: currentDesc,
           due_date: currentDue || undefined,
+          due_time: currentDueTime || undefined,
+          duration_minutes: currentDuration || undefined,
+          recurrence_rule: currentRecurrence || undefined,
           priority: currentPriority,
           tag_ids: currentTags,
           box_id: currentBoxId || null,
@@ -261,8 +260,14 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 
   const renderDateText = () => {
     if (!dueDate) return 'تاریخ';
-    if (dueDate === todayKey) return 'امروز';
-    return formatJalaliDisplay(parseJalaliKey(dueDate));
+    let base = dueDate === todayKey ? 'امروز' : formatJalaliDisplay(parseJalaliKey(dueDate));
+    if (dueTime) {
+      base += ` (${toPersianDigits(dueTime)})`;
+    }
+    if (recurrenceRule && recurrenceRule !== 'none') {
+      base += ` ↻`;
+    }
+    return base;
   };
 
   const portalTarget = typeof document !== 'undefined' ? (document.getElementById('app-main') || document.body) : null;
@@ -455,24 +460,33 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           </div>
         </form>
 
-        {/* Date Picker Modal */}
+        {/* Date Picker Modal (Full-width bottom sheet) */}
         {datePickerOpen && (
-          <div
-            className="absolute inset-0 z-60 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs"
-            onClick={() => setDatePickerOpen(false)}
-          >
-            <div onClick={(e) => e.stopPropagation()}>
-              <JalaliDatePicker
-                value={dueDate}
-                onChange={(d) => {
-                  setDueDate(d);
-                  setDatePickerOpen(false);
-                  performSave({ dueDate: d });
-                }}
-                onClose={() => setDatePickerOpen(false)}
-              />
-            </div>
-          </div>
+          <JalaliDatePicker
+            value={dueDate}
+            timeValue={dueTime}
+            durationMinutes={durationMinutes}
+            repeatValue={recurrenceRule}
+            onChange={(d) => {
+              setDueDate(d);
+              setDatePickerOpen(false);
+              performSave({ dueDate: d });
+            }}
+            onDateTimeChange={(res) => {
+              setDueDate(res.dateKey);
+              setDueTime(res.time || null);
+              setDurationMinutes(res.durationMinutes || null);
+              setRecurrenceRule(res.repeat || null);
+              setDatePickerOpen(false);
+              performSave({
+                dueDate: res.dateKey,
+                dueTime: res.time || null,
+                durationMinutes: res.durationMinutes || null,
+                recurrenceRule: res.repeat || null,
+              });
+            }}
+            onClose={() => setDatePickerOpen(false)}
+          />
         )}
 
         {/* Tag Picker Modal */}

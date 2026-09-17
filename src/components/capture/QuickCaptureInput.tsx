@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { Tag, Box } from '@/types/models';
 import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories';
-import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey } from '@/lib/jalali';
+import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { extractQuickTokens } from '@/lib/quick-parser';
 import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
 import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
@@ -53,6 +53,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState<string | null>(currentSelectedDateKey);
+  const [dueTime, setDueTime] = useState<string | null>(null);
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
+  const [recurrenceRule, setRecurrenceRule] = useState<string | null>(null);
   const [priority, setPriority] = useState<1 | 2 | 3 | undefined>(undefined);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
@@ -369,6 +372,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setDatePickerOpen(false);
     setBoxPickerOpen(false);
     setDueDate(currentSelectedDateKey);
+    setDueTime(null);
+    setDurationMinutes(null);
+    setRecurrenceRule(null);
     setTagSuggestQuery(null);
     setCommandPaletteQuery(null);
     hadDateTokenRef.current = false;
@@ -424,6 +430,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           description: description.trim(),
           status: 'open',
           due_date: effectiveDueDate,
+          due_time: dueTime || undefined,
+          duration_minutes: durationMinutes || undefined,
+          recurrence_rule: recurrenceRule || undefined,
           priority: effectivePriority,
           tag_ids: finalTagIds,
         });
@@ -552,8 +561,14 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
   const renderDateText = () => {
     if (!dueDate) return 'تاریخ';
-    if (dueDate === todayKey) return 'امروز';
-    return formatJalaliDisplay(parseJalaliKey(dueDate));
+    let base = dueDate === todayKey ? 'امروز' : formatJalaliDisplay(parseJalaliKey(dueDate));
+    if (dueTime) {
+      base += ` (${toPersianDigits(dueTime)})`;
+    }
+    if (recurrenceRule && recurrenceRule !== 'none') {
+      base += ` ↻`;
+    }
+    return base;
   };
 
   if (!isOpen && !isClosing) return null;
@@ -1070,24 +1085,28 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           </div>
         </form>
 
-        {/* Date Picker Modal */}
+        {/* Date Picker Modal (Full-width bottom sheet) */}
         {datePickerOpen && (
-          <div
-            className="absolute inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-2xs"
-            onClick={() => setDatePickerOpen(false)}
-          >
-            <div onClick={(e) => e.stopPropagation()} className="animate-sheet-up">
-              <JalaliDatePicker
-                value={dueDate}
-                onChange={(d) => {
-                  setDueDate(d);
-                  hadDateTokenRef.current = true;
-                  setDatePickerOpen(false);
-                }}
-                onClose={() => setDatePickerOpen(false)}
-              />
-            </div>
-          </div>
+          <JalaliDatePicker
+            value={dueDate}
+            timeValue={dueTime}
+            durationMinutes={durationMinutes}
+            repeatValue={recurrenceRule}
+            onChange={(d) => {
+              setDueDate(d);
+              hadDateTokenRef.current = true;
+              setDatePickerOpen(false);
+            }}
+            onDateTimeChange={(res) => {
+              setDueDate(res.dateKey);
+              setDueTime(res.time || null);
+              setDurationMinutes(res.durationMinutes || null);
+              setRecurrenceRule(res.repeat || null);
+              hadDateTokenRef.current = true;
+              setDatePickerOpen(false);
+            }}
+            onClose={() => setDatePickerOpen(false)}
+          />
         )}
 
 

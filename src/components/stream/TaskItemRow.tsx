@@ -222,7 +222,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
 
         {/* Right Click Context Menu matching reference project */}
         <ContextMenuContent
-          className="w-[15.5rem] p-1"
+          className="w-[15.5rem] p-1.5"
           dir="rtl"
           onClick={(e) => e.stopPropagation()}
         >
@@ -233,7 +233,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
               setEditModalOpen(true);
             }}
           >
-            <RiEditLine className="size-4 text-gray-500" />
+            <RiEditLine className="size-4 text-muted-foreground" />
             <span>ویرایش</span>
           </ContextMenuItem>
 
@@ -246,12 +246,12 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
           >
             {isPinned ? (
               <>
-                <RiPushpin2Line className="size-4 text-gray-500" />
+                <RiPushpin2Line className="size-4 text-primary" />
                 <span>برداشتن سنجاق</span>
               </>
             ) : (
               <>
-                <RiPushpin2Fill className="size-4 text-gray-700" />
+                <RiPushpin2Fill className="size-4 text-muted-foreground" />
                 <span>سنجاق کردن</span>
               </>
             )}
@@ -265,7 +265,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                 onMigrate(task.id);
               }}
             >
-              <RiCalendarEventLine className="size-4 text-gray-500" />
+              <RiCalendarEventLine className="size-4 text-muted-foreground" />
               <span>انتقال به فردا</span>
             </ContextMenuItem>
           )}
@@ -287,11 +287,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer text-gray-700',
-                  task.due_date === todayKey && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  task.due_date === todayKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiSunLine className="size-4 text-amber-500" />
+                <RiSunLine className="size-4" />
               </button>
 
               {/* فردا */}
@@ -303,11 +303,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer text-gray-700',
-                  task.due_date === tomorrowKey && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  task.due_date === tomorrowKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiCloudyLine className="size-4 text-blue-500" />
+                <RiCloudyLine className="size-4" />
               </button>
 
               {/* هفته بعد */}
@@ -319,11 +319,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer text-gray-700',
-                  task.due_date === nextWeekKey && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  task.due_date === nextWeekKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiCalendarLine className="size-4 text-indigo-500" />
+                <RiCalendarLine className="size-4" />
               </button>
 
               {/* آخر هفته */}
@@ -335,11 +335,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer text-gray-700',
-                  task.due_date === weekendKey && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  task.due_date === weekendKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiUmbrellaLine className="size-4 text-teal-600" />
+                <RiUmbrellaLine className="size-4" />
               </button>
 
               {/* بدون تاریخ */}
@@ -351,11 +351,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer text-gray-700',
-                  !task.due_date && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  !task.due_date && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiForbid2Line className="size-4 text-rose-500" />
+                <RiForbid2Line className="size-4" />
               </button>
 
               {/* تقویم بازشونده */}
@@ -366,7 +366,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                   setDatePickerOpen(true);
                 }}
-                className="flex size-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
+                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
               >
                 <RiMoreLine className="size-4" />
               </button>
@@ -390,11 +390,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer',
-                  task.priority === 3 && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  task.priority === 3 && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiFlagFill className="size-4 text-rose-600" />
+                <RiFlagFill className="size-4" />
               </button>
 
               {/* اولویت متوسط (P2) */}
@@ -406,11 +406,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer',
-                  task.priority === 2 && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  task.priority === 2 && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiFlagFill className="size-4 text-amber-500" />
+                <RiFlagFill className="size-4 opacity-75" />
               </button>
 
               {/* اولویت کم (P1) */}
@@ -422,11 +422,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer',
-                  task.priority === 1 && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  task.priority === 1 && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiFlagFill className="size-4 text-blue-500" />
+                <RiFlagLine className="size-4" />
               </button>
 
               {/* بدون اولویت */}
@@ -438,11 +438,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-md transition-colors hover:bg-gray-100 cursor-pointer',
-                  !task.priority && 'bg-gray-100 ring-1 ring-gray-300'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                  !task.priority && 'bg-primary/10 text-primary ring-1 ring-primary/30'
                 )}
               >
-                <RiFlagLine className="size-4 text-gray-400" />
+                <RiForbid2Line className="size-4" />
               </button>
             </div>
           </div>
@@ -457,7 +457,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
               handleDuplicate();
             }}
           >
-            <RiFileCopyLine className="size-4 text-gray-500" />
+            <RiFileCopyLine className="size-4 text-muted-foreground" />
             <span>تکثیر کردن</span>
           </ContextMenuItem>
 
@@ -472,7 +472,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
               handleSoftDelete();
             }}
           >
-            <RiDeleteBinLine className="size-4 text-rose-600" />
+            <RiDeleteBinLine className="size-4 text-destructive" />
             <span>حذف</span>
           </ContextMenuItem>
         </ContextMenuContent>
@@ -486,23 +486,29 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
         onSaved={onStatusChanged}
       />
 
-      {/* Floating Date Picker if chosen from context menu */}
+      {/* Date Picker if chosen from context menu (Full-width bottom sheet) */}
       {datePickerOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-2xs"
-          onClick={() => setDatePickerOpen(false)}
-        >
-          <div onClick={(e) => e.stopPropagation()}>
-            <JalaliDatePicker
-              value={task.due_date}
-              onChange={(d) => {
-                handleQuickDate(d);
-                setDatePickerOpen(false);
-              }}
-              onClose={() => setDatePickerOpen(false)}
-            />
-          </div>
-        </div>
+        <JalaliDatePicker
+          value={task.due_date}
+          timeValue={task.due_time}
+          durationMinutes={task.duration_minutes}
+          repeatValue={task.recurrence_rule}
+          onChange={(d) => {
+            handleQuickDate(d);
+            setDatePickerOpen(false);
+          }}
+          onDateTimeChange={async (res) => {
+            await taskRepo.update(task.id, {
+              due_date: res.dateKey || undefined,
+              due_time: res.time || undefined,
+              duration_minutes: res.durationMinutes || undefined,
+              recurrence_rule: res.repeat || undefined,
+            });
+            onStatusChanged?.();
+            setDatePickerOpen(false);
+          }}
+          onClose={() => setDatePickerOpen(false)}
+        />
       )}
     </>
   );
