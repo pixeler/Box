@@ -375,15 +375,24 @@ export const DayStream: React.FC<DayStreamProps> = ({
                 setIsDragOverEmpty(false);
                 handleDropAtSlot(e, 0);
               }}
-              className={`w-full py-8 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
-                isDragOverEmpty ? 'bg-gray-50/70 scale-[1.01]' : 'bg-transparent'
+              className={`w-full py-6 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
+                isDragOverEmpty ? 'bg-gray-50/70 dark:bg-white/5 scale-[1.01]' : 'bg-transparent'
               }`}
             >
-              <RiCalendarLine
-                className={`w-7 h-7 mb-3 transition-colors duration-200 ${
-                  isDragOverEmpty ? 'text-foreground' : 'text-muted-foreground'
-                }`}
-              />
+              {isToday ? (
+                <img
+                  src="/empty-today.png"
+                  alt="امروز خبری نیست"
+                  className="w-36 h-36 sm:w-40 sm:h-40 object-contain -mb-1 select-none pointer-events-none drop-shadow-sm transition-transform duration-200"
+                  draggable={false}
+                />
+              ) : (
+                <RiCalendarLine
+                  className={`w-7 h-7 mb-3 transition-colors duration-200 ${
+                    isDragOverEmpty ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
+                />
+              )}
 
               {isDragOverEmpty ? (
                 <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
@@ -391,33 +400,33 @@ export const DayStream: React.FC<DayStreamProps> = ({
                     ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
                     : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
                 </p>
+              ) : isToday ? (
+                <div className="flex flex-col items-center select-none">
+                  <p className="text-[13px] font-medium text-muted-foreground leading-relaxed">
+                    امروز خبری نیست
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/60 font-normal leading-relaxed mt-0.5 max-w-[340px] mx-auto">
+                    <button
+                      type="button"
+                      onClick={onOpenAdd}
+                      className="underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-foreground hover:text-foreground transition-colors cursor-pointer inline font-medium"
+                    >
+                      کاری اضافه کنید
+                    </button>
+                    <span> یا کارهای قبلی را درگ کنید روی امروز!</span>
+                  </p>
+                </div>
               ) : (
                 <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto">
-                  {isToday ? (
-                    <>
-                      <span>می‌تونی از دکمه </span>
-                      <button
-                        type="button"
-                        onClick={onOpenAdd}
-                        className="font-bold text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors cursor-pointer inline"
-                      >
-                        اضافه کردن
-                      </button>
-                      <span> استفاده کنی یا اینکه کارهایی که از روزهای قبل مانده را به امروز بگیری و بکشی!</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>می‌تونی از دکمه </span>
-                      <button
-                        type="button"
-                        onClick={onOpenAdd}
-                        className="font-bold text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors cursor-pointer inline"
-                      >
-                        اضافه کردن
-                      </button>
-                      <span> استفاده کنی تا برای این روز کار یا یادداشت ثبت کنی!</span>
-                    </>
-                  )}
+                  <span>می‌تونی از دکمه </span>
+                  <button
+                    type="button"
+                    onClick={onOpenAdd}
+                    className="font-bold text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors cursor-pointer inline"
+                  >
+                    اضافه کردن
+                  </button>
+                  <span> استفاده کنی تا برای این روز کار یا یادداشت ثبت کنی!</span>
                 </p>
               )}
             </div>

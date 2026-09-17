@@ -11,6 +11,9 @@ import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
 import { SearchModal } from './components/search/SearchModal';
 import { BoxesModal } from './components/boxes/BoxesModal';
 import { ToastContainer } from './components/ui/Toast';
+import { DailyTimelineBar } from './components/calendar/DailyTimelineBar';
+import { EventDetailModal } from './components/calendar/EventDetailModal';
+import { TaskEditModal } from './components/task/TaskEditModal';
 
 import { taskRepo, noteRepo, eventRepo, tagRepo } from './repositories';
 import { RiCalendarEventLine, RiArrowLeftSLine, RiMedal2Line } from '@remixicon/react';
@@ -60,6 +63,8 @@ export function App() {
   const [boxesOpen, setBoxesOpen] = useState(false);
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
   const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
+  const [timelineEditingTask, setTimelineEditingTask] = useState<Task | null>(null);
+  const [timelineSelectedEvent, setTimelineSelectedEvent] = useState<EventItem | null>(null);
 
   // Daily 5 Tasks Target state
   const [todayDoneCount, setTodayDoneCount] = useState<number>(0);
@@ -301,93 +306,108 @@ export function App() {
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
-      {/* Top Header & Weekly Strip: Anchored in the frame at top of card */}
-      {activeTab === 'day' && (
-        <div className="w-full shrink-0 pt-6 select-none z-10">
-          {/* Top Greeting Header */}
-          <div className="w-full pb-2 px-6">
-            <div className="flex items-center justify-between min-h-[36px]">
-              {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal Dot */}
-              <div className="flex items-center gap-1.5">
-                {relativePrefix && (
-                  <>
-                    <span className="text-xl md:text-2xl font-normal text-muted-foreground">
-                      {relativePrefix}
-                    </span>
-                    <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground -mx-0.5" />
-                  </>
-                )}
-                <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                  {currentWeekdayName}
-                </h1>
-                <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
-              </div>
-
-              {/* Left side: Daily goal counter pill + Capsule "بازگشت به امروز" button */}
-              <div className="flex items-center gap-2">
-                {/* Daily Goal Counter Pill (Matching User Screenshot: Medal Icon + X/5) */}
-                <div
-                  ref={goalPillRef}
-                  dir="ltr"
-                  onClick={() => {
-                    if (goalPillRef.current) {
-                      const rect = goalPillRef.current.getBoundingClientRect();
-                      setCelebrationCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-                    } else {
-                      setCelebrationCoords({ x: 80, y: 50 });
-                    }
-                  }}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-all select-none border ${
-                    todayDoneCount >= 5
-                      ? 'bg-amber-500/15 dark:bg-amber-400/20 text-amber-600 dark:text-amber-300 border-amber-500/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95'
-                      : 'bg-muted/80 dark:bg-white/10 text-muted-foreground/90 border-transparent hover:border-border/60 hover:text-foreground cursor-pointer hover:bg-muted'
-                  }`}
-                  title={`هدف روزانه: ۵ تسک (${toPersianDigits(todayDoneCount)} از ۵ تسک امروز انجام شد)`}
-                >
-                  <RiMedal2Line
-                    className={`w-4.5 h-4.5 shrink-0 ${
-                      todayDoneCount >= 5 ? 'text-amber-500' : 'text-muted-foreground/80'
-                    }`}
-                  />
-                  <span className="font-semibold text-sm leading-none pt-0.5">
-                    {toPersianDigits(todayDoneCount)}/۵
-                  </span>
-                </div>
-
-                {/* Back to Today Button (visible when viewing any other day) */}
-                {isSelectedOtherThanToday && (
-                  <button
-                    onClick={() => setSelectedDateKey(todayKey)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
-                    title="بازگشت به امروز"
-                  >
-                    <span>امروز</span>
-                    <RiCalendarEventLine className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  </button>
-                )}
-              </div>
-            </div>
-            <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right truncate" title={getDailyQuote(selectedDateKey)}>
-              {getDailyQuote(selectedDateKey)}
-            </p>
-          </div>
-
-          {/* Weekly ribbon calendar */}
-          <WeeklyStrip
-            selectedDateKey={selectedDateKey}
-            onSelectDate={setSelectedDateKey}
-            datesWithItems={datesWithItems}
-          />
-        </div>
-      )}
-
       {/* Scrollable Content Area with auto-hiding flush scrollbar */}
       <MobileScrollArea
         className="flex-1 min-h-0"
-        contentClassName={`${activeTab === 'day' ? 'pt-2' : 'pt-6'} pb-24 flex flex-col min-h-full`}
+        contentClassName="pt-6 pb-24 flex flex-col min-h-full"
       >
         {activeTab === 'day' && (
           <>
+            {/* Top Greeting Header & Weekly Strip (scrolls together with content) */}
+            <div className="w-full shrink-0 select-none">
+              {/* Top Greeting Header */}
+              <div className="w-full pb-2 px-6">
+                <div className="flex items-center justify-between min-h-[36px]">
+                  {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal Dot */}
+                  <div className="flex items-center gap-1.5">
+                    {relativePrefix && (
+                      <>
+                        <span className="text-xl md:text-2xl font-normal text-muted-foreground">
+                          {relativePrefix}
+                        </span>
+                        <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground -mx-0.5" />
+                      </>
+                    )}
+                    <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                      {currentWeekdayName}
+                    </h1>
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
+                  </div>
+
+                  {/* Left side: Daily goal counter pill + Capsule "بازگشت به امروز" button */}
+                  <div className="flex items-center gap-1.5">
+                    {/* Daily Goal Counter Pill (Smaller size, celebratory only at 5 tasks) */}
+                    <div
+                      ref={goalPillRef}
+                      dir="ltr"
+                      onClick={() => {
+                        // Only celebrate if user has completed 5 tasks
+                        if (todayDoneCount < 5) return;
+                        if (goalPillRef.current) {
+                          const rect = goalPillRef.current.getBoundingClientRect();
+                          setCelebrationCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+                        } else {
+                          setCelebrationCoords({ x: 80, y: 50 });
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-2.5 h-[25px] rounded-full transition-all select-none border ${
+                        todayDoneCount >= 5
+                          ? 'bg-amber-500/15 dark:bg-amber-400/20 text-amber-600 dark:text-amber-300 border-amber-500/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95'
+                          : 'bg-muted/70 dark:bg-white/10 text-muted-foreground/85 border-transparent cursor-default'
+                      }`}
+                      title={
+                        todayDoneCount >= 5
+                          ? `تبریک! هدف روزانه تکمیل شد (${toPersianDigits(todayDoneCount)} از ۵)`
+                          : `هدف روزانه: ۵ تسک (${toPersianDigits(todayDoneCount)} از ۵ تسک امروز انجام شد)`
+                      }
+                    >
+                      <RiMedal2Line
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          todayDoneCount >= 5 ? 'text-amber-500' : 'text-muted-foreground/75'
+                        }`}
+                      />
+                      <span className="font-semibold text-[11.5px] leading-none pt-0.5">
+                        {toPersianDigits(todayDoneCount)}/۵
+                      </span>
+                    </div>
+
+                    {/* Back to Today Button (visible when viewing any other day) */}
+                    {isSelectedOtherThanToday && (
+                      <button
+                        onClick={() => setSelectedDateKey(todayKey)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
+                        title="بازگشت به امروز"
+                      >
+                        <span>امروز</span>
+                        <RiCalendarEventLine className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right truncate" title={getDailyQuote(selectedDateKey)}>
+                  {getDailyQuote(selectedDateKey)}
+                </p>
+              </div>
+
+              {/* Weekly ribbon calendar */}
+              <WeeklyStrip
+                selectedDateKey={selectedDateKey}
+                onSelectDate={setSelectedDateKey}
+                datesWithItems={datesWithItems}
+              />
+            </div>
+
+            {/* Daily 24-Hour Timeline Bar under WeeklyStrip */}
+            <div className="w-full mb-3 overflow-visible">
+              <DailyTimelineBar
+                selectedDateKey={displayedDateKey}
+                events={events}
+                tasks={tasks}
+                onSelectEvent={(ev) => setTimelineSelectedEvent(ev)}
+                onSelectTask={(t) => setTimelineEditingTask(t)}
+              />
+            </div>
+
             {/* Pinned Items Section (سنجاق شده) - Below WeeklyStrip and above DayStream */}
             {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
               <PinnedSection
@@ -501,6 +521,23 @@ export function App() {
           originY={celebrationCoords.y}
           theme={theme}
           onComplete={() => setCelebrationCoords(null)}
+        />
+      )}
+
+      {/* Modals for Timeline Event / Task */}
+      <EventDetailModal
+        event={timelineSelectedEvent}
+        isOpen={!!timelineSelectedEvent}
+        onClose={() => setTimelineSelectedEvent(null)}
+        onSaved={loadDayData}
+      />
+
+      {timelineEditingTask && (
+        <TaskEditModal
+          task={timelineEditingTask}
+          isOpen={!!timelineEditingTask}
+          onClose={() => setTimelineEditingTask(null)}
+          onSaved={loadDayData}
         />
       )}
 

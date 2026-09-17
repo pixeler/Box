@@ -92,48 +92,85 @@ export const DailyGoalCelebration: React.FC<DailyGoalCelebrationProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    // 1. Crystal Harmonic Bell Chime (Apple-inspired pleasant achievement chime)
+    // 1. Joyful Celebration Fanfare with Confetti Popper (Celebratory sound instead of a bell chime)
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         const ctx = new AudioCtx();
-        // Ascending celestial crystal chord (C6, E6, G6, C7 shimmer)
-        const chimePitches = [1046.5, 1318.5, 1567.98, 2093.0];
-        
-        chimePitches.forEach((freq, idx) => {
-          const startTime = ctx.currentTime + idx * 0.065;
-          const duration = 0.6;
+        const now = ctx.currentTime;
 
-          // Main fundamental tone (pure sine)
-          const oscMain = ctx.createOscillator();
-          const gainMain = ctx.createGain();
-          oscMain.type = 'sine';
-          oscMain.frequency.setValueAtTime(freq, startTime);
+        // A. Confetti Popper "Pop!" (Filtered celebratory noise impulse)
+        try {
+          const bufferSize = Math.floor(ctx.sampleRate * 0.09);
+          const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+          const output = noiseBuffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.02));
+          }
+          const whiteNoise = ctx.createBufferSource();
+          whiteNoise.buffer = noiseBuffer;
 
-          // Soft shimmer overtone (2.75x crystal chime overtone)
-          const oscShimmer = ctx.createOscillator();
-          const gainShimmer = ctx.createGain();
-          oscShimmer.type = 'sine';
-          oscShimmer.frequency.setValueAtTime(freq * 2.75, startTime);
+          const popFilter = ctx.createBiquadFilter();
+          popFilter.type = 'lowpass';
+          popFilter.frequency.setValueAtTime(900, now);
+          popFilter.frequency.exponentialRampToValueAtTime(80, now + 0.09);
 
-          // Gentle envelope: fast smooth attack (4ms) and natural bell decay
-          gainMain.gain.setValueAtTime(0.0001, startTime);
-          gainMain.gain.exponentialRampToValueAtTime(0.09, startTime + 0.006);
-          gainMain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+          const popGain = ctx.createGain();
+          popGain.gain.setValueAtTime(0.22, now);
+          popGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
 
-          gainShimmer.gain.setValueAtTime(0.0001, startTime);
-          gainShimmer.gain.exponentialRampToValueAtTime(0.025, startTime + 0.004);
-          gainShimmer.gain.exponentialRampToValueAtTime(0.0001, startTime + duration * 0.7);
+          whiteNoise.connect(popFilter);
+          popFilter.connect(popGain);
+          popGain.connect(ctx.destination);
+          whiteNoise.start(now);
+        } catch {}
 
-          oscMain.connect(gainMain);
-          gainMain.connect(ctx.destination);
-          oscShimmer.connect(gainShimmer);
-          gainShimmer.connect(ctx.destination);
+        // B. Triumphant Celebration Brass Fanfare (Ta-da-da-daaa! 🎺✨)
+        // Arpeggiated festive major fanfare notes ending in a vibrant sustained chord
+        const fanfare = [
+          { freq: 523.25, time: 0.03, dur: 0.12, gain: 0.10 }, // C5
+          { freq: 659.25, time: 0.13, dur: 0.12, gain: 0.11 }, // E5
+          { freq: 783.99, time: 0.23, dur: 0.14, gain: 0.13 }, // G5
+          { freq: 1046.50, time: 0.35, dur: 0.75, gain: 0.16 }, // C6 (Finale)
+          { freq: 523.25, time: 0.35, dur: 0.75, gain: 0.09 }, // C5 harmony
+          { freq: 659.25, time: 0.35, dur: 0.75, gain: 0.09 }, // E5 harmony
+        ];
 
-          oscMain.start(startTime);
-          oscMain.stop(startTime + duration + 0.05);
-          oscShimmer.start(startTime);
-          oscShimmer.stop(startTime + duration + 0.05);
+        fanfare.forEach((note) => {
+          const noteStart = now + note.time;
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const noteGain = ctx.createGain();
+          const filter = ctx.createBiquadFilter();
+
+          // Warm brass timbre: triangle base + warm low-passed sawtooth
+          osc1.type = 'triangle';
+          osc1.frequency.setValueAtTime(note.freq, noteStart);
+
+          osc2.type = 'sawtooth';
+          osc2.frequency.setValueAtTime(note.freq, noteStart);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(2200, noteStart);
+          filter.frequency.exponentialRampToValueAtTime(1000, noteStart + note.dur);
+
+          noteGain.gain.setValueAtTime(0.001, noteStart);
+          noteGain.gain.exponentialRampToValueAtTime(note.gain, noteStart + 0.025);
+          noteGain.gain.exponentialRampToValueAtTime(0.0001, noteStart + note.dur);
+
+          const sawGain = ctx.createGain();
+          sawGain.gain.value = 0.28;
+
+          osc1.connect(filter);
+          osc2.connect(sawGain);
+          sawGain.connect(filter);
+          filter.connect(noteGain);
+          noteGain.connect(ctx.destination);
+
+          osc1.start(noteStart);
+          osc1.stop(noteStart + note.dur + 0.05);
+          osc2.start(noteStart);
+          osc2.stop(noteStart + note.dur + 0.05);
         });
       }
     } catch {}

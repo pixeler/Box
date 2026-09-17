@@ -22,10 +22,7 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
   if (totalCount === 0) return null;
 
   return (
-    <div className="w-full mt-5 mb-2 select-none">
-      <h3 className="text-[12px] font-normal text-foreground px-6 text-right mb-1.5">
-        سنجاق شده
-      </h3>
+    <div className="w-full mt-2 mb-2 select-none">
       <div className="w-full">
         {pinnedTasks.map((task) => (
           <TaskItemRow
