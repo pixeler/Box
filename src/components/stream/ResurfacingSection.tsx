@@ -195,6 +195,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                             setDraggedOverdueIndex(null);
                             setDropSlotOverdueIndex(null);
                           }}
+                          isLast={idx === localOverdueTasks.length - 1}
                         />
                       </div>
 
@@ -243,30 +244,45 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
             {futureTasks.length === 0 && futureEvents.length === 0 ? (
               <p className="text-xs text-muted-foreground py-2">موردی برای نمایش وجود ندارد.</p>
             ) : (
-              <>
-                {futureTasks.map((task) => (
-                  <TaskItemRow
-                    key={task.id}
-                    task={task}
-                    tagsMap={tagsMap}
-                    currentDateKey={selectedDateKey}
-                    onStatusChanged={onStatusChanged}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.effectAllowed = 'move';
-                      e.dataTransfer.setData('text/plain', `migrate:${task.id}`);
-                      setupDragCardGhost(e);
-                    }}
-                  />
-                ))}
-                {futureEvents.map((ev) => (
-                  <EventItemRow
-                    key={ev.id}
-                    event={ev}
-                    onStatusChanged={onStatusChanged}
-                  />
-                ))}
-              </>
+              (() => {
+                const futureItems = [
+                  ...futureTasks.map((t) => ({ type: 'task' as const, data: t })),
+                  ...futureEvents.map((e) => ({ type: 'event' as const, data: e })),
+                ];
+                return (
+                  <>
+                    {futureItems.map((item, idx) => {
+                      const isLast = idx === futureItems.length - 1;
+                      if (item.type === 'task') {
+                        return (
+                          <TaskItemRow
+                            key={item.data.id}
+                            task={item.data}
+                            tagsMap={tagsMap}
+                            currentDateKey={selectedDateKey}
+                            onStatusChanged={onStatusChanged}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', `migrate:${item.data.id}`);
+                              setupDragCardGhost(e);
+                            }}
+                            isLast={isLast}
+                          />
+                        );
+                      }
+                      return (
+                        <EventItemRow
+                          key={item.data.id}
+                          event={item.data}
+                          onStatusChanged={onStatusChanged}
+                          isLast={isLast}
+                        />
+                      );
+                    })}
+                  </>
+                );
+              })()
             )}
           </div>
         )}

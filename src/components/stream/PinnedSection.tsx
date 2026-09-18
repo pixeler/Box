@@ -18,31 +18,42 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
   currentDateKey,
   onStatusChanged,
 }) => {
-  const totalCount = pinnedTasks.length + pinnedNotes.length;
-  if (totalCount === 0) return null;
+  const pinnedItems = [
+    ...pinnedTasks.map((t) => ({ type: 'task' as const, data: t })),
+    ...pinnedNotes.map((n) => ({ type: 'note' as const, data: n })),
+  ];
+
+  if (pinnedItems.length === 0) return null;
 
   return (
     <div className="w-full mt-2 mb-2 select-none">
       <div className="w-full">
-        {pinnedTasks.map((task) => (
-          <TaskItemRow
-            key={task.id}
-            task={task}
-            tagsMap={tagsMap}
-            currentDateKey={currentDateKey}
-            onStatusChanged={onStatusChanged}
-            draggable={false}
-          />
-        ))}
-        {pinnedNotes.map((note) => (
-          <NoteItemRow
-            key={note.id}
-            note={note}
-            tagsMap={tagsMap}
-            onStatusChanged={onStatusChanged}
-            draggable={false}
-          />
-        ))}
+        {pinnedItems.map((item, idx) => {
+          const isLast = idx === pinnedItems.length - 1;
+          if (item.type === 'task') {
+            return (
+              <TaskItemRow
+                key={item.data.id}
+                task={item.data}
+                tagsMap={tagsMap}
+                currentDateKey={currentDateKey}
+                onStatusChanged={onStatusChanged}
+                draggable={false}
+                isLast={isLast}
+              />
+            );
+          }
+          return (
+            <NoteItemRow
+              key={item.data.id}
+              note={item.data}
+              tagsMap={tagsMap}
+              onStatusChanged={onStatusChanged}
+              draggable={false}
+              isLast={isLast}
+            />
+          );
+        })}
       </div>
     </div>
   );

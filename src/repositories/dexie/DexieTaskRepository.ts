@@ -2,6 +2,7 @@ import { db } from '@/lib/db/dexie';
 import type { Task, TaskFilter } from '@/types/models';
 import type { TaskRepository } from '../interfaces';
 import { getTodayJalaliKey, extractDateOnly } from '@/lib/jalali';
+import { isTaskOccurringOnDate } from '@/lib/recurrence';
 
 export class DexieTaskRepository implements TaskRepository {
   async create(taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
@@ -51,7 +52,20 @@ export class DexieTaskRepository implements TaskRepository {
     }
 
     if (filter?.due_date) {
-      items = items.filter((item) => item.due_date === filter.due_date);
+      const targetDate = extractDateOnly(filter.due_date);
+      items = items.filter((item) => isTaskOccurringOnDate(item, targetDate));
+
+      // For recurring tasks appearing on this date, reflect their completion status for THIS date
+      items = items.map((item) => {
+        if (item.recurrence_rule && item.recurrence_rule !== 'none') {
+          const isDoneOnDate = (item.done_dates || []).includes(targetDate);
+          return {
+            ...item,
+            status: isDoneOnDate ? 'done' : 'open',
+          };
+        }
+        return item;
+      });
     }
 
     if (filter?.tag_id) {
@@ -82,9 +96,29 @@ export class DexieTaskRepository implements TaskRepository {
     });
   }
 
-  async toggleDone(id: string): Promise<Task> {
+  async toggleDone(id: string, dateKey?: string): Promise<Task> {
     const existing = await db.tasks.get(id);
     if (!existing) throw new Error(`Task with id ${id} not found`);
+
+    // Handle recurring task completion per date
+    if (existing.recurrence_rule && existing.recurrence_rule !== 'none') {
+      const targetDate = dateKey ? extractDateOnly(dateKey) : getTodayJalaliKey();
+      const currentDones = existing.done_dates || [];
+      const isAlreadyDone = currentDones.includes(targetDate);
+      const nextDones = isAlreadyDone
+        ? currentDones.filter((d) => d !== targetDate)
+        : [...currentDones, targetDate];
+
+      const updated = await this.update(id, {
+        done_dates: nextDones,
+      });
+
+      return {
+        ...updated,
+        status: isAlreadyDone ? 'open' : 'done',
+      };
+    }
+
     const newStatus = existing.status === 'done' ? 'open' : 'done';
 
     // اگر تسک سنجاق شده تیک خورد، سنجاقش برداشته می‌شود و در تاریخ همان روز قرار می‌گیرد
@@ -132,6 +166,7 @@ export class DexieTaskRepository implements TaskRepository {
     const allOpen = await db.tasks.where('status').equals('open').toArray();
     return allOpen
       .filter((t): t is Task & { due_date: string } => {
+        if (t.recurrence_rule && t.recurrence_rule !== 'none') return false;
         if (!t.due_date) return false;
         const taskDate = extractDateOnly(t.due_date);
         return taskDate !== '' && taskDate < normBefore;
@@ -148,6 +183,7 @@ export class DexieTaskRepository implements TaskRepository {
     const allOpen = await db.tasks.where('status').equals('open').toArray();
     return allOpen
       .filter((t): t is Task & { due_date: string } => {
+        if (t.recurrence_rule && t.recurrence_rule !== 'none') return false;
         if (!t.due_date) return false;
         const taskDate = extractDateOnly(t.due_date);
         return taskDate !== '' && taskDate > normAfter;
@@ -164,9 +200,13 @@ export class DexieTaskRepository implements TaskRepository {
       description: existing.description,
       status: 'open',
       due_date: existing.due_date,
+      due_time: existing.due_time,
+      duration_minutes: existing.duration_minutes,
       priority: existing.priority,
       tag_ids: [...existing.tag_ids],
       recurrence_rule: existing.recurrence_rule,
+      recurrence_start_date: existing.recurrence_start_date,
+      recurrence_end_date: existing.recurrence_end_date,
     });
   }
 }

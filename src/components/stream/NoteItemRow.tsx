@@ -28,6 +28,7 @@ interface NoteItemRowProps {
   onDragOver?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
+  isLast?: boolean;
 }
 
 export const NoteItemRow: React.FC<NoteItemRowProps> = ({
@@ -39,6 +40,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
   onDragOver,
   onDragEnd,
   onDrop,
+  isLast = false,
 }) => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -90,7 +92,9 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
             onDragEnd={onDragEnd}
             onDrop={onDrop}
             onClick={() => setEditModalOpen(true)}
-            className={`group relative w-full border-b border-dotted border-border py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
+            className={`group relative w-full ${
+              !isLast ? 'task-dashed-border' : ''
+            } py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             }`}
           >

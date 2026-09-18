@@ -272,31 +272,39 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         <button
           type="button"
           onClick={() => onTabChange('boxes')}
-          className={`h-12 px-3.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
+          className={`group/box h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
             isBoxesOpen || activeTab === 'boxes'
               ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-foreground/10 active:scale-95'
+              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
           }`}
           title="باکس‌ها"
         >
           <RiInboxLine
-            className={`w-[22px] h-[22px] transition-colors ${
+            className={`w-5 h-5 transition-colors duration-200 ${
               isBoxesOpen || activeTab === 'boxes' ? 'text-primary' : 'text-foreground/75'
             }`}
           />
         </button>
 
+        {/* 2. CENTER in RTL: Dark Glass Pill Button with Subtle Rotating Gradient Stroke on Hover */}
+        <div className="relative z-10 group/add p-[1px] rounded-full overflow-hidden transition-colors duration-200 active:scale-95">
+          {/* Rotating gradient stroke animation (movement and color transition without thickness increase) */}
+          <div
+            className="absolute -inset-[150%] rounded-full opacity-0 group-hover/add:opacity-100 transition-opacity duration-300 pointer-events-none animate-spin-slow"
+            style={{
+              background:
+                'conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary)) 80deg, rgba(255,255,255,0.85) 180deg, hsl(var(--primary)) 280deg, transparent 360deg)',
+            }}
+          />
 
-        {/* 2. CENTER in RTL: Premium Dark Glass Pill Button */}
-        <div className="relative z-10">
           <button
             type="button"
             onClick={onOpenAdd}
-            className="h-[48px] px-6 rounded-full flex items-center justify-center gap-1 font-medium cursor-pointer select-none theme-glass-pill theme-add-btn"
+            className="relative z-10 h-[44px] px-5 rounded-full flex items-center justify-center gap-1.5 font-medium cursor-pointer select-none theme-glass-pill theme-add-btn transition-colors duration-200"
             title="اضافه کردن (N)"
           >
             <RiAddLine className="w-[18px] h-[18px] stroke-[0.5]" />
-            <span className="text-[13.5px] font-medium tracking-tight">
+            <span className="text-[13px] font-medium tracking-tight">
               اضافه کردن
             </span>
             <kbd className="hidden sm:inline-flex items-center justify-center text-[10px] font-bold text-current/80 bg-black/15 dark:bg-white/20 px-1.5 py-0.5 rounded mr-1 font-mono tracking-normal select-none">
@@ -309,15 +317,15 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         <button
           type="button"
           onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}
-          className={`h-12 px-3.5 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
+          className={`group/profile h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
             activeTab === 'profile'
               ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-foreground/10 active:scale-95'
+              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
           }`}
           title="پروفایل و تنظیمات"
         >
           <RiUser3Line
-            className={`w-[22px] h-[22px] transition-colors ${
+            className={`w-5 h-5 transition-colors duration-200 ${
               activeTab === 'profile' ? 'text-primary' : 'text-foreground/75'
             }`}
           />

@@ -27,7 +27,10 @@ import {
   getRelativeDayPrefix,
   extractDateOnly,
   toPersianDigits,
+  addJalaliDays,
 } from './lib/jalali';
+import { isOfficialHoliday } from './lib/holidays';
+import { isTaskOccurringOnDate } from './lib/recurrence';
 import { checkAndSeedDesignDemoData } from './lib/seed';
 import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
 import type { Task, EventItem, Note, Tag } from './types/models';
@@ -70,6 +73,7 @@ export function App() {
   const [todayDoneCount, setTodayDoneCount] = useState<number>(0);
   const [celebrationCoords, setCelebrationCoords] = useState<{ x: number; y: number } | null>(null);
   const goalPillRef = useRef<HTMLDivElement | null>(null);
+  const isInitialLoadRef = useRef(true);
 
   // Apply active theme on mount and change
   useEffect(() => {
@@ -193,9 +197,20 @@ export function App() {
       const pinnedT = allTasksList.filter((t) => t.pinned && t.status !== 'dropped');
       const pinnedN = allNotes.filter((n) => n.pinned);
 
-      const dayTasks = allTasksList.filter(
-        (t) => extractDateOnly(t.due_date) === targetDateKey && t.status !== 'dropped' && !t.pinned
-      );
+      const dayTasks = allTasksList
+        .filter(
+          (t) => isTaskOccurringOnDate(t, targetDateKey) && t.status !== 'dropped' && !t.pinned
+        )
+        .map((t) => {
+          if (t.recurrence_rule && t.recurrence_rule !== 'none') {
+            const isDoneOnDate = (t.done_dates || []).includes(targetDateKey);
+            return {
+              ...t,
+              status: isDoneOnDate ? ('done' as const) : ('open' as const),
+            };
+          }
+          return t;
+        });
 
       const dayNotes = allNotes.filter((n) => {
         if (n.pinned) return false;
@@ -215,8 +230,18 @@ export function App() {
 
       const dSet = new Set<string>();
       allTasksList.forEach((t) => {
-        const dp = extractDateOnly(t.due_date);
-        if (dp && t.status !== 'dropped') dSet.add(dp);
+        if (t.status === 'dropped') return;
+        if (t.recurrence_rule && t.recurrence_rule !== 'none') {
+          for (let offset = -35; offset <= 65; offset++) {
+            const dateStr = addJalaliDays(targetDateKey, offset);
+            if (isTaskOccurringOnDate(t, dateStr)) {
+              dSet.add(dateStr);
+            }
+          }
+        } else {
+          const dp = extractDateOnly(t.due_date);
+          if (dp) dSet.add(dp);
+        }
       });
       allNotes.forEach((n) => {
         if (n.date_key) dSet.add(extractDateOnly(n.date_key));
@@ -237,8 +262,13 @@ export function App() {
         (t) => t.status === 'done' && t.updated_at && t.updated_at.slice(0, 10) === todayISO
       ).length;
 
+      const celebrationStorageKey = `daily_goal_celebrated_${todayISO}`;
+      const alreadyCelebratedToday = localStorage.getItem(celebrationStorageKey) === 'true';
+
       setTodayDoneCount((prev) => {
-        if (prev < 5 && doneToday >= 5) {
+        // Only trigger celebratory burst if this is NOT initial mount AND user crossed the 5-task threshold AND hasn't celebrated today yet
+        if (!isInitialLoadRef.current && prev < 5 && doneToday >= 5 && !alreadyCelebratedToday) {
+          localStorage.setItem(celebrationStorageKey, 'true');
           if (goalPillRef.current) {
             const rect = goalPillRef.current.getBoundingClientRect();
             setCelebrationCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
@@ -248,6 +278,8 @@ export function App() {
         }
         return doneToday;
       });
+
+      isInitialLoadRef.current = false;
 
       const futureEv = allEventsList.filter((e) => {
         const ep = extractDateOnly(e.start_at);
@@ -310,6 +342,8 @@ export function App() {
   const currentWeekdayName = getFullPersianWeekdayName(selectedGregorianDate);
   const relativePrefix = getRelativeDayPrefix(selectedDateKey, todayKey);
   const isSelectedOtherThanToday = selectedDateKey !== todayKey;
+  const isFriday = selectedGregorianDate.getDay() === 5;
+  const isSelectedHoliday = isFriday || isOfficialHoliday(selectedDateKey);
 
   return (
     <AppContainer
@@ -332,20 +366,26 @@ export function App() {
               {/* Top Greeting Header */}
               <div className="w-full pb-2 px-6">
                 <div className="flex items-center justify-between min-h-[36px]">
-                  {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal Dot */}
+                  {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal/Red Dot */}
                   <div className="flex items-center gap-1.5">
                     {relativePrefix && (
                       <>
-                        <span className="text-xl md:text-2xl font-normal text-muted-foreground">
+                        <span className="text-2xl font-normal text-muted-foreground/90 tracking-tight">
                           {relativePrefix}
                         </span>
-                        <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground -mx-0.5" />
+                        <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground/60 -mx-0.5" />
                       </>
                     )}
                     <h1 className="text-2xl font-bold text-foreground tracking-tight">
                       {currentWeekdayName}
                     </h1>
-                    <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 transition-colors duration-200 ${
+                        isSelectedHoliday
+                          ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]'
+                          : 'bg-primary'
+                      }`}
+                    />
                   </div>
 
                   {/* Left side: Daily goal counter pill + Capsule "بازگشت به امروز" button */}
@@ -366,7 +406,7 @@ export function App() {
                       }}
                       className={`inline-flex items-center gap-1.5 px-2.5 h-[25px] rounded-full transition-all select-none border ${
                         todayDoneCount >= 5
-                          ? 'bg-amber-500/15 dark:bg-amber-400/20 text-amber-600 dark:text-amber-300 border-amber-500/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95'
+                          ? 'bg-primary/15 dark:bg-primary/20 text-primary border-primary/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95'
                           : 'bg-muted/70 dark:bg-white/10 text-muted-foreground/85 border-transparent cursor-default'
                       }`}
                       title={
@@ -377,7 +417,7 @@ export function App() {
                     >
                       <RiMedal2Line
                         className={`w-3.5 h-3.5 shrink-0 ${
-                          todayDoneCount >= 5 ? 'text-amber-500' : 'text-muted-foreground/75'
+                          todayDoneCount >= 5 ? 'text-primary' : 'text-muted-foreground/75'
                         }`}
                       />
                       <span className="font-semibold text-[11.5px] leading-none pt-0.5">
@@ -389,7 +429,7 @@ export function App() {
                     {isSelectedOtherThanToday && (
                       <button
                         onClick={() => setSelectedDateKey(todayKey)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-medium border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-normal border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
                         title="بازگشت به امروز"
                       >
                         <span>امروز</span>

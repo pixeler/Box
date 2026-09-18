@@ -5,7 +5,7 @@ export interface TaskRepository {
   update(id: string, patch: Partial<Task>): Promise<Task>;
   getById(id: string): Promise<Task | null>;
   list(filter?: TaskFilter): Promise<Task[]>;
-  toggleDone(id: string): Promise<Task>;
+  toggleDone(id: string, dateKey?: string): Promise<Task>;
   softDelete(id: string): Promise<void>; // status -> 'dropped'
   migrate(id: string, newDueDate: string): Promise<Task>;
   getOverdueOpen(beforeDate: string): Promise<Task[]>;

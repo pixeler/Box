@@ -150,12 +150,13 @@ export const NotebookView: React.FC = () => {
               هنوز یادداشتی در این بخش ثبت نشده است.
             </div>
           ) : (
-            filteredNotes.map((note) => (
+            filteredNotes.map((note, idx) => (
               <NoteItemRow
                 key={note.id}
                 note={note}
                 tagsMap={tagsMap}
                 onStatusChanged={loadData}
+                isLast={idx === filteredNotes.length - 1}
               />
             ))
           )}

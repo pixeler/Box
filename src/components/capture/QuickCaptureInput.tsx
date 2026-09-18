@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import type { Tag, Box } from '@/types/models';
 import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
@@ -56,6 +57,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const [dueTime, setDueTime] = useState<string | null>(null);
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
   const [recurrenceRule, setRecurrenceRule] = useState<string | null>(null);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState<string | null>(null);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<string | null>(null);
   const [priority, setPriority] = useState<1 | 2 | 3 | undefined>(undefined);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
@@ -375,6 +378,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setDueTime(null);
     setDurationMinutes(null);
     setRecurrenceRule(null);
+    setRecurrenceStartDate(null);
+    setRecurrenceEndDate(null);
     setTagSuggestQuery(null);
     setCommandPaletteQuery(null);
     hadDateTokenRef.current = false;
@@ -433,6 +438,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           due_time: dueTime || undefined,
           duration_minutes: durationMinutes || undefined,
           recurrence_rule: recurrenceRule || undefined,
+          recurrence_start_date: recurrenceStartDate || effectiveDueDate || undefined,
+          recurrence_end_date: recurrenceEndDate || undefined,
           priority: effectivePriority,
           tag_ids: finalTagIds,
         });
@@ -573,19 +580,29 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
   if (!isOpen && !isClosing) return null;
 
-  return (
+  const isNoteFullscreen = isFullscreen && activeTab === 'note';
+  const portalTarget = typeof document !== 'undefined'
+    ? (isNoteFullscreen ? document.body : (document.getElementById('app-main') || document.body))
+    : null;
+  if (!portalTarget) return null;
+
+  return createPortal(
     <div
-      className={`absolute inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-xs select-none ${
-        isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
-      }`}
+      className={
+        isNoteFullscreen
+          ? 'fixed inset-0 z-[100] w-screen h-screen flex flex-col bg-black/65 backdrop-blur-xs select-none'
+          : `absolute inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-xs select-none ${
+              isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
+            }`
+      }
       onClick={handleClose}
       dir="rtl"
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className={`bg-card text-card-foreground font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
-          isFullscreen && activeTab === 'note'
-            ? 'absolute inset-0 z-50 w-full h-full pb-5 px-6 pt-6'
+          isNoteFullscreen
+            ? 'fixed inset-0 z-[101] w-screen h-screen pb-6 px-6 md:px-14 md:py-8 flex flex-col bg-card'
             : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] border-t border-border/80 dark:border-white/10 ${
                 isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
               }`
@@ -593,7 +610,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         dir="rtl"
       >
         {/* Top Left Action Buttons: Fullscreen & Close */}
-        <div className="absolute left-6 top-6 flex items-center gap-1 z-30 pointer-events-auto">
+        <div className={`absolute ${isNoteFullscreen ? 'left-6 md:left-14 top-6 md:top-8' : 'left-6 top-6'} flex items-center gap-1 z-30 pointer-events-auto`}>
           {activeTab === 'note' && (
             <button
               type="button"
@@ -851,14 +868,14 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
             {activeTab === 'note' ? (
               <div
                 className={`flex-1 overflow-y-auto mt-3 border-t border-border/70 dark:border-white/10 pt-2 ${
-                  isFullscreen ? 'min-h-[300px]' : 'min-h-[160px] max-h-[46vh]'
+                  isNoteFullscreen ? 'min-h-[60vh]' : 'min-h-[160px] max-h-[46vh]'
                 }`}
               >
                 <BlockNoteEditor
                   initialContent={description}
                   onChange={(md) => setDescription(md)}
                   placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
-                  minHeight={isFullscreen ? '350px' : '160px'}
+                  minHeight={isNoteFullscreen ? '60vh' : '160px'}
                 />
               </div>
             ) : (
@@ -1092,6 +1109,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
             timeValue={dueTime}
             durationMinutes={durationMinutes}
             repeatValue={recurrenceRule}
+            recurrenceStartDate={recurrenceStartDate || dueDate}
+            recurrenceEndDate={recurrenceEndDate}
             onChange={(d) => {
               setDueDate(d);
               hadDateTokenRef.current = true;
@@ -1102,6 +1121,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
               setDueTime(res.time || null);
               setDurationMinutes(res.durationMinutes || null);
               setRecurrenceRule(res.repeat || null);
+              setRecurrenceStartDate(res.recurrenceStartDate || null);
+              setRecurrenceEndDate(res.recurrenceEndDate || null);
               hadDateTokenRef.current = true;
               setDatePickerOpen(false);
             }}
@@ -1131,6 +1152,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           onSelectBox={(bId) => setSelectedBox(bId || '')}
         />
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 };

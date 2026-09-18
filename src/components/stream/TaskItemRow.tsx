@@ -36,6 +36,7 @@ import {
   RiForbid2Line,
   RiPushpin2Line,
   RiPushpin2Fill,
+  RiRepeatLine,
 } from '@remixicon/react';
 import { playTaskDoneSound } from '@/lib/sound';
 
@@ -51,6 +52,7 @@ interface TaskItemRowProps {
   onDragEnd?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   isNewlyAdded?: boolean;
+  isLast?: boolean;
 }
 
 export const TaskItemRow: React.FC<TaskItemRowProps> = ({
@@ -65,6 +67,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   onDragEnd,
   onDrop,
   isNewlyAdded = false,
+  isLast = false,
 }) => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -79,7 +82,9 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   const dateDisplay = formatTaskDateDisplay(
     task.due_date,
     currentDateKey || todayKey,
-    isPinned
+    isPinned,
+    task.due_time,
+    task.duration_minutes
   );
 
   const handleToggle = async () => {
@@ -88,12 +93,12 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
       setIsCompleting(true);
       // Wait for the full hand-drawn pencil strike animation to finish in-place before re-sorting
       await new Promise((resolve) => setTimeout(resolve, 480));
-      await taskRepo.toggleDone(task.id);
+      await taskRepo.toggleDone(task.id, currentDateKey || todayKey);
       setIsCompleting(false);
       onStatusChanged();
       toast.show('تسک دان شد');
     } else {
-      await taskRepo.toggleDone(task.id);
+      await taskRepo.toggleDone(task.id, currentDateKey || todayKey);
       onStatusChanged();
     }
   };
@@ -134,7 +139,9 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
             onDragEnd={onDragEnd}
             onDrop={onDrop}
             onClick={() => setEditModalOpen(true)}
-            className={`group relative w-full border-b border-dotted border-border py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
+            className={`group relative w-full ${
+              !isLast ? 'task-dashed-border' : ''
+            } py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             } ${
               isDone ? 'opacity-55' : ''
@@ -212,8 +219,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
 
               {/* 2. LEFT SIDE in RTL: Date/Time display */}
               {dateDisplay && (
-                <span className="text-[12px] text-muted-foreground font-normal select-none shrink-0 mt-0.5 mr-2">
-                  {dateDisplay}
+                <span className="text-[12px] text-muted-foreground font-normal select-none shrink-0 mt-0.5 mr-2 flex items-center gap-1">
+                  {task.recurrence_rule && task.recurrence_rule !== 'none' && (
+                    <RiRepeatLine className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+                  )}
+                  <span>{dateDisplay}</span>
                 </span>
               )}
             </div>
@@ -493,6 +503,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
           timeValue={task.due_time}
           durationMinutes={task.duration_minutes}
           repeatValue={task.recurrence_rule}
+          recurrenceStartDate={task.recurrence_start_date || task.due_date}
+          recurrenceEndDate={task.recurrence_end_date}
           onChange={(d) => {
             handleQuickDate(d);
             setDatePickerOpen(false);
@@ -503,6 +515,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
               due_time: res.time || undefined,
               duration_minutes: res.durationMinutes || undefined,
               recurrence_rule: res.repeat || undefined,
+              recurrence_start_date: res.recurrenceStartDate || undefined,
+              recurrence_end_date: res.recurrenceEndDate !== undefined ? res.recurrenceEndDate : undefined,
             });
             onStatusChanged?.();
             setDatePickerOpen(false);

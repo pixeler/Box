@@ -25,10 +25,10 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
   const dayHolidays = getHolidaysForDate(selectedDateKey);
 
   return (
-    <div className="w-full flex items-center justify-between mt-5 mb-2 relative select-none px-6">
+    <div className="w-full flex items-center justify-between mt-4 mb-1.5 relative select-none px-6">
       {/* 1. Date title and occasions on the FAR RIGHT (First child in RTL) */}
       <div className="flex flex-col text-right">
-        <h2 className="text-[14px] font-semibold text-foreground tracking-tight">
+        <h2 className="text-[13.5px] font-medium text-muted-foreground/80 tracking-normal">
           {formattedDate}
         </h2>
         {dayHolidays.length > 0 && (

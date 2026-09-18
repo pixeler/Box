@@ -678,7 +678,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
             <div
               className={`relative w-[40px] h-[48px] rounded-full flex flex-col items-center justify-center transition-all duration-150 border-[1.5px] ${
                 isSelected
-                  ? 'theme-glass-pill border-transparent'
+                  ? isHoliday
+                    ? 'holiday-glass-pill border-transparent text-white'
+                    : 'theme-glass-pill border-transparent text-white'
                   : isToday
                   ? isHoliday
                     ? 'border-rose-400 text-rose-500 bg-transparent font-bold'
@@ -776,7 +778,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
               <div
                 className={`relative w-[38px] h-[38px] rounded-full flex items-center justify-center text-[15px] leading-none transition-all border-[1.5px] ${
                   isSelected
-                    ? 'theme-glass-pill border-transparent text-white font-bold'
+                    ? isHoliday
+                      ? 'holiday-glass-pill border-transparent text-white font-bold'
+                      : 'theme-glass-pill border-transparent text-white font-bold'
                     : isToday
                     ? isHoliday
                       ? 'border-rose-400 text-rose-500 bg-transparent font-bold'

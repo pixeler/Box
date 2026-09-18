@@ -23,6 +23,9 @@ export interface Task {
   priority?: 1 | 2 | 3; // ! / !! / !!!
   tag_ids: string[];
   recurrence_rule?: string; // RRULE-like string یا "daily", "weekly", etc.
+  recurrence_start_date?: string; // تاریخ شروع تکرار (YYYY/MM/DD)
+  recurrence_end_date?: string | null; // تاریخ پایان تکرار (YYYY/MM/DD) یا null
+  done_dates?: string[]; // تاریخ‌هایی که این تسک تکرارشونده در آن‌ها انجام شده است
   migrated_from_id?: string; // زنجیره‌ی تاریخچه‌ی migrate
   pinned?: boolean;
   order?: number;

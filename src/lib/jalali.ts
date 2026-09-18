@@ -224,27 +224,65 @@ export function getJalaliMonthFirstDayOfWeek(jy: number, jm: number): number {
 }
 
 /**
- * فرمت تاریخ و زمان تسک به سبک Todoist
- * اگر تسک برای روزِ در حال نمایش باشد و ساعتی نداشته باشد، null برمی‌گرداند.
+ * محاسبه و قالب‌بندی بازه زمانی تسک بر اساس ساعت شروع و مدت زمان (مثلا: "۱۳ تا ۱۴:۳۰")
+ */
+export function formatTaskTimeRange(
+  dueTime?: string | null,
+  durationMinutes?: number | null
+): string | null {
+  if (!dueTime || !dueTime.trim()) return null;
+  const parts = dueTime.trim().split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parts[1] ? parseInt(parts[1], 10) : 0;
+  if (isNaN(h)) return null;
+
+  const startStr = m === 0 ? `${h}` : `${h}:${String(m).padStart(2, '0')}`;
+
+  if (durationMinutes && durationMinutes > 0) {
+    const totalMins = (h * 60 + m + durationMinutes) % (24 * 60);
+    const endH = Math.floor(totalMins / 60);
+    const endM = totalMins % 60;
+    const endStr = endM === 0 ? `${endH}` : `${endH}:${String(endM).padStart(2, '0')}`;
+    return `${toPersianDigits(startStr)} تا ${toPersianDigits(endStr)}`;
+  }
+
+  const singleStr = m === 0 ? `${h}:00` : `${h}:${String(m).padStart(2, '0')}`;
+  return toPersianDigits(singleStr);
+}
+
+/**
+ * فرمت تاریخ و زمان تسک
+ * اگر تسک ساعتی داشته باشد، حتی برای روز در حال نمایش (امروز) زمان آن روبروی تسک نمایش داده می‌شود.
  */
 export function formatTaskDateDisplay(
   dueDateStr?: string,
   viewDateKey: string = getTodayJalaliKey(),
-  alwaysShowRelative: boolean = false
+  alwaysShowRelative: boolean = false,
+  dueTime?: string | null,
+  durationMinutes?: number | null
 ): string | null {
-  if (!dueDateStr || !dueDateStr.trim()) return null;
+  const timeStr = formatTaskTimeRange(dueTime, durationMinutes);
+
+  // اگر تاریخ سررسید نداشت ولی ساعت داشت
+  if (!dueDateStr || !dueDateStr.trim()) {
+    return timeStr;
+  }
 
   const raw = dueDateStr.trim();
   let datePart = '';
-  let timePart: string | null = null;
+  let embeddedTimePart: string | null = null;
 
-  // استخراج زمان (مانند ۱۲:۳۰)
-  const timeMatch = raw.match(/(\d{1,2}):(\d{2})/);
-  if (timeMatch) {
-    const h = timeMatch[1].padStart(2, '0');
-    const m = timeMatch[2];
-    timePart = `${toPersianDigits(h)}:${toPersianDigits(m)}`;
+  // استخراج زمان از داخل رشته تاریخ در صورت عدم ارائه dueTime مستقل
+  if (!timeStr) {
+    const timeMatch = raw.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const h = timeMatch[1].padStart(2, '0');
+      const m = timeMatch[2];
+      embeddedTimePart = `${toPersianDigits(h)}:${toPersianDigits(m)}`;
+    }
   }
+
+  const effectiveTimeStr = timeStr || embeddedTimePart;
 
   // استخراج تاریخ جلالی
   const jalaliMatch = raw.match(/(\d{4})[/\\-](\d{1,2})[/\\-](\d{1,2})/);
@@ -257,24 +295,18 @@ export function formatTaskDateDisplay(
     };
     datePart = formatJalaliKey(taskJalali);
   } else {
-    // تلاش برای پارس به عنوان فرمت استاندارد میلادی
     const d = new Date(raw);
-    if (isNaN(d.getTime())) return null;
+    if (isNaN(d.getTime())) return effectiveTimeStr;
     taskJalali = getJalaliDate(d);
     datePart = formatJalaliKey(taskJalali);
-    if (!timePart && raw.includes(':')) {
-      const h = d.getHours().toString().padStart(2, '0');
-      const m = d.getMinutes().toString().padStart(2, '0');
-      timePart = `${toPersianDigits(h)}:${toPersianDigits(m)}`;
-    }
   }
 
   const todayKey = getTodayJalaliKey();
   const isViewDate = datePart === viewDateKey;
 
-  // اگر تسک متعلق به همان روز در حال نمایش است، فقط ساعت (در صورت وجود) نمایش داده می‌شود مگر اینکه نمایش تاریخ الزامی باشد
+  // اگر تسک متعلق به همان روز در حال نمایش است (حتی امروز): زمان ساعتی نشان داده می‌شود
   if (isViewDate && !alwaysShowRelative) {
-    return timePart || null;
+    return effectiveTimeStr;
   }
 
   // محاسبه اختلاف روزها نسبت به امروز واقعی
@@ -303,11 +335,14 @@ export function formatTaskDateDisplay(
     dateLabel = getFullPersianWeekdayName(taskDate);
   } else {
     const monthName = PERSIAN_MONTH_NAMES[taskJalali.jm - 1] || '';
-    dateLabel = `${toPersianDigits(taskJalali.jd)} ${monthName} ${toPersianDigits(taskJalali.jy)}`;
+    dateLabel = `${toPersianDigits(taskJalali.jd)} ${monthName}`;
+    if (taskJalali.jy !== todayJ.jy) {
+      dateLabel += ` ${toPersianDigits(taskJalali.jy)}`;
+    }
   }
 
-  if (timePart) {
-    return `${dateLabel}/ ${timePart}`;
+  if (effectiveTimeStr) {
+    return `${dateLabel} • ${effectiveTimeStr}`;
   }
   return dateLabel;
 }
@@ -332,6 +367,9 @@ export function getRelativeDayPrefix(targetDateKey: string, todayKey: string): s
     if (diffDays === 1) return 'فردا';
     if (diffDays === 2) return 'پس‌فردا';
     if (diffDays === -1) return 'دیروز';
+    if (diffDays === -2) return 'پریروز';
+    if (diffDays < -2 && diffDays >= -7) return `${toPersianDigits(Math.abs(diffDays))} روز قبل`;
+    if (diffDays > 2 && diffDays <= 7) return `${toPersianDigits(diffDays)} روز بعد`;
   } catch {
     return null;
   }

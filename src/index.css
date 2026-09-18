@@ -1123,5 +1123,46 @@ button:active {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='pr2' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.38 0.14' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.4' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.2 C 18 6.5, 34 10.5, 52 7.2 C 68 6.5, 84 10.2, 100 8.0 C 108 7.2, 114 8.5, 118 7.8' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23pr2)' opacity='0.95'/%3E%3Cpath d='M2 8 C 20 7.2, 38 9.5, 56 7.5 C 74 9.2, 92 7.2, 118 8.0' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-dasharray='8 2 12 3 6 1' opacity='0.7'/%3E%3C/svg%3E");
 }
 
+/* Dashed separator border (خط چین) between stream items */
+.task-dashed-border {
+  border-bottom: 1px dashed hsl(var(--border));
+}
 
+/* Holiday Glass Pill for Selected Holiday in Weekly Strip & Calendar */
+.holiday-glass-pill {
+  color: #ffffff !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 50%, #9f1239 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 
+    0 2px 10px -1px rgba(225, 29, 72, 0.45),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -0.5px 1px 0 rgba(0, 0, 0, 0.2) !important;
+}
 
+.holiday-glass-pill:hover {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 50%, #be123c 100%) !important;
+  box-shadow: 
+    0 3px 14px -1px rgba(225, 29, 72, 0.55),
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.45) !important;
+}
+
+.holiday-glass-pill:active {
+  transform: scale(0.975);
+}
+
+/* Rotating gradient stroke animation for Add Button */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3.5s linear infinite;
+}

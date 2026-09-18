@@ -27,13 +27,17 @@ import {
   RiRepeatLine,
   RiCloseLine,
   RiCheckLine,
+  RiCalendar2Line,
 } from '@remixicon/react';
+import { formatRecurrenceDisplay, PERSIAN_WEEKDAYS } from '@/lib/recurrence';
 
 export interface DateTimeSelectionResult {
   dateKey: string | null;
   time?: string | null;
   durationMinutes?: number | null;
   repeat?: string | null;
+  recurrenceStartDate?: string | null;
+  recurrenceEndDate?: string | null;
 }
 
 export interface JalaliDatePickerProps {
@@ -43,6 +47,8 @@ export interface JalaliDatePickerProps {
   timeValue?: string | null;
   durationMinutes?: number | null;
   repeatValue?: string | null;
+  recurrenceStartDate?: string | null;
+  recurrenceEndDate?: string | null;
   onDateTimeChange?: (result: DateTimeSelectionResult) => void;
 }
 
@@ -51,7 +57,9 @@ const WEEK_DAYS_SHORT = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
 export const REPEAT_OPTIONS = [
   { id: 'none', label: 'بدون تکرار' },
   { id: 'daily', label: 'هر روز' },
+  { id: 'every_other_day', label: 'یک روز در میان' },
   { id: 'workdays', label: 'روزهای کاری (شنبه تا چهارشنبه)' },
+  { id: 'custom_weekdays', label: 'روزهای مشخص هفته' },
   { id: 'weekly', label: 'هر هفته' },
   { id: 'monthly', label: 'هر ماه' },
   { id: 'yearly', label: 'هر سال' },
@@ -84,6 +92,8 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
   timeValue,
   durationMinutes: initialDuration,
   repeatValue,
+  recurrenceStartDate: initialRecurrenceStartDate,
+  recurrenceEndDate: initialRecurrenceEndDate,
   onDateTimeChange,
 }) => {
   const todayKey = getTodayJalaliKey();
@@ -117,7 +127,70 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
   const [durationMinutes, setDurationMinutes] = useState<number>(initialDuration || 60);
 
   // Repeat state
-  const [repeat, setRepeat] = useState<string>(repeatValue || 'none');
+  const initialRepeatInfo = useMemo(() => {
+    if (!repeatValue || repeatValue === 'none') {
+      return { type: 'none', days: [0] };
+    }
+    if (repeatValue.startsWith('weekdays:') || repeatValue.startsWith('custom:')) {
+      const parts = repeatValue
+        .replace(/^(weekdays:|custom:)/, '')
+        .split(',')
+        .map((n) => parseInt(n.trim(), 10))
+        .filter((n) => !isNaN(n));
+      return { type: 'custom_weekdays', days: parts.length > 0 ? parts : [0] };
+    }
+    return { type: repeatValue, days: [0] };
+  }, [repeatValue]);
+
+  const [repeat, setRepeat] = useState<string>(initialRepeatInfo.type);
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>(initialRepeatInfo.days);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState<string>(
+    initialRecurrenceStartDate || value || todayKey
+  );
+  const [hasEndDate, setHasEndDate] = useState<boolean>(Boolean(initialRecurrenceEndDate));
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<string>(
+    initialRecurrenceEndDate || addJalaliDays(initialRecurrenceStartDate || value || todayKey, 30)
+  );
+
+  useEffect(() => {
+    if (selectedDateKey && (!initialRecurrenceStartDate || initialRecurrenceStartDate === value)) {
+      setRecurrenceStartDate(selectedDateKey);
+    }
+  }, [selectedDateKey, initialRecurrenceStartDate, value]);
+
+  const computedRepeatRule = useMemo(() => {
+    if (repeat === 'none') return null;
+    if (repeat === 'custom_weekdays') {
+      const sorted = [...selectedWeekdays].sort((a, b) => a - b);
+      return sorted.length > 0 ? `weekdays:${sorted.join(',')}` : 'daily';
+    }
+    return repeat;
+  }, [repeat, selectedWeekdays]);
+
+  const handleToggleWeekday = (dayId: number) => {
+    setSelectedWeekdays((prev) => {
+      if (prev.includes(dayId)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((d) => d !== dayId);
+      } else {
+        return [...prev, dayId].sort((a, b) => a - b);
+      }
+    });
+  };
+
+  const parsedEndJ = useMemo(() => {
+    try {
+      return parseJalaliKey(recurrenceEndDate || todayKey);
+    } catch {
+      return parseJalaliKey(todayKey);
+    }
+  }, [recurrenceEndDate, todayKey]);
+
+  const updateEndDateParts = (jy: number, jm: number, jd: number) => {
+    const maxDays = getJalaliMonthLength(jy, jm);
+    const validDay = Math.min(jd, maxDays);
+    setRecurrenceEndDate(formatJalaliKey({ jy, jm, jd: validDay }));
+  };
 
   // ESC key handler
   useEffect(() => {
@@ -209,14 +282,28 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
         str += `، ساعت ${startFormattedTime}`;
       }
     }
-    if (repeat && repeat !== 'none') {
-      const match = REPEAT_OPTIONS.find((r) => r.id === repeat);
-      if (match) {
-        str += `، ${match.label}`;
+    if (computedRepeatRule) {
+      str += `، ${formatRecurrenceDisplay(computedRepeatRule)}`;
+      if (hasEndDate && recurrenceEndDate) {
+        try {
+          const ej = parseJalaliKey(recurrenceEndDate);
+          str += ` (تا ${toPersianDigits(ej.jd)} ${PERSIAN_MONTH_NAMES[ej.jm - 1]})`;
+        } catch {}
       }
     }
     return str;
-  }, [selectedDateKey, todayKey, hasTime, hasDuration, startFormattedTime, endFormattedTime, durationFormattedText, repeat]);
+  }, [
+    selectedDateKey,
+    todayKey,
+    hasTime,
+    hasDuration,
+    startFormattedTime,
+    endFormattedTime,
+    durationFormattedText,
+    computedRepeatRule,
+    hasEndDate,
+    recurrenceEndDate,
+  ]);
 
   const handleConfirm = () => {
     let finalTime: string | null = null;
@@ -238,7 +325,9 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
       dateKey: selectedDateKey,
       time: finalTime,
       durationMinutes: hasTime && hasDuration ? durationMinutes : null,
-      repeat: repeat !== 'none' ? repeat : null,
+      repeat: computedRepeatRule,
+      recurrenceStartDate: computedRepeatRule ? recurrenceStartDate : null,
+      recurrenceEndDate: computedRepeatRule && hasEndDate ? recurrenceEndDate : null,
     });
     handleClose();
   };
@@ -549,7 +638,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <span className="text-[11.5px] font-medium text-foreground/80">
-                      {REPEAT_OPTIONS.find((r) => r.id === repeat)?.label || 'هیچ‌کدام'}
+                      {formatRecurrenceDisplay(computedRepeatRule)}
                     </span>
                     <RiArrowLeftSLine className="w-4.5 h-4.5 text-muted-foreground" />
                   </div>
@@ -708,7 +797,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
               VIEW 3: REPEAT SUB-VIEW
              ------------------------------------------------------------- */}
           {currentView === 'repeat' && (
-            <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-3.5 pb-2">
               {/* Repeat Options */}
               <div className="flex flex-col divide-y divide-border/50 rounded-2xl bg-secondary/25 border border-border/70 overflow-hidden text-xs">
                 {REPEAT_OPTIONS.map((opt) => (
@@ -717,7 +806,9 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                     type="button"
                     onClick={() => {
                       setRepeat(opt.id);
-                      setCurrentView('date');
+                      if (opt.id === 'none') {
+                        setCurrentView('date');
+                      }
                     }}
                     className="flex items-center justify-between p-3.5 hover:bg-secondary/60 transition-colors text-right cursor-pointer"
                   >
@@ -728,6 +819,232 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                   </button>
                 ))}
               </div>
+
+              {/* Custom Weekday Selector (shown when 'custom_weekdays' is selected) */}
+              {repeat === 'custom_weekdays' && (
+                <div className="p-3.5 rounded-2xl bg-secondary/30 border border-border/70 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground">روزهای هفته برای تکرار</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {selectedWeekdays.length === 7
+                        ? 'هر روز'
+                        : `${toPersianDigits(selectedWeekdays.length)} روز انتخاب شده`}
+                    </span>
+                  </div>
+
+                  {/* 7 Days circle/capsule buttons */}
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {PERSIAN_WEEKDAYS.map((w) => {
+                      const isSelected = selectedWeekdays.includes(w.id);
+                      const isFriday = w.id === 6;
+                      return (
+                        <button
+                          key={w.id}
+                          type="button"
+                          onClick={() => handleToggleWeekday(w.id)}
+                          className={`flex flex-col items-center justify-center py-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground border-primary font-bold shadow-xs scale-102'
+                              : isFriday
+                              ? 'bg-card border-border/70 text-rose-500 hover:bg-rose-500/10 font-semibold'
+                              : 'bg-card border-border/70 text-foreground/80 hover:bg-muted/70 font-medium'
+                          }`}
+                        >
+                          <span className="text-xs">{w.label}</span>
+                          <span className={`text-[9.5px] mt-0.5 opacity-80 ${isSelected ? 'text-primary-foreground' : 'text-muted-foreground'}`}>
+                            {w.name.replace('‌', '')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Quick weekday presets */}
+                  <div className="flex items-center gap-1.5 pt-1 border-t border-border/40 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWeekdays([0, 2, 4])}
+                      className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                    >
+                      روزهای فرد (ش، د، چ)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWeekdays([1, 3, 5])}
+                      className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                    >
+                      روزهای زوج (ی، س، پ)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedWeekdays([0, 1, 2, 3, 4, 5, 6])}
+                      className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted border border-border/60 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                    >
+                      همه روزها
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Start & End Dates Section (shown when repeat is not 'none') */}
+              {repeat !== 'none' && (
+                <div className="p-3.5 rounded-2xl bg-secondary/30 border border-border/70 flex flex-col gap-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                    <div className="flex items-center gap-2">
+                      <RiCalendar2Line className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-bold text-foreground">بازه زمانی تکرار</span>
+                    </div>
+                  </div>
+
+                  {/* Start Date Display / Info */}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">تاریخ شروع:</span>
+                    <span className="font-semibold text-foreground dir-rtl">
+                      {recurrenceStartDate ? (() => {
+                        const sj = parseJalaliKey(recurrenceStartDate);
+                        return `${getWeekdayNameFromDateKey(recurrenceStartDate)}، ${toPersianDigits(sj.jd)} ${PERSIAN_MONTH_NAMES[sj.jm - 1]} ${toPersianDigits(sj.jy)}`;
+                      })() : 'از امروز'}
+                    </span>
+                  </div>
+
+                  {/* End Date Type Toggle */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground font-semibold">پایان تکرار</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-card border border-border/70 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setHasEndDate(false)}
+                        className={`py-1.5 px-2 rounded-lg text-center font-medium transition-colors cursor-pointer ${
+                          !hasEndDate
+                            ? 'bg-primary text-primary-foreground font-bold shadow-2xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        همیشه (بدون پایان)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHasEndDate(true);
+                          if (!recurrenceEndDate) {
+                            setRecurrenceEndDate(addJalaliDays(recurrenceStartDate || todayKey, 30));
+                          }
+                        }}
+                        className={`py-1.5 px-2 rounded-lg text-center font-medium transition-colors cursor-pointer ${
+                          hasEndDate
+                            ? 'bg-primary text-primary-foreground font-bold shadow-2xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        تا تاریخ مشخص
+                      </button>
+                    </div>
+
+                    {/* When End Date is active: Quick presets + Inline Year/Month/Day Selector */}
+                    {hasEndDate && (
+                      <div className="flex flex-col gap-2.5 mt-1 p-3 rounded-xl bg-background/60 border border-border/50">
+                        {/* Quick Presets */}
+                        <div className="flex items-center justify-between gap-1 text-[11px]">
+                          <span className="text-muted-foreground shrink-0">میانبرها:</span>
+                          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                            <button
+                              type="button"
+                              onClick={() => setRecurrenceEndDate(addJalaliDays(recurrenceStartDate || todayKey, 30))}
+                              className="px-2 py-0.5 rounded-md bg-secondary hover:bg-muted text-foreground border border-border/50 cursor-pointer"
+                            >
+                              +۱ ماه
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRecurrenceEndDate(addJalaliDays(recurrenceStartDate || todayKey, 90))}
+                              className="px-2 py-0.5 rounded-md bg-secondary hover:bg-muted text-foreground border border-border/50 cursor-pointer"
+                            >
+                              +۳ ماه
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRecurrenceEndDate(addJalaliDays(recurrenceStartDate || todayKey, 180))}
+                              className="px-2 py-0.5 rounded-md bg-secondary hover:bg-muted text-foreground border border-border/50 cursor-pointer"
+                            >
+                              +۶ ماه
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const sj = parseJalaliKey(recurrenceStartDate || todayKey);
+                                setRecurrenceEndDate(formatJalaliKey({ jy: sj.jy, jm: 12, jd: 29 }));
+                              }}
+                              className="px-2 py-0.5 rounded-md bg-secondary hover:bg-muted text-foreground border border-border/50 cursor-pointer"
+                            >
+                              پایان سال
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Interactive Jalali Date Selectors for End Date */}
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          {/* Day */}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] text-muted-foreground">روز</span>
+                            <select
+                              value={parsedEndJ.jd}
+                              onChange={(e) => updateEndDateParts(parsedEndJ.jy, parsedEndJ.jm, parseInt(e.target.value, 10))}
+                              className="px-2 py-1.5 rounded-lg bg-card border border-border text-foreground font-semibold text-center focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                            >
+                              {Array.from({ length: getJalaliMonthLength(parsedEndJ.jy, parsedEndJ.jm) }).map((_, i) => (
+                                <option key={i + 1} value={i + 1}>
+                                  {toPersianDigits(i + 1)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Month */}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] text-muted-foreground">ماه</span>
+                            <select
+                              value={parsedEndJ.jm}
+                              onChange={(e) => updateEndDateParts(parsedEndJ.jy, parseInt(e.target.value, 10), parsedEndJ.jd)}
+                              className="px-2 py-1.5 rounded-lg bg-card border border-border text-foreground font-semibold text-center focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                            >
+                              {PERSIAN_MONTH_NAMES.map((name, idx) => (
+                                <option key={idx + 1} value={idx + 1}>
+                                  {name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Year */}
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] text-muted-foreground">سال</span>
+                            <select
+                              value={parsedEndJ.jy}
+                              onChange={(e) => updateEndDateParts(parseInt(e.target.value, 10), parsedEndJ.jm, parsedEndJ.jd)}
+                              className="px-2 py-1.5 rounded-lg bg-card border border-border text-foreground font-semibold text-center focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                            >
+                              {[viewYear - 1, viewYear, viewYear + 1, viewYear + 2, viewYear + 3].map((y) => (
+                                <option key={y} value={y}>
+                                  {toPersianDigits(y)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* End date preview text */}
+                        <div className="text-[11px] text-primary font-medium text-center pt-1 border-t border-border/30">
+                          تکرار تا {toPersianDigits(parsedEndJ.jd)} {PERSIAN_MONTH_NAMES[parsedEndJ.jm - 1]} {toPersianDigits(parsedEndJ.jy)} ({getWeekdayNameFromDateKey(recurrenceEndDate)})
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -11,6 +11,7 @@ interface EventItemRowProps {
   onDragOver?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
+  isLast?: boolean;
 }
 
 export const EventItemRow: React.FC<EventItemRowProps> = ({
@@ -20,6 +21,7 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
   onDragOver,
   onDragEnd,
   onDrop,
+  isLast = false,
 }) => {
   const [checked, setChecked] = useState(false);
 
@@ -48,7 +50,9 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDrop={onDrop}
-      className="w-full border-b border-dotted border-border py-3.5 px-6 select-none stream-row-hover cursor-pointer"
+      className={`w-full ${
+        !isLast ? 'task-dashed-border' : ''
+      } py-3.5 px-6 select-none stream-row-hover cursor-pointer`}
     >
       <div className="flex items-center justify-between w-full">
         {/* 1. RIGHT SIDE in RTL: Dashed rounded square + Title */}

@@ -4,7 +4,7 @@ import { boxRepo, taskRepo } from '@/repositories';
 import { BoxThumbnail } from './BoxThumbnail';
 import { TaskEditModal } from '@/components/task/TaskEditModal';
 import { NoteEditModal } from '@/components/notebook/NoteEditModal';
-import { toPersianDigits, formatJalaliDisplay, parseJalaliKey, getTodayJalaliKey } from '@/lib/jalali';
+import { toPersianDigits, formatJalaliDisplay, parseJalaliKey, getTodayJalaliKey, formatTaskTimeRange } from '@/lib/jalali';
 import {
   RiArrowRightLine,
   RiSearchLine,
@@ -330,7 +330,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                     className="mt-0.5 text-muted-foreground hover:text-primary transition-colors shrink-0 cursor-pointer"
                   >
                     {isDone ? (
-                      <RiCheckboxCircleFill className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
+                      <RiCheckboxCircleFill className="w-5 h-5 text-primary" />
                     ) : (
                       <RiCheckboxBlankCircleLine className="w-5 h-5 text-muted-foreground/60 hover:text-primary" />
                     )}
@@ -354,11 +354,16 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
 
                     {/* Chips Row */}
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      {task.due_date && (
+                      {(task.due_date || task.due_time) && (
                         <span className="text-[10px] text-muted-foreground font-medium bg-muted/60 dark:bg-white/5 px-2 py-0.5 rounded-md">
-                          {task.due_date === todayKey
-                            ? 'امروز'
-                            : formatJalaliDisplay(parseJalaliKey(task.due_date))}
+                          {task.due_date
+                            ? task.due_date === todayKey
+                              ? 'امروز'
+                              : formatJalaliDisplay(parseJalaliKey(task.due_date))
+                            : ''}
+                          {task.due_time
+                            ? `${task.due_date ? ' • ' : ''}${formatTaskTimeRange(task.due_time, task.duration_minutes)}`
+                            : ''}
                         </span>
                       )}
 

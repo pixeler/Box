@@ -314,6 +314,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                       onDragStart={(e) => handleDragStart(e, idx)}
                       onDragEnd={handleDragEnd}
                       isNewlyAdded={item.data.id === newlyAddedTaskId}
+                      isLast={idx === streamItems.length - 1}
                     />
                   )}
 
@@ -325,6 +326,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                       draggable
                       onDragStart={(e) => handleDragStart(e, idx)}
                       onDragEnd={handleDragEnd}
+                      isLast={idx === streamItems.length - 1}
                     />
                   )}
 
@@ -335,6 +337,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                       draggable
                       onDragStart={(e) => handleDragStart(e, idx)}
                       onDragEnd={handleDragEnd}
+                      isLast={idx === streamItems.length - 1}
                     />
                   )}
                 </div>

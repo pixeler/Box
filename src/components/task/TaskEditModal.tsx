@@ -38,6 +38,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   const [dueTime, setDueTime] = useState<string | null>(task?.due_time || null);
   const [durationMinutes, setDurationMinutes] = useState<number | null>(task?.duration_minutes || null);
   const [recurrenceRule, setRecurrenceRule] = useState<string | null>(task?.recurrence_rule || null);
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState<string | null>(task?.recurrence_start_date || null);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<string | null>(task?.recurrence_end_date || null);
   const [priority, setPriority] = useState<1 | 2 | 3 | undefined>(task?.priority);
   const [tagIds, setTagIds] = useState<string[]>(task?.tag_ids || []);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
@@ -94,6 +96,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       setDueTime(task.due_time || null);
       setDurationMinutes(task.duration_minutes || null);
       setRecurrenceRule(task.recurrence_rule || null);
+      setRecurrenceStartDate(task.recurrence_start_date || null);
+      setRecurrenceEndDate(task.recurrence_end_date || null);
       setPriority(task.priority);
       setTagIds(task.tag_ids || []);
       setSelectedBox(task.box_id || '');
@@ -136,6 +140,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       dueTime?: string | null;
       durationMinutes?: number | null;
       recurrenceRule?: string | null;
+      recurrenceStartDate?: string | null;
+      recurrenceEndDate?: string | null;
       priority?: 1 | 2 | 3 | undefined;
       tagIds?: string[];
       boxId?: string | null;
@@ -150,6 +156,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       const currentDueTime = overrides?.dueTime !== undefined ? overrides.dueTime : dueTime;
       const currentDuration = overrides?.durationMinutes !== undefined ? overrides.durationMinutes : durationMinutes;
       const currentRecurrence = overrides?.recurrenceRule !== undefined ? overrides.recurrenceRule : recurrenceRule;
+      const currentRecurrenceStart = overrides?.recurrenceStartDate !== undefined ? overrides.recurrenceStartDate : recurrenceStartDate;
+      const currentRecurrenceEnd = overrides?.recurrenceEndDate !== undefined ? overrides.recurrenceEndDate : recurrenceEndDate;
       const currentPriority = overrides?.priority !== undefined ? overrides.priority : priority;
       const currentTags = overrides?.tagIds !== undefined ? overrides.tagIds : tagIds;
       const currentBoxId = overrides?.boxId !== undefined ? overrides.boxId : selectedBox;
@@ -162,6 +170,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           due_time: currentDueTime || undefined,
           duration_minutes: currentDuration || undefined,
           recurrence_rule: currentRecurrence || undefined,
+          recurrence_start_date: currentRecurrenceStart || undefined,
+          recurrence_end_date: currentRecurrenceEnd !== undefined ? currentRecurrenceEnd : undefined,
           priority: currentPriority,
           tag_ids: currentTags,
           box_id: currentBoxId || null,
@@ -467,6 +477,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             timeValue={dueTime}
             durationMinutes={durationMinutes}
             repeatValue={recurrenceRule}
+            recurrenceStartDate={recurrenceStartDate || dueDate}
+            recurrenceEndDate={recurrenceEndDate}
             onChange={(d) => {
               setDueDate(d);
               setDatePickerOpen(false);
@@ -477,12 +489,16 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
               setDueTime(res.time || null);
               setDurationMinutes(res.durationMinutes || null);
               setRecurrenceRule(res.repeat || null);
+              setRecurrenceStartDate(res.recurrenceStartDate || null);
+              setRecurrenceEndDate(res.recurrenceEndDate || null);
               setDatePickerOpen(false);
               performSave({
                 dueDate: res.dateKey,
                 dueTime: res.time || null,
                 durationMinutes: res.durationMinutes || null,
                 recurrenceRule: res.repeat || null,
+                recurrenceStartDate: res.recurrenceStartDate || null,
+                recurrenceEndDate: res.recurrenceEndDate || null,
               });
             }}
             onClose={() => setDatePickerOpen(false)}

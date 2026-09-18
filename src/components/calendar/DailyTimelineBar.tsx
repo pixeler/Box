@@ -90,13 +90,16 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
     y: number;
   } | null>(null);
 
-  // Real-time clock update (every 10 seconds)
+  const [isClockHovered, setIsClockHovered] = useState(false);
+
+  // Real-time clock update (every 1 second when hovered to show smooth live seconds, otherwise every 10s)
   useEffect(() => {
+    const intervalMs = isClockHovered ? 1000 : 10000;
     const timer = setInterval(() => {
       setNow(new Date());
-    }, 10000);
+    }, intervalMs);
     return () => clearInterval(timer);
-  }, []);
+  }, [isClockHovered]);
 
   // Update container width on resize
   useEffect(() => {
@@ -131,6 +134,11 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
     const mStr = toPersianDigits(String(m).padStart(2, '0'));
     return `${hStr}:${mStr}`;
   }, [activeMinutes]);
+
+  // Seconds display for smooth reveal on hover (e.g. ۵۶)
+  const secondsDisplay = useMemo(() => {
+    return toPersianDigits(String(now.getSeconds()).padStart(2, '0'));
+  }, [now]);
 
   // Parse events & tasks with time into intervals
   const intervals: ParsedInterval[] = useMemo(() => {
@@ -333,10 +341,27 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
         <div className="w-[2px] h-[16px] bg-rose-600 dark:bg-rose-500 rounded-full shadow-xs" />
       </div>
 
-      {/* 3. FIXED Center Current Time Badge (Theme-tinted dark, 1px gap from red line, subtle shadow) */}
-      <div className="absolute left-1/2 -translate-x-1/2 top-[24px] z-30 pointer-events-none">
-        <div className="px-2.5 py-1.5 rounded-[6px] text-white text-[11px] font-medium leading-none shadow-[0_1.5px_3px_rgba(0,0,0,0.3)] flex items-center justify-center tracking-tight border border-white/5 bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#18181b)] dark:bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#2a2b30)]">
+      {/* 3. FIXED Center Current Time Badge (Theme-tinted dark, 1px gap from red line, smooth seconds on hover) */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-[24px] z-30 pointer-events-auto">
+        <div
+          onMouseEnter={() => {
+            setNow(new Date());
+            setIsClockHovered(true);
+          }}
+          onMouseLeave={() => setIsClockHovered(false)}
+          className="group/clock px-2.5 py-1.5 rounded-[6px] text-white text-[11px] font-medium leading-none shadow-[0_1.5px_3px_rgba(0,0,0,0.3)] flex items-center justify-center tracking-tight border border-white/5 bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#18181b)] dark:bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#2a2b30)] cursor-default select-none transition-all duration-300 ease-out hover:border-white/15 hover:shadow-[0_2px_8px_rgba(0,0,0,0.35)]"
+          dir="ltr"
+        >
           <span>{clockDisplay}</span>
+          <span
+            className={`overflow-hidden transition-all duration-300 ease-out whitespace-nowrap text-[10.5px] text-white/85 ${
+              isClockHovered
+                ? 'max-w-[32px] opacity-100 ml-0.5'
+                : 'max-w-0 opacity-0 ml-0'
+            }`}
+          >
+            :{secondsDisplay}
+          </span>
         </div>
       </div>
       </div>

@@ -277,14 +277,20 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   const selectedTags = tagIds.map((id) => tagsMap[id]).filter(Boolean);
   const selectedBoxObj = boxes.find((b) => b.id === selectedBox);
 
-  const portalTarget = typeof document !== 'undefined' ? (document.getElementById('app-main') || document.body) : null;
+  const portalTarget = typeof document !== 'undefined'
+    ? (isFullscreen ? document.body : (document.getElementById('app-main') || document.body))
+    : null;
   if (!portalTarget) return null;
 
   return createPortal(
     <div
-      className={`absolute inset-0 z-50 flex flex-col justify-end bg-black/75 backdrop-blur-xs select-none ${
-        isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
-      }`}
+      className={
+        isFullscreen
+          ? 'fixed inset-0 z-[100] w-screen h-screen flex flex-col bg-black/65 backdrop-blur-xs select-none'
+          : `absolute inset-0 z-50 flex flex-col justify-end bg-black/75 backdrop-blur-xs select-none ${
+              isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
+            }`
+      }
       onClick={handleClose}
     >
       <div
@@ -292,7 +298,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
         onClick={(e) => e.stopPropagation()}
         className={`bg-card text-card-foreground font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
           isFullscreen
-            ? 'absolute inset-0 z-50 w-full h-full pb-5 px-6 pt-6'
+            ? 'fixed inset-0 z-[101] w-screen h-screen p-6 md:px-14 md:py-8 flex flex-col bg-card'
             : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] border-t border-border/80 dark:border-white/10 ${
                 isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
               }`
@@ -300,7 +306,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
         dir="rtl"
       >
         {/* Top Left Action Buttons */}
-        <div className="absolute left-6 top-6 flex items-center gap-1 z-10">
+        <div className={`absolute ${isFullscreen ? 'left-6 md:left-14 top-6 md:top-8' : 'left-6 top-6'} flex items-center gap-1 z-20`}>
           <button
             type="button"
             onClick={() => setIsFullscreen(!isFullscreen)}
@@ -421,7 +427,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
             {/* BlockNote Body Editor */}
             <div
               className={`flex-1 overflow-y-auto mt-3 border-t border-border/70 dark:border-white/10 pt-2 ${
-                isFullscreen ? 'min-h-[350px]' : 'min-h-[160px] max-h-[46vh]'
+                isFullscreen ? 'min-h-[60vh]' : 'min-h-[160px] max-h-[46vh]'
               }`}
             >
               <BlockNoteEditor
@@ -432,7 +438,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   scheduleSave(400, { description: md });
                 }}
                 placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
-                minHeight={isFullscreen ? '350px' : '160px'}
+                minHeight={isFullscreen ? '60vh' : '160px'}
               />
             </div>
           </div>
