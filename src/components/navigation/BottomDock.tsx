@@ -3,9 +3,10 @@ import {
   RiUser3Line,
   RiInboxLine,
   RiCalendarEventLine,
+  RiHourglass2Line,
 } from '@remixicon/react';
 
-export type ActiveTab = 'day' | 'todo' | 'notebook' | 'profile' | 'boxes';
+export type ActiveTab = 'day' | 'todo' | 'focus' | 'notebook' | 'profile' | 'boxes';
 
 interface BottomDockProps {
   activeTab: ActiveTab;
@@ -266,11 +267,47 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           }}
         />
 
-        {/* 1. اول از سمت راست: دکمه اضافه کردن (Add Button) */}
+        {/* 1. اول از سمت راست: گزینه امروز (Today Button) */}
+        <button
+          type="button"
+          onClick={() => onTabChange('day')}
+          className={`group/today h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
+            activeTab === 'day'
+              ? 'liquid-glass-pill-active text-primary'
+              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
+          }`}
+          title="امروز"
+        >
+          <RiCalendarEventLine
+            className={`w-5 h-5 transition-colors duration-200 ${
+              activeTab === 'day' ? 'text-primary' : 'text-foreground/75'
+            }`}
+          />
+        </button>
+
+        {/* 2. دوم از راست: گزینه اینباکس (Inbox / To-do Button) */}
+        <button
+          type="button"
+          onClick={() => onTabChange('todo')}
+          className={`group/inbox h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
+            activeTab === 'todo'
+              ? 'liquid-glass-pill-active text-primary'
+              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
+          }`}
+          title="لیست کارها"
+        >
+          <RiInboxLine
+            className={`w-5 h-5 transition-colors duration-200 ${
+              activeTab === 'todo' ? 'text-primary' : 'text-foreground/75'
+            }`}
+          />
+        </button>
+
+        {/* 3. سوم (وسط): دکمه اضافه کردن (Add Button) */}
         <div className="relative z-10 group/add p-[1px] rounded-full overflow-hidden transition-colors duration-200 active:scale-95 shrink-0 w-auto min-w-fit">
-          {/* Rotating gradient stroke animation */}
+          {/* Rotating gradient stroke animation - Dark mode only */}
           <div
-            className="absolute -inset-[150%] rounded-full opacity-0 group-hover/add:opacity-100 transition-opacity duration-300 pointer-events-none animate-spin-slow"
+            className="hidden dark:block absolute -inset-[150%] rounded-full opacity-0 group-hover/add:opacity-100 transition-opacity duration-300 pointer-events-none animate-spin-slow"
             style={{
               background:
                 'conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary)) 80deg, rgba(255,255,255,0.85) 180deg, hsl(var(--primary)) 280deg, transparent 360deg)',
@@ -292,43 +329,25 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           </button>
         </div>
 
-        {/* 2. دوم: گزینه امروز (Today Button) */}
+        {/* 4. چهارم: تمرکز (Focus Button) */}
         <button
           type="button"
-          onClick={() => onTabChange('day')}
-          className={`group/today h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            activeTab === 'day'
+          onClick={() => onTabChange('focus')}
+          className={`group/focus h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
+            activeTab === 'focus'
               ? 'liquid-glass-pill-active text-primary'
               : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
           }`}
-          title="امروز"
+          title="تمرکز"
         >
-          <RiCalendarEventLine
+          <RiHourglass2Line
             className={`w-5 h-5 transition-colors duration-200 ${
-              activeTab === 'day' ? 'text-primary' : 'text-foreground/75'
+              activeTab === 'focus' ? 'text-primary' : 'text-foreground/75'
             }`}
           />
         </button>
 
-        {/* 3. سوم: گزینه اینباکس (Inbox / To-do Button) */}
-        <button
-          type="button"
-          onClick={() => onTabChange('todo')}
-          className={`group/inbox h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            activeTab === 'todo'
-              ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
-          }`}
-          title="اینباکس (تسک‌ها)"
-        >
-          <RiInboxLine
-            className={`w-5 h-5 transition-colors duration-200 ${
-              activeTab === 'todo' ? 'text-primary' : 'text-foreground/75'
-            }`}
-          />
-        </button>
-
-        {/* 4. چهارم (سمت چپ): پروفایل و تنظیمات (Profile Button) */}
+        {/* 5. پنجم (سمت چپ): پروفایل و تنظیمات (Profile Button) */}
         <button
           type="button"
           onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}

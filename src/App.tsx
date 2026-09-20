@@ -10,6 +10,7 @@ import { ProfileView, WALLPAPER_LIST } from './components/profile/ProfileView';
 import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
 import { SearchModal } from './components/search/SearchModal';
 import { TodoView } from './components/todo/TodoView';
+import { FocusView } from './components/focus/FocusView';
 // Archived: import { BoxesModal } from './components/boxes/BoxesModal';
 import { ToastContainer } from './components/ui/Toast';
 import { DailyTimelineBar } from './components/calendar/DailyTimelineBar';
@@ -522,6 +523,7 @@ export function App() {
 
         {activeTab === 'notebook' && <NotebookView />}
         {activeTab === 'todo' && <TodoView onBackToToday={() => setActiveTab('day')} />}
+        {activeTab === 'focus' && <FocusView />}
       </MobileScrollArea>
 
       {/* Floating Bottom Navigation Dock in Liquid Glass Apple style */}

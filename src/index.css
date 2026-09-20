@@ -717,8 +717,119 @@ button:active {
    Harmonious Theme-Inherited Glass Elements (Add Button & Selected Day Capsule)
    - One degree more neutral dark/tinted base
    - Preserves subtle, authentic theme inheritance & specular glass sheen
-   - Crisp, bright white text & numbers
-   ========================================================================== */
+/* --------------------------------------------------------------------------
+   Focus Stroke & Neutral Track Variables - Synchronized with .theme-add-btn
+   -------------------------------------------------------------------------- */
+:root {
+  --focus-stroke-start: #3e414c;
+  --focus-stroke-end: #282a32;
+  --focus-dark-theme: #282a32;
+  --focus-track-neutral: rgba(140, 145, 160, 0.18);
+}
+[data-theme="default-light"] {
+  --focus-stroke-start: #3e414c;
+  --focus-stroke-end: #282a32;
+  --focus-dark-theme: #282a32;
+  --focus-track-neutral: rgba(140, 145, 160, 0.18);
+}
+[data-theme="sky-light"] {
+  --focus-stroke-start: #244661;
+  --focus-stroke-end: #172f42;
+  --focus-dark-theme: #172f42;
+  --focus-track-neutral: rgba(56, 120, 160, 0.16);
+}
+[data-theme="github-light"] {
+  --focus-stroke-start: #20364f;
+  --focus-stroke-end: #142334;
+  --focus-dark-theme: #142334;
+  --focus-track-neutral: rgba(70, 100, 140, 0.16);
+}
+[data-theme="retro-keyboard"] {
+  --focus-stroke-start: #442a27;
+  --focus-stroke-end: #2c1a18;
+  --focus-dark-theme: #2c1a18;
+  --focus-track-neutral: rgba(140, 90, 85, 0.16);
+}
+[data-theme="solarized-light"] {
+  --focus-stroke-start: #254044;
+  --focus-stroke-end: #16292c;
+  --focus-dark-theme: #16292c;
+  --focus-track-neutral: rgba(60, 120, 125, 0.16);
+}
+[data-theme="one-light"] {
+  --focus-stroke-start: #22344f;
+  --focus-stroke-end: #142031;
+  --focus-dark-theme: #142031;
+  --focus-track-neutral: rgba(70, 100, 145, 0.16);
+}
+[data-theme="nord-light"] {
+  --focus-stroke-start: #223043;
+  --focus-stroke-end: #141d2a;
+  --focus-dark-theme: #141d2a;
+  --focus-track-neutral: rgba(80, 110, 145, 0.16);
+}
+[data-theme="rose-pine-dawn"] {
+  --focus-stroke-start: #422931;
+  --focus-stroke-end: #29181e;
+  --focus-dark-theme: #29181e;
+  --focus-track-neutral: rgba(140, 95, 110, 0.16);
+}
+.dark,
+[data-theme="default-dark"] {
+  --focus-stroke-start: #505567;
+  --focus-stroke-end: #3b3f4f;
+  --focus-dark-theme: #474c5d;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="github-dark"] {
+  --focus-stroke-start: #445c7d;
+  --focus-stroke-end: #30445d;
+  --focus-dark-theme: #3a506d;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="miku-dark"] {
+  --focus-stroke-start: #356b72;
+  --focus-stroke-end: #254e53;
+  --focus-dark-theme: #2d5c62;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="caffeine-dark"] {
+  --focus-stroke-start: #6a5140;
+  --focus-stroke-end: #4d3b2e;
+  --focus-dark-theme: #5c4637;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="rose-pine-dark"] {
+  --focus-stroke-start: #69416e;
+  --focus-stroke-end: #4b2f4f;
+  --focus-dark-theme: #5a385e;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dracula-dark"] {
+  --focus-stroke-start: #664689;
+  --focus-stroke-end: #493162;
+  --focus-dark-theme: #573b75;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="one-dark"] {
+  --focus-stroke-start: #486085;
+  --focus-stroke-end: #344662;
+  --focus-dark-theme: #3e5374;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="nord-dark"] {
+  --focus-stroke-start: #4c6488;
+  --focus-stroke-end: #384a65;
+  --focus-dark-theme: #425777;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+[data-theme="tokyo-night"] {
+  --focus-stroke-start: #4e5788;
+  --focus-stroke-end: #373e63;
+  --focus-dark-theme: #424b77;
+  --focus-track-neutral: rgba(255, 255, 255, 0.08);
+}
+
 .theme-glass-pill,
 .theme-add-btn {
   color: #ffffff !important;
@@ -732,47 +843,85 @@ button:active {
   transform: scale(0.975);
 }
 
-/* Light Mode Defaults */
+/* Light Mode Defaults - Softer base & distinct responsive hover */
 :root .theme-glass-pill,
 :root .theme-add-btn,
 [data-theme="default-light"] .theme-glass-pill,
 [data-theme="default-light"] .theme-add-btn {
-  background: linear-gradient(135deg, #222329 0%, #131418 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: linear-gradient(135deg, #444754 0%, #2e3039 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
   box-shadow: 
-    0 2px 8px -1px rgba(0, 0, 0, 0.2),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -0.5px 1px 0 rgba(0, 0, 0, 0.25) !important;
+    0 2px 8px -1px rgba(0, 0, 0, 0.14),
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -0.5px 1px 0 rgba(0, 0, 0, 0.18) !important;
+}
+
+:root .theme-glass-pill:hover,
+:root .theme-add-btn:hover,
+[data-theme="default-light"] .theme-glass-pill:hover,
+[data-theme="default-light"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #5b5f70 0%, #434654 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.48) !important;
+  box-shadow: 
+    0 4px 14px -1px rgba(0, 0, 0, 0.2),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.55) !important;
 }
 
 [data-theme="sky-light"] .theme-glass-pill,
 [data-theme="sky-light"] .theme-add-btn {
-  background: linear-gradient(135deg, #1d394e 0%, #122432 100%) !important;
+  background: linear-gradient(135deg, #2b516f 0%, #1a3549 100%) !important;
   border: 1px solid rgba(2, 132, 199, 0.4) !important;
   box-shadow: 
-    0 2px 8px -1px rgba(0, 0, 0, 0.2),
+    0 2px 8px -1px rgba(0, 0, 0, 0.14),
     0 0 8px -2px rgba(2, 132, 199, 0.25),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="sky-light"] .theme-glass-pill:hover,
+[data-theme="sky-light"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #38678d 0%, #234863 100%) !important;
+  border: 1px solid rgba(56, 189, 248, 0.55) !important;
+  box-shadow: 
+    0 4px 14px -1px rgba(2, 132, 199, 0.3),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 [data-theme="github-light"] .theme-glass-pill,
 [data-theme="github-light"] .theme-add-btn {
-  background: linear-gradient(135deg, #1b2c3f 0%, #111c29 100%) !important;
+  background: linear-gradient(135deg, #27415e 0%, #192b3f 100%) !important;
   border: 1px solid rgba(9, 105, 218, 0.4) !important;
   box-shadow: 
-    0 2px 8px -1px rgba(0, 0, 0, 0.2),
+    0 2px 8px -1px rgba(0, 0, 0, 0.14),
     0 0 8px -2px rgba(9, 105, 218, 0.25),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="github-light"] .theme-glass-pill:hover,
+[data-theme="github-light"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #35567b 0%, #223b56 100%) !important;
+  border: 1px solid rgba(9, 105, 218, 0.6) !important;
+  box-shadow: 
+    0 4px 14px -1px rgba(9, 105, 218, 0.3),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 [data-theme="retro-keyboard"] .theme-glass-pill,
 [data-theme="retro-keyboard"] .theme-add-btn {
-  background: linear-gradient(135deg, #38211f 0%, #221413 100%) !important;
+  background: linear-gradient(135deg, #4d302d 0%, #351f1d 100%) !important;
   border: 1px solid rgba(185, 55, 45, 0.4) !important;
   box-shadow: 
-    0 2px 8px -1px rgba(0, 0, 0, 0.2),
+    0 2px 8px -1px rgba(0, 0, 0, 0.14),
     0 0 8px -2px rgba(185, 55, 45, 0.25),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="retro-keyboard"] .theme-glass-pill:hover,
+[data-theme="retro-keyboard"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #633f3a 0%, #462a27 100%) !important;
+  border: 1px solid rgba(220, 75, 60, 0.55) !important;
+  box-shadow: 
+    0 4px 14px -1px rgba(185, 55, 45, 0.3),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -939,30 +1088,58 @@ button:active {
 
 [data-theme="solarized-light"] .theme-glass-pill,
 [data-theme="solarized-light"] .theme-add-btn {
-  background: linear-gradient(135deg, #1f3336 0%, #112124 100%) !important;
+  background: linear-gradient(135deg, #2d4c50 0%, #1a3337 100%) !important;
   border: 1px solid rgba(42, 161, 152, 0.4) !important;
-  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.2), 0 0 8px -2px rgba(42, 161, 152, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.14), 0 0 8px -2px rgba(42, 161, 152, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="solarized-light"] .theme-glass-pill:hover,
+[data-theme="solarized-light"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #3d6368 0%, #26464b 100%) !important;
+  border: 1px solid rgba(42, 161, 152, 0.6) !important;
+  box-shadow: 0 4px 14px -1px rgba(42, 161, 152, 0.3), inset 0 1px 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 [data-theme="one-light"] .theme-glass-pill,
 [data-theme="one-light"] .theme-add-btn {
-  background: linear-gradient(135deg, #1c2a3f 0%, #101a29 100%) !important;
+  background: linear-gradient(135deg, #283e5e 0%, #18283d 100%) !important;
   border: 1px solid rgba(64, 120, 242, 0.4) !important;
-  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.2), 0 0 8px -2px rgba(64, 120, 242, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.14), 0 0 8px -2px rgba(64, 120, 242, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="one-light"] .theme-glass-pill:hover,
+[data-theme="one-light"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #37537d 0%, #223755 100%) !important;
+  border: 1px solid rgba(64, 120, 242, 0.6) !important;
+  box-shadow: 0 4px 14px -1px rgba(64, 120, 242, 0.3), inset 0 1px 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 [data-theme="nord-light"] .theme-glass-pill,
 [data-theme="nord-light"] .theme-add-btn {
-  background: linear-gradient(135deg, #1c2738 0%, #101824 100%) !important;
+  background: linear-gradient(135deg, #2a3b53 0%, #182638 100%) !important;
   border: 1px solid rgba(94, 129, 172, 0.4) !important;
-  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.2), 0 0 8px -2px rgba(94, 129, 172, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.14), 0 0 8px -2px rgba(94, 129, 172, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="nord-light"] .theme-glass-pill:hover,
+[data-theme="nord-light"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #3a506f 0%, #23374f 100%) !important;
+  border: 1px solid rgba(94, 129, 172, 0.6) !important;
+  box-shadow: 0 4px 14px -1px rgba(94, 129, 172, 0.3), inset 0 1px 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 [data-theme="rose-pine-dawn"] .theme-glass-pill,
 [data-theme="rose-pine-dawn"] .theme-add-btn {
-  background: linear-gradient(135deg, #362026 0%, #221217 100%) !important;
+  background: linear-gradient(135deg, #4d313a 0%, #331f26 100%) !important;
   border: 1px solid rgba(180, 99, 122, 0.4) !important;
-  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.2), 0 0 8px -2px rgba(180, 99, 122, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.14), 0 0 8px -2px rgba(180, 99, 122, 0.25), inset 0 1px 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="rose-pine-dawn"] .theme-glass-pill:hover,
+[data-theme="rose-pine-dawn"] .theme-add-btn:hover {
+  background: linear-gradient(135deg, #63404c 0%, #442a33 100%) !important;
+  border: 1px solid rgba(180, 99, 122, 0.6) !important;
+  box-shadow: 0 4px 14px -1px rgba(180, 99, 122, 0.3), inset 0 1px 2px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 /* BlockNote Notion-like Editor RTL & Typography */
