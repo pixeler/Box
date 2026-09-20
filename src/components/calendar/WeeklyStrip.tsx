@@ -849,7 +849,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
           ? 'none'
           : 'height 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
-      className={`w-full relative flex flex-col justify-between select-none ${
+      className={`w-full relative flex flex-col justify-between select-none group/strip ${
         isExpanded || isVerticalDragging ? 'overflow-hidden' : 'overflow-visible'
       }`}
     >
@@ -1168,8 +1168,8 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
         <div
           className={`h-1 rounded-full transition-all duration-200 ${
             isVerticalDragging
-              ? 'w-14 bg-foreground/60 dark:bg-white/60 scale-y-125'
-              : 'w-10 bg-muted-foreground/30 group-hover:bg-muted-foreground/50 dark:bg-zinc-600 dark:group-hover:bg-zinc-400'
+              ? 'w-14 bg-foreground/60 dark:bg-white/60 scale-y-125 opacity-100'
+              : 'w-10 bg-muted-foreground/30 group-hover:bg-muted-foreground/50 dark:bg-zinc-600 dark:group-hover:bg-zinc-400 opacity-0 group-hover/strip:opacity-100 group-hover:opacity-100'
           }`}
         />
       </div>

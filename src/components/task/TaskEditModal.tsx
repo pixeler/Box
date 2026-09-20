@@ -14,7 +14,6 @@ import {
   RiFlagLine,
   RiFlagFill,
   RiPriceTag3Line,
-  RiInboxArchiveLine,
   RiDeleteBinLine,
 } from '@remixicon/react';
 
@@ -266,7 +265,6 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   if (!task) return null;
 
   const selectedTags = tagIds.map((id) => tagsMap[id]).filter(Boolean);
-  const selectedBoxObj = boxes.find((b) => b.id === selectedBox);
 
   const renderDateText = () => {
     if (!dueDate) return 'تاریخ';
@@ -435,8 +433,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                 </span>
               </button>
 
-              {/* جعبه */}
-              <button
+              {/* جعبه (آرشیو شده موقت) */}
+              {/* <button
                 type="button"
                 onClick={() => setBoxPickerOpen(true)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
@@ -449,7 +447,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                   className={`w-3.5 h-3.5 ${selectedBox ? 'text-foreground' : 'text-muted-foreground'}`}
                 />
                 <span>{selectedBoxObj?.title || 'جعبه'}</span>
-              </button>
+              </button> */}
             </div>
 
             {/* Common Bottom Bar */}

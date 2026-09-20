@@ -375,3 +375,22 @@ export function getRelativeDayPrefix(targetDateKey: string, todayKey: string): s
   }
   return null;
 }
+
+/**
+ * محاسبه اختلاف روز بین دو تاریخ شمسی (toKey - fromKey)
+ */
+export function getJalaliDaysDiff(fromKey: string, toKey: string): number {
+  if (fromKey === toKey) return 0;
+  try {
+    const fromJ = parseJalaliKey(fromKey);
+    const toJ = parseJalaliKey(toKey);
+    const fromDate = jalaliToDate(fromJ.jy, fromJ.jm, fromJ.jd);
+    const toDate = jalaliToDate(toJ.jy, toJ.jm, toJ.jd);
+
+    const utcFrom = Date.UTC(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+    const utcTo = Date.UTC(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+    return Math.round((utcTo - utcFrom) / (1000 * 60 * 60 * 24));
+  } catch {
+    return 0;
+  }
+}

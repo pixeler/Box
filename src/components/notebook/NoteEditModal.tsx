@@ -10,7 +10,6 @@ import {
   RiPushpinLine,
   RiPushpinFill,
   RiPriceTag3Line,
-  RiInboxArchiveLine,
   RiDeleteBinLine,
   RiFullscreenLine,
   RiFullscreenExitLine,
@@ -275,7 +274,6 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   if (!note) return null;
 
   const selectedTags = tagIds.map((id) => tagsMap[id]).filter(Boolean);
-  const selectedBoxObj = boxes.find((b) => b.id === selectedBox);
 
   const portalTarget = typeof document !== 'undefined'
     ? (isFullscreen ? document.body : (document.getElementById('app-main') || document.body))
@@ -407,8 +405,8 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                 </span>
               </button>
 
-              {/* جعبه */}
-              <button
+              {/* جعبه (آرشیو شده موقت) */}
+              {/* <button
                 type="button"
                 onClick={() => setBoxPickerOpen(true)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
@@ -421,7 +419,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   className={`w-3.5 h-3.5 ${selectedBox ? 'text-foreground' : 'text-muted-foreground'}`}
                 />
                 <span>{selectedBoxObj?.title || 'جعبه'}</span>
-              </button>
+              </button> */}
             </div>
 
             {/* BlockNote Body Editor */}

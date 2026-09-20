@@ -9,7 +9,8 @@ import { NotebookView } from './components/notebook/NotebookView';
 import { ProfileView, WALLPAPER_LIST } from './components/profile/ProfileView';
 import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
 import { SearchModal } from './components/search/SearchModal';
-import { BoxesModal } from './components/boxes/BoxesModal';
+import { TodoView } from './components/todo/TodoView';
+// Archived: import { BoxesModal } from './components/boxes/BoxesModal';
 import { ToastContainer } from './components/ui/Toast';
 import { DailyTimelineBar } from './components/calendar/DailyTimelineBar';
 import { EventDetailModal } from './components/calendar/EventDetailModal';
@@ -63,7 +64,6 @@ export function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [boxesOpen, setBoxesOpen] = useState(false);
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
   const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
   const [timelineEditingTask, setTimelineEditingTask] = useState<Task | null>(null);
@@ -74,6 +74,7 @@ export function App() {
   const [celebrationCoords, setCelebrationCoords] = useState<{ x: number; y: number } | null>(null);
   const goalPillRef = useRef<HTMLDivElement | null>(null);
   const isInitialLoadRef = useRef(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Apply active theme on mount and change
   useEffect(() => {
@@ -139,7 +140,7 @@ export function App() {
         !e.altKey &&
         (e.key === 'n' || e.key === 'N' || e.key === 'د' || e.code === 'KeyN')
       ) {
-        if (!quickCaptureOpen && !searchOpen && !settingsOpen && !boxesOpen) {
+        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
           e.preventDefault();
           setQuickCaptureOpen(true);
         }
@@ -152,29 +153,29 @@ export function App() {
         !e.altKey &&
         (e.key === '/' || e.key === 'م' || e.code === 'Slash')
       ) {
-        if (!quickCaptureOpen && !searchOpen && !settingsOpen && !boxesOpen) {
+        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
           e.preventDefault();
           setSearchOpen(true);
         }
       }
 
-      // 4. Boxes shortcut: 'B' or Persian 'ذ' (KeyB)
+      // 4. To-do shortcut: 'T' or Persian 'ف' (KeyT)
       if (
         !e.ctrlKey &&
         !e.metaKey &&
         !e.altKey &&
-        (e.key === 'b' || e.key === 'B' || e.key === 'ذ' || e.code === 'KeyB')
+        (e.key === 't' || e.key === 'T' || e.key === 'ف' || e.code === 'KeyT')
       ) {
         if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
           e.preventDefault();
-          setBoxesOpen((prev) => !prev);
+          setActiveTab((prev) => (prev === 'todo' ? 'day' : 'todo'));
         }
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [quickCaptureOpen, searchOpen, settingsOpen, boxesOpen]);
+  }, [quickCaptureOpen, searchOpen, settingsOpen]);
 
 
   // Parallelized fetch for day data
@@ -313,8 +314,12 @@ export function App() {
 
   useEffect(() => {
     const init = async () => {
-      await checkAndSeedDesignDemoData();
-      await fetchDayData(selectedDateKey);
+      try {
+        await checkAndSeedDesignDemoData();
+        await fetchDayData(selectedDateKey);
+      } finally {
+        setIsInitialLoading(false);
+      }
     };
     init();
   }, []);
@@ -324,6 +329,25 @@ export function App() {
     const destinationDate = targetDate || selectedDateKey;
     await taskRepo.migrate(taskId, destinationDate);
     loadDayData();
+  };
+
+  // Schedule task with time from timeline drag-and-drop
+  const handleScheduleTaskFromTimeline = async (
+    taskId: string,
+    targetDateKey: string,
+    dueTime: string,
+    durationMinutes: number = 60
+  ) => {
+    await taskRepo.update(taskId, {
+      due_date: targetDateKey,
+      due_time: dueTime,
+      duration_minutes: durationMinutes,
+    });
+    if (targetDateKey !== selectedDateKey) {
+      setSelectedDateKey(targetDateKey);
+    } else {
+      await loadDayData();
+    }
   };
 
   const handleItemCreated = async (createdId?: string) => {
@@ -404,7 +428,7 @@ export function App() {
                           setCelebrationCoords({ x: 80, y: 50 });
                         }
                       }}
-                      className={`inline-flex items-center gap-1.5 px-2.5 h-[25px] rounded-full transition-all select-none border ${
+                      className={`inline-flex items-center gap-1 px-1.5 h-[25px] rounded-full transition-all select-none border ${
                         todayDoneCount >= 5
                           ? 'bg-primary/15 dark:bg-primary/20 text-primary border-primary/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95'
                           : 'bg-muted/70 dark:bg-white/10 text-muted-foreground/85 border-transparent cursor-default'
@@ -454,11 +478,13 @@ export function App() {
             {/* Daily 24-Hour Timeline Bar under WeeklyStrip */}
             <div className="w-full mb-3 overflow-visible">
               <DailyTimelineBar
-                selectedDateKey={displayedDateKey}
+                selectedDateKey={selectedDateKey}
                 events={events}
                 tasks={tasks}
                 onSelectEvent={(ev) => setTimelineSelectedEvent(ev)}
                 onSelectTask={(t) => setTimelineEditingTask(t)}
+                onSelectDate={setSelectedDateKey}
+                onScheduleTask={handleScheduleTaskFromTimeline}
               />
             </div>
 
@@ -489,28 +515,24 @@ export function App() {
               onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
               onOpenAdd={() => setQuickCaptureOpen(true)}
               newlyAddedTaskId={newlyAddedTaskId}
+              isLoading={isInitialLoading}
             />
           </>
         )}
 
         {activeTab === 'notebook' && <NotebookView />}
+        {activeTab === 'todo' && <TodoView onBackToToday={() => setActiveTab('day')} />}
       </MobileScrollArea>
 
       {/* Floating Bottom Navigation Dock in Liquid Glass Apple style */}
       <div className="absolute bottom-5 inset-x-0 z-20 flex justify-center pointer-events-none px-4">
         <BottomDock
-          activeTab={settingsOpen ? 'profile' : boxesOpen ? 'boxes' : activeTab}
-          isBoxesOpen={boxesOpen}
+          activeTab={settingsOpen ? 'profile' : activeTab}
           onTabChange={(tab) => {
             if (tab === 'profile') {
               setSettingsOpen((prev) => !prev);
-              setBoxesOpen(false);
-            } else if (tab === 'boxes') {
-              setBoxesOpen((prev) => !prev);
-              setSettingsOpen(false);
             } else {
               setSettingsOpen(false);
-              setBoxesOpen(false);
               setActiveTab(tab);
             }
           }}
@@ -518,8 +540,8 @@ export function App() {
         />
       </div>
 
-      {/* Boxes Modal Sheet (matching design) */}
-      <BoxesModal
+      {/* Archived: Boxes Modal Sheet */}
+      {/* <BoxesModal
         isOpen={boxesOpen}
         onClose={() => setBoxesOpen(false)}
         onOpenAddForBox={(boxId) => {
@@ -527,7 +549,7 @@ export function App() {
           setQuickCaptureOpen(true);
         }}
         tagsMap={tagsMap}
-      />
+      /> */}
 
       {/* Settings / Profile Modal Sheet over bottom navigation */}
       <ProfileView

@@ -2,16 +2,15 @@ import React, { useRef, useState, useEffect, useId } from 'react';
 import {
   RiUser3Line,
   RiInboxLine,
-  RiAddLine,
+  RiCalendarEventLine,
 } from '@remixicon/react';
 
-export type ActiveTab = 'day' | 'notebook' | 'profile' | 'boxes';
+export type ActiveTab = 'day' | 'todo' | 'notebook' | 'profile' | 'boxes';
 
 interface BottomDockProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd: () => void;
-  isBoxesOpen?: boolean;
 }
 
 
@@ -90,7 +89,6 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   activeTab,
   onTabChange,
   onOpenAdd,
-  isBoxesOpen,
 }) => {
 
   const dockRef = useRef<HTMLElement>(null);
@@ -268,27 +266,9 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           }}
         />
 
-        {/* 1. FAR RIGHT in RTL: Boxes / Inbox Modal Button */}
-        <button
-          type="button"
-          onClick={() => onTabChange('boxes')}
-          className={`group/box h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            isBoxesOpen || activeTab === 'boxes'
-              ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
-          }`}
-          title="باکس‌ها"
-        >
-          <RiInboxLine
-            className={`w-5 h-5 transition-colors duration-200 ${
-              isBoxesOpen || activeTab === 'boxes' ? 'text-primary' : 'text-foreground/75'
-            }`}
-          />
-        </button>
-
-        {/* 2. CENTER in RTL: Dark Glass Pill Button with Subtle Rotating Gradient Stroke on Hover */}
-        <div className="relative z-10 group/add p-[1px] rounded-full overflow-hidden transition-colors duration-200 active:scale-95">
-          {/* Rotating gradient stroke animation (movement and color transition without thickness increase) */}
+        {/* 1. اول از سمت راست: دکمه اضافه کردن (Add Button) */}
+        <div className="relative z-10 group/add p-[1px] rounded-full overflow-hidden transition-colors duration-200 active:scale-95 shrink-0 w-auto min-w-fit">
+          {/* Rotating gradient stroke animation */}
           <div
             className="absolute -inset-[150%] rounded-full opacity-0 group-hover/add:opacity-100 transition-opacity duration-300 pointer-events-none animate-spin-slow"
             style={{
@@ -300,20 +280,55 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           <button
             type="button"
             onClick={onOpenAdd}
-            className="relative z-10 h-[44px] px-5 rounded-full flex items-center justify-center gap-1.5 font-medium cursor-pointer select-none theme-glass-pill theme-add-btn transition-colors duration-200"
+            className="relative z-10 h-[48px] px-5 py-3 rounded-full flex items-center justify-center gap-2 font-medium cursor-pointer select-none whitespace-nowrap theme-glass-pill theme-add-btn transition-colors duration-200 shrink-0 w-auto min-w-fit"
             title="اضافه کردن (N)"
           >
-            <RiAddLine className="w-[18px] h-[18px] stroke-[0.5]" />
-            <span className="text-[13px] font-medium tracking-tight">
+            <span className="text-[13px] font-medium tracking-tight whitespace-nowrap">
               اضافه کردن
             </span>
-            <kbd className="hidden sm:inline-flex items-center justify-center text-[10px] font-bold text-current/80 bg-black/15 dark:bg-white/20 px-1.5 py-0.5 rounded mr-1 font-mono tracking-normal select-none">
+            <kbd className="hidden sm:inline-flex items-center justify-center text-[10px] font-bold text-current/80 bg-black/15 dark:bg-white/20 px-1.5 py-0.5 rounded font-mono tracking-normal select-none shrink-0">
               N
             </kbd>
           </button>
         </div>
 
-        {/* 3. FAR LEFT in RTL: Profile Icon */}
+        {/* 2. دوم: گزینه امروز (Today Button) */}
+        <button
+          type="button"
+          onClick={() => onTabChange('day')}
+          className={`group/today h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
+            activeTab === 'day'
+              ? 'liquid-glass-pill-active text-primary'
+              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
+          }`}
+          title="امروز"
+        >
+          <RiCalendarEventLine
+            className={`w-5 h-5 transition-colors duration-200 ${
+              activeTab === 'day' ? 'text-primary' : 'text-foreground/75'
+            }`}
+          />
+        </button>
+
+        {/* 3. سوم: گزینه اینباکس (Inbox / To-do Button) */}
+        <button
+          type="button"
+          onClick={() => onTabChange('todo')}
+          className={`group/inbox h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
+            activeTab === 'todo'
+              ? 'liquid-glass-pill-active text-primary'
+              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
+          }`}
+          title="اینباکس (تسک‌ها)"
+        >
+          <RiInboxLine
+            className={`w-5 h-5 transition-colors duration-200 ${
+              activeTab === 'todo' ? 'text-primary' : 'text-foreground/75'
+            }`}
+          />
+        </button>
+
+        {/* 4. چهارم (سمت چپ): پروفایل و تنظیمات (Profile Button) */}
         <button
           type="button"
           onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}

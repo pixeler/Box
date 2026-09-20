@@ -75,6 +75,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   const [isCompleting, setIsCompleting] = useState(false);
   const isDone = task.status === 'done' || isCompleting;
   const isPinned = !!task.pinned;
+  const isRecurring = Boolean(task.recurrence_rule && task.recurrence_rule !== 'none');
   const todayKey = getTodayJalaliKey();
   const tomorrowKey = addJalaliDays(todayKey, 1);
   const nextWeekKey = addJalaliDays(todayKey, 7);
@@ -152,23 +153,27 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
             <div className="flex items-start justify-between w-full">
               {/* 1. RIGHT SIDE in RTL: Checkbox and Content (Title + Description) */}
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                {/* Circle Checkbox on the far right */}
+                {/* Checkbox: Circle for normal tasks, slightly rounded square with dashed border for recurring tasks */}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleToggle();
                   }}
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
+                  className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
+                    isRecurring
+                      ? 'rounded-[5px] border-[1.5px] border-dashed'
+                      : 'rounded-full border border-solid'
+                  } ${
                     isDone
-                      ? 'bg-primary border-primary text-primary-foreground'
+                      ? 'bg-primary border-primary text-primary-foreground border-solid'
                       : task.priority === 3
                       ? 'border-rose-500 hover:border-rose-600 bg-card'
                       : task.priority === 2
                       ? 'border-amber-500 hover:border-amber-600 bg-card'
                       : task.priority === 1
                       ? 'border-blue-500 hover:border-blue-600 bg-card'
-                      : 'border-muted-foreground/50 hover:border-foreground bg-card'
+                      : 'border-muted-foreground/60 hover:border-foreground bg-card'
                   }`}
                   title={isDone ? 'بازگردانی' : 'انجام شد'}
                 >

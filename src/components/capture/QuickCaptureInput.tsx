@@ -979,8 +979,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   </span>
                 </button>
 
-                {/* جعبه */}
-                <button
+                {/* جعبه (آرشیو شده موقت) */}
+                {/* <button
                   type="button"
                   onClick={() => setBoxPickerOpen(true)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
@@ -993,7 +993,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                     className={`w-3.5 h-3.5 ${selectedBox ? 'text-foreground' : 'text-muted-foreground'}`}
                   />
                   <span>{selectedBoxObj?.title || 'جعبه'}</span>
-                </button>
+                </button> */}
               </div>
             )}
 

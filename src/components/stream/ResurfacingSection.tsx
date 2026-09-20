@@ -56,6 +56,18 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', `migrate:${task.id}`);
     e.dataTransfer.setData('application/x-overdue-index', String(index));
+    e.dataTransfer.setData('application/x-task-id', task.id);
+    try {
+      e.dataTransfer.setData(
+        'application/json',
+        JSON.stringify({
+          type: 'task',
+          taskId: task.id,
+          title: task.title,
+          durationMinutes: task.duration_minutes || 60,
+        })
+      );
+    } catch {}
     setupDragCardGhost(e);
     setDraggedOverdueIndex(index);
   };
@@ -265,6 +277,18 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                             onDragStart={(e) => {
                               e.dataTransfer.effectAllowed = 'move';
                               e.dataTransfer.setData('text/plain', `migrate:${item.data.id}`);
+                              e.dataTransfer.setData('application/x-task-id', item.data.id);
+                              try {
+                                e.dataTransfer.setData(
+                                  'application/json',
+                                  JSON.stringify({
+                                    type: 'task',
+                                    taskId: item.data.id,
+                                    title: item.data.title,
+                                    durationMinutes: item.data.duration_minutes || 60,
+                                  })
+                                );
+                              } catch {}
                               setupDragCardGhost(e);
                             }}
                             isLast={isLast}

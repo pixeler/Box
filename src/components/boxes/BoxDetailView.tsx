@@ -9,14 +9,13 @@ import {
   RiArrowRightLine,
   RiSearchLine,
   RiAddLine,
-  RiCheckboxCircleFill,
-  RiCheckboxBlankCircleLine,
   RiFlagFill,
   RiPriceTag3Line,
   RiFileTextLine,
   RiMore2Fill,
   RiPushpinFill,
   RiSortDesc,
+  RiCheckLine,
 } from '@remixicon/react';
 import {
   DropdownMenu,
@@ -327,13 +326,17 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleToggleTask(e, task.id)}
-                    className="mt-0.5 text-muted-foreground hover:text-primary transition-colors shrink-0 cursor-pointer"
+                    className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
+                      task.recurrence_rule && task.recurrence_rule !== 'none'
+                        ? 'rounded-[5px] border-[1.5px] border-dashed'
+                        : 'rounded-full border border-solid'
+                    } ${
+                      isDone
+                        ? 'bg-primary border-primary text-primary-foreground border-solid'
+                        : 'border-muted-foreground/60 hover:border-foreground bg-card'
+                    }`}
                   >
-                    {isDone ? (
-                      <RiCheckboxCircleFill className="w-5 h-5 text-primary" />
-                    ) : (
-                      <RiCheckboxBlankCircleLine className="w-5 h-5 text-muted-foreground/60 hover:text-primary" />
-                    )}
+                    {isDone && <RiCheckLine className="w-3.5 h-3.5 stroke-[3]" />}
                   </button>
 
                   {/* Task Content */}

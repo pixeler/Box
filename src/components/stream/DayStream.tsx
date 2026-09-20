@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { Task, EventItem, Note, Tag } from '@/types/models';
 import { DayHeader } from './DayHeader';
 import { TaskItemRow } from './TaskItemRow';
 import { NoteItemRow } from './NoteItemRow';
 import { EventItemRow } from './EventItemRow';
 import { ResurfacingSection } from './ResurfacingSection';
-import { RiCalendarLine } from '@remixicon/react';
 import { setupDragCardGhost } from '@/lib/drag';
 import { CardDropPreview } from './CardDropPreview';
 import { getTodayJalaliKey } from '@/lib/jalali';
@@ -29,6 +28,7 @@ interface DayStreamProps {
   onGoToToday?: () => void;
   onOpenAdd?: () => void;
   newlyAddedTaskId?: string | null;
+  isLoading?: boolean;
 }
 
 function getPriorityScore(item: UnifiedStreamItem): number {
@@ -119,6 +119,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
   onGoToToday,
   onOpenAdd,
   newlyAddedTaskId,
+  isLoading,
 }) => {
   const [filterType, setFilterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
   const [sortBy, setSortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
@@ -160,6 +161,78 @@ export const DayStream: React.FC<DayStreamProps> = ({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropSlotIndex, setDropSlotIndex] = useState<number | null>(null);
 
+  // FLIP layout animation refs for smooth sliding when tasks are completed or reordered
+  const itemElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const prevPositionsRef = useRef<Map<string, number>>(new Map());
+
+  useLayoutEffect(() => {
+    // Skip FLIP during HTML5 drag-and-drop to avoid conflicts
+    if (draggedIndex !== null) return;
+
+    const prevPositions = prevPositionsRef.current;
+    const currentPositions = new Map<string, number>();
+
+    // 1. Measure all current items' top positions (using scrollY to be scroll-independent)
+    itemElementsRef.current.forEach((el, id) => {
+      if (el) {
+        currentPositions.set(id, el.getBoundingClientRect().top + window.scrollY);
+      }
+    });
+
+    // 2. Compute vertical delta for elements that shifted
+    const animatedElements: { el: HTMLDivElement; deltaY: number }[] = [];
+
+    currentPositions.forEach((newTop, id) => {
+      const prevTop = prevPositions.get(id);
+      const el = itemElementsRef.current.get(id);
+
+      if (prevTop !== undefined && el) {
+        const deltaY = prevTop - newTop;
+        if (Math.abs(deltaY) > 2) {
+          // Invert: position element back at previous location without animation
+          el.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+          el.style.transition = 'none';
+
+          // If task is sliding downwards (deltaY < 0), elevate z-index so it glides smoothly on top of other cards
+          if (deltaY < 0) {
+            el.style.zIndex = '20';
+          }
+          animatedElements.push({ el, deltaY });
+        }
+      }
+    });
+
+    // Save current positions for subsequent renders
+    prevPositionsRef.current = currentPositions;
+
+    if (animatedElements.length === 0) return;
+
+    // Force DOM reflow to apply the inverted transforms
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    document.body.offsetHeight;
+
+    // 3. Play: animate back to zero (translate3d(0, 0, 0)) with smooth fluid cubic-bezier
+    const rafId = requestAnimationFrame(() => {
+      animatedElements.forEach(({ el }) => {
+        el.style.transition = 'transform 500ms cubic-bezier(0.2, 0.9, 0.3, 1)';
+        el.style.transform = 'translate3d(0, 0, 0)';
+      });
+    });
+
+    const cleanupTimer = setTimeout(() => {
+      animatedElements.forEach(({ el }) => {
+        el.style.transition = '';
+        el.style.transform = '';
+        el.style.zIndex = '';
+      });
+    }, 520);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(cleanupTimer);
+    };
+  }, [streamItems, draggedIndex]);
+
   // پاک‌سازی کامل وضعیت درگ با پایان حرکت
   useEffect(() => {
     const handleGlobalDragEnd = () => {
@@ -177,6 +250,21 @@ export const DayStream: React.FC<DayStreamProps> = ({
   const handleDragStart = (e: React.DragEvent<any>, index: number) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
+    const item = streamItems[index];
+    if (item && item.type === 'task') {
+      e.dataTransfer.setData('application/x-task-id', item.data.id);
+      try {
+        e.dataTransfer.setData(
+          'application/json',
+          JSON.stringify({
+            type: 'task',
+            taskId: item.data.id,
+            title: item.data.title,
+            durationMinutes: item.data.duration_minutes || 60,
+          })
+        );
+      } catch {}
+    }
     setupDragCardGhost(e);
     setDraggedIndex(index);
   };
@@ -262,9 +350,37 @@ export const DayStream: React.FC<DayStreamProps> = ({
           onGoToToday={onGoToToday}
         />
 
-        {/* Unified List of stream items with drag-and-drop */}
-        <div
-          className="w-full min-h-[70px]"
+        {/* Skeleton loading state on initial load */}
+        {isLoading ? (
+          <div className="w-full flex flex-col py-1 select-none animate-in fade-in duration-200">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={`skeleton-${i}`}
+                className="w-full flex items-center justify-between py-3 px-3 animate-pulse"
+                style={{
+                  borderBottom: i < 4 ? '1px dashed rgba(161, 161, 170, 0.25)' : 'none',
+                }}
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  {/* Checkbox skeleton circle */}
+                  <div className="w-5 h-5 rounded-full border border-border/70 bg-muted/50 shrink-0" />
+                  {/* Title skeleton pill */}
+                  <div
+                    className="h-3.5 bg-muted/70 rounded-md"
+                    style={{
+                      width: i === 1 ? '64%' : i === 2 ? '44%' : i === 3 ? '78%' : '52%',
+                    }}
+                  />
+                </div>
+                {/* Tag / metadata chip skeleton */}
+                <div className="w-12 h-4 rounded-full bg-muted/40 shrink-0" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Unified List of stream items with drag-and-drop */
+          <div
+            className="w-full min-h-[70px]"
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
@@ -292,6 +408,13 @@ export const DayStream: React.FC<DayStreamProps> = ({
             return (
               <React.Fragment key={item.id}>
                 <div
+                  ref={(el) => {
+                    if (el) {
+                      itemElementsRef.current.set(item.id, el);
+                    } else {
+                      itemElementsRef.current.delete(item.id);
+                    }
+                  }}
                   onDragOver={(e) => handleItemDragOver(e, idx)}
                   onDrop={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -299,7 +422,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                     const targetSlot = isLowerHalf ? idx + 1 : idx;
                     handleDropAtSlot(e, targetSlot);
                   }}
-                  className={`transition-opacity duration-150 relative rounded-xl ${
+                  className={`transition-opacity duration-150 relative rounded-xl will-change-transform ${
                     isDragging ? 'opacity-30' : 'opacity-100'
                   }`}
                 >
@@ -382,20 +505,12 @@ export const DayStream: React.FC<DayStreamProps> = ({
                 isDragOverEmpty ? 'bg-gray-50/70 dark:bg-white/5 scale-[1.01]' : 'bg-transparent'
               }`}
             >
-              {isToday ? (
-                <img
-                  src="/empty-today.png"
-                  alt="امروز خبری نیست"
-                  className="w-36 h-36 sm:w-40 sm:h-40 object-contain -mb-1 select-none pointer-events-none drop-shadow-sm transition-transform duration-200"
-                  draggable={false}
-                />
-              ) : (
-                <RiCalendarLine
-                  className={`w-7 h-7 mb-3 transition-colors duration-200 ${
-                    isDragOverEmpty ? 'text-foreground' : 'text-muted-foreground'
-                  }`}
-                />
-              )}
+              <img
+                src="/empty-today.png"
+                alt={isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده'}
+                className="w-36 h-36 sm:w-40 sm:h-40 object-contain -mb-1 select-none pointer-events-none drop-shadow-sm transition-transform duration-200"
+                draggable={false}
+              />
 
               {isDragOverEmpty ? (
                 <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
@@ -403,10 +518,10 @@ export const DayStream: React.FC<DayStreamProps> = ({
                     ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
                     : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
                 </p>
-              ) : isToday ? (
+              ) : (
                 <div className="flex flex-col items-center select-none">
                   <p className="text-[13px] font-medium text-muted-foreground leading-relaxed">
-                    امروز خبری نیست
+                    {isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده است'}
                   </p>
                   <p className="text-[11px] text-muted-foreground/60 font-normal leading-relaxed mt-0.5 max-w-[340px] mx-auto">
                     <button
@@ -416,25 +531,18 @@ export const DayStream: React.FC<DayStreamProps> = ({
                     >
                       کاری اضافه کنید
                     </button>
-                    <span> یا کارهای قبلی را درگ کنید روی امروز!</span>
+                    <span>
+                      {isToday
+                        ? ' یا کارهای قبلی را درگ کنید روی امروز!'
+                        : ' یا کارهای دیگر را درگ کنید روی این روز!'}
+                    </span>
                   </p>
                 </div>
-              ) : (
-                <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto">
-                  <span>می‌تونی از دکمه </span>
-                  <button
-                    type="button"
-                    onClick={onOpenAdd}
-                    className="font-bold text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors cursor-pointer inline"
-                  >
-                    اضافه کردن
-                  </button>
-                  <span> استفاده کنی تا برای این روز کار یا یادداشت ثبت کنی!</span>
-                </p>
               )}
             </div>
           )}
         </div>
+        )}
 
         {/* Resurfacing sections: independent of today's items and outside the right dashed line */}
         <div className="w-full mt-2">
