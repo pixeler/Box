@@ -73,7 +73,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   return (
     <div
       style={getBackgroundStyle()}
-      className={`min-h-screen w-full flex items-center p-2 sm:p-4 md:px-10 transition-all duration-500 font-sans ${
+      className={`min-h-screen w-full flex items-center p-0 sm:p-4 md:px-10 transition-all duration-500 font-sans ${
         desktopPosition === 'right'
           ? 'justify-center sm:justify-start'
           : desktopPosition === 'left'
@@ -82,26 +82,33 @@ export const AppContainer: React.FC<AppContainerProps> = ({
       }`}
       dir="rtl"
     >
-      {/* Central App Card matching desktop width 460px, height 720px and rounded 16px */}
+      {/* Central App Card: full height (h-dvh) and full width on mobile, 460x720 on desktop */}
       <main
         id="app-main"
-        className={`w-full max-w-[460px] h-[720px] min-h-[720px] max-h-[720px] text-card-foreground rounded-[16px] flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${
+        className={`w-full max-w-full sm:max-w-[460px] h-dvh sm:h-[780px] sm:min-h-[780px] sm:max-h-[780px] text-card-foreground rounded-none sm:rounded-[16px] flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${
           glassBackground
             ? 'figma-glass-card'
-            : 'bg-card border border-border shadow-2xl shadow-black/25'
+            : 'bg-card border-0 sm:border border-border shadow-none sm:shadow-2xl sm:shadow-black/25'
         }`}
       >
+        {/* Mobile Status Bar Area Fill - Seamlessly matches calendar header (bg-card) in light and dark mode */}
+        <div
+          className="w-full shrink-0 sm:hidden bg-card transition-colors duration-300 pointer-events-none z-10"
+          style={{ height: 'var(--safe-area-top)' }}
+          aria-hidden="true"
+        />
+
         {/* Specular sheen overlay for glass mode */}
         {glassBackground && (
           <div
-            className="figma-glass-sheen absolute inset-0 rounded-[16px] pointer-events-none z-0"
+            className="figma-glass-sheen absolute inset-0 sm:rounded-[16px] pointer-events-none z-0"
             style={{
               background:
                 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.08) 100%)',
             }}
           />
         )}
-        <div className="relative z-1 flex flex-col h-full w-full justify-between overflow-hidden">
+        <div className="relative z-1 flex flex-col flex-1 h-full w-full justify-between overflow-hidden min-h-0">
           {children}
         </div>
       </main>

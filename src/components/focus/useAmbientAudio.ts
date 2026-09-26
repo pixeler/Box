@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 
-export type AmbientSoundType = 'none' | 'rain' | 'waves' | 'brown' | 'breeze';
+export type AmbientSoundType = 'none' | 'rain' | 'waves' | 'brown' | 'breeze' | 'fire';
 
 export interface AmbientSoundOption {
   id: AmbientSoundType;
@@ -13,8 +13,9 @@ export const AMBIENT_SOUND_OPTIONS: AmbientSoundOption[] = [
   { id: 'none', label: 'بدون صدا', icon: '🔇', description: 'سکوت مطلق' },
   { id: 'rain', label: 'باران آرام', icon: '🌧️', description: 'ریزش یکنواخت قطرات باران' },
   { id: 'waves', label: 'امواج دریا', icon: '🌊', description: 'جزر و مد آرام ساحل' },
-  { id: 'brown', label: 'نویز قهوه‌ای', icon: '☕', description: 'فرکانس بم و عمیق برای تمرکز ADHD' },
+  { id: 'brown', label: 'نویز قهوه‌ای', icon: '☕', description: 'فرکانس بم و عمیق برای تمرکز' },
   { id: 'breeze', label: 'نسیم طبیعت', icon: '🌲', description: 'وزش باد ملایم در میان درختان' },
+  { id: 'fire', label: 'آتش شومینه', icon: '🔥', description: 'شعله‌های آرام و ترق‌تروق چوب' },
 ];
 
 export function useAmbientAudio() {
@@ -188,6 +189,29 @@ export function useAmbientAudio() {
       noiseSource.start();
       lfo.start();
       activeNodesRef.current.push(noiseSource, lfo, filter, lfoGain, soundGain);
+    } else if (sound === 'fire') {
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      noiseSource.loop = true;
+
+      const lowpass = ctx.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.setValueAtTime(520, ctx.currentTime);
+
+      const highpass = ctx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.setValueAtTime(80, ctx.currentTime);
+
+      const soundGain = ctx.createGain();
+      soundGain.gain.setValueAtTime(1.6, ctx.currentTime);
+
+      noiseSource.connect(highpass);
+      highpass.connect(lowpass);
+      lowpass.connect(soundGain);
+      soundGain.connect(masterGainRef.current);
+
+      noiseSource.start();
+      activeNodesRef.current.push(noiseSource, highpass, lowpass, soundGain);
     }
 
     setIsPlaying(true);

@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/context-menu';
 import { NoteEditModal } from '@/components/notebook/NoteEditModal';
 import { stripMarkdownForPreview } from '@/lib/markdown';
+import { useIsMobile } from '@/lib/device';
 import {
   RiDeleteBinLine,
   RiFileTextLine,
@@ -31,7 +32,8 @@ interface NoteItemRowProps {
   isLast?: boolean;
 }
 
-export const NoteItemRow: React.FC<NoteItemRowProps> = ({
+export const NoteItemRow: React.FC<NoteItemRowProps> = React.memo(({
+
   note,
   tagsMap: _tagsMap,
   onStatusChanged,
@@ -42,6 +44,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
   onDrop,
   isLast = false,
 }) => {
+  const isMobile = useIsMobile();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const isPinned = !!note.pinned;
@@ -83,17 +86,34 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
 
   return (
     <>
-      <ContextMenu open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
-        <ContextMenuTrigger asChild>
+      <ContextMenu
+        open={isMobile ? false : contextMenuOpen}
+        onOpenChange={(open) => {
+          if (isMobile) {
+            setContextMenuOpen(false);
+            return;
+          }
+          setContextMenuOpen(open);
+        }}
+      >
+        <ContextMenuTrigger disabled={isMobile} asChild>
           <div
-            draggable={draggable}
+            draggable={!isMobile && draggable}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDragEnd={onDragEnd}
             onDrop={onDrop}
+            onContextMenu={(e) => {
+              if (isMobile) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
             onClick={() => setEditModalOpen(true)}
             className={`group relative w-full ${
               !isLast ? 'task-dashed-border' : ''
+            } ${
+              note.color ? note.color : isPinned ? 'bg-amber-100/40 dark:bg-amber-950/20' : ''
             } py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             }`}
@@ -140,76 +160,80 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = ({
         </ContextMenuTrigger>
 
         {/* Right Click Context Menu */}
-        <ContextMenuContent
-          className="w-48 p-1.5"
-          dir="rtl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ContextMenuItem
-            onClick={() => {
-              setContextMenuOpen(false);
-              setEditModalOpen(true);
-            }}
-            className="gap-2 cursor-pointer"
+        {!isMobile && (
+          <ContextMenuContent
+            className="w-48 p-1.5"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
           >
-            <RiFileTextLine className="size-4 text-muted-foreground" />
-            <span>باز کردن یادداشت</span>
-          </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                setContextMenuOpen(false);
+                setEditModalOpen(true);
+              }}
+              className="gap-2 cursor-pointer"
+            >
+              <RiFileTextLine className="size-4 text-muted-foreground" />
+              <span>باز کردن یادداشت</span>
+            </ContextMenuItem>
 
-          <ContextMenuItem
-            onClick={() => {
-              setContextMenuOpen(false);
-              handleTogglePin();
-            }}
-            className="gap-2 cursor-pointer"
-          >
-            {isPinned ? (
-              <>
-                <RiPushpin2Line className="size-4 text-primary" />
-                <span>برداشتن سنجاق</span>
-              </>
-            ) : (
-              <>
-                <RiPushpin2Fill className="size-4 text-muted-foreground" />
-                <span>سنجاق کردن</span>
-              </>
-            )}
-          </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                setContextMenuOpen(false);
+                handleTogglePin();
+              }}
+              className="gap-2 cursor-pointer"
+            >
+              {isPinned ? (
+                <>
+                  <RiPushpin2Line className="size-4 text-primary" />
+                  <span>برداشتن سنجاق</span>
+                </>
+              ) : (
+                <>
+                  <RiPushpin2Fill className="size-4 text-muted-foreground" />
+                  <span>سنجاق کردن</span>
+                </>
+              )}
+            </ContextMenuItem>
 
-          <ContextMenuItem
-            onClick={() => {
-              setContextMenuOpen(false);
-              handleDuplicate();
-            }}
-            className="gap-2 cursor-pointer"
-          >
-            <RiFileCopyLine className="size-4 text-muted-foreground" />
-            <span>تکثیر کردن (کپی)</span>
-          </ContextMenuItem>
+            <ContextMenuItem
+              onClick={() => {
+                setContextMenuOpen(false);
+                handleDuplicate();
+              }}
+              className="gap-2 cursor-pointer"
+            >
+              <RiFileCopyLine className="size-4 text-muted-foreground" />
+              <span>تکثیر کردن (کپی)</span>
+            </ContextMenuItem>
 
-          <ContextMenuSeparator />
+            <ContextMenuSeparator />
 
-          <ContextMenuItem
-            variant="destructive"
-            onClick={() => {
-              setContextMenuOpen(false);
-              handleDelete();
-            }}
-            className="gap-2 cursor-pointer"
-          >
-            <RiDeleteBinLine className="size-4 text-destructive" />
-            <span>حذف یادداشت</span>
-          </ContextMenuItem>
-        </ContextMenuContent>
+            <ContextMenuItem
+              variant="destructive"
+              onClick={() => {
+                setContextMenuOpen(false);
+                handleDelete();
+              }}
+              className="gap-2 cursor-pointer"
+            >
+              <RiDeleteBinLine className="size-4 text-destructive" />
+              <span>حذف یادداشت</span>
+            </ContextMenuItem>
+          </ContextMenuContent>
+        )}
       </ContextMenu>
 
       {/* Edit Modal */}
-      <NoteEditModal
-        note={note}
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSaved={onStatusChanged}
-      />
+      {editModalOpen && (
+        <NoteEditModal
+          note={note}
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSaved={onStatusChanged}
+        />
+      )}
     </>
   );
-};
+});

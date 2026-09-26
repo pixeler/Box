@@ -50,9 +50,9 @@ export const EventItemRow: React.FC<EventItemRowProps> = ({
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDrop={onDrop}
-      className={`w-full ${
+      className={`group relative w-full ${
         !isLast ? 'task-dashed-border' : ''
-      } py-3.5 px-6 select-none stream-row-hover cursor-pointer`}
+      } py-3.5 px-6 select-none transition-all duration-150 stream-row-hover cursor-pointer`}
     >
       <div className="flex items-center justify-between w-full">
         {/* 1. RIGHT SIDE in RTL: Dashed rounded square + Title */}

@@ -1,3 +1,5 @@
+import { updateStatusBarTheme, updateKeyboardTheme } from './capacitor';
+
 export type ThemeId =
   // Dark themes
   | 'default-dark'
@@ -308,6 +310,21 @@ export function applyTheme(themeId: ThemeId) {
   } else {
     root.classList.remove('dark');
   }
+
+  // Update browser & mobile address bar / system chrome color
+  try {
+    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement('meta');
+      metaThemeColor.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaThemeColor);
+    }
+    metaThemeColor.setAttribute('content', config.previewColors.card);
+  } catch {}
+
+  // Update native status bar (icons and background) and keyboard theme
+  updateStatusBarTheme(config.mode, config.previewColors.card).catch(() => {});
+  updateKeyboardTheme(config.mode).catch(() => {});
 
   // Save to localStorage
   try {

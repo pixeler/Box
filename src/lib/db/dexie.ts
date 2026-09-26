@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Entry, Task, EventItem, Note, Habit, Tag, Relation, Box } from '@/types/models';
+import type { Entry, Task, EventItem, Note, Habit, Tag, Relation, Box, FocusSession } from '@/types/models';
 
 export interface UserSettingRecord {
   key: string;
@@ -16,6 +16,7 @@ export class SecondBrainDatabase extends Dexie {
   relations!: EntityTable<Relation, 'id'>;
   settings!: EntityTable<UserSettingRecord, 'key'>;
   boxes!: EntityTable<Box, 'id'>;
+  focus_sessions!: EntityTable<FocusSession, 'id'>;
 
   constructor() {
     super('SecondBrainDB');
@@ -34,6 +35,10 @@ export class SecondBrainDatabase extends Dexie {
       boxes: 'id, title, order, created_at, updated_at',
       tasks: 'id, entry_id, box_id, status, due_date, priority, migrated_from_id, created_at, updated_at, *tag_ids',
       notes: 'id, entry_id, box_id, type, created_at, updated_at, *tag_ids',
+    });
+
+    this.version(3).stores({
+      focus_sessions: 'id, task_id, date_key, start_at, created_at',
     });
   }
 }

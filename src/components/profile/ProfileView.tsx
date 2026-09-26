@@ -17,7 +17,15 @@ import {
   RiDropLine,
   RiImageAddLine,
   RiComputerLine,
+  RiCloudLine,
+  RiRefreshLine,
+  RiLogoutBoxRLine,
+  RiAlertLine,
+  RiFileCopyLine,
+  RiMailLine,
 } from '@remixicon/react';
+import { useAuth } from '@/lib/auth';
+import { syncManager, type SyncState, SUPABASE_SYNC_SQL } from '@/lib/sync';
 
 import {
   type ThemeId,
@@ -26,6 +34,7 @@ import {
   LIGHT_THEMES,
   isDarkMode,
 } from '@/lib/theme';
+import { useIsMobile } from '@/lib/device';
 
 export interface WallpaperItem {
   id: string;
@@ -39,74 +48,6 @@ export interface WallpaperItem {
 
 export const WALLPAPER_LIST: WallpaperItem[] = [
   {
-    id: 'birmingham-museums-trust-5EUh-tq31eA-unsplash.jpg',
-    title: 'نقاشی کلاسیک ۱',
-    url: '/backgrounds/birmingham-museums-trust-5EUh-tq31eA-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/birmingham-museums-trust-5EUh-tq31eA-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'birmingham-museums-trust-HEEvYhNzpEo-unsplash.jpg',
-    title: 'نقاشی کلاسیک ۲',
-    url: '/backgrounds/birmingham-museums-trust-HEEvYhNzpEo-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/birmingham-museums-trust-HEEvYhNzpEo-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'birmingham-museums-trust-HslbEeUauYA-unsplash.jpg',
-    title: 'نقاشی کلاسیک ۳',
-    url: '/backgrounds/birmingham-museums-trust-HslbEeUauYA-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/birmingham-museums-trust-HslbEeUauYA-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'birmingham-museums-trust--9yyKm-aXP8-unsplash.jpg',
-    title: 'نقاشی کلاسیک ۴',
-    url: '/backgrounds/birmingham-museums-trust--9yyKm-aXP8-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/birmingham-museums-trust--9yyKm-aXP8-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'birmingham-museums-trust-nbneQlI2M1A-unsplash.jpg',
-    title: 'نقاشی کلاسیک ۵',
-    url: '/backgrounds/birmingham-museums-trust-nbneQlI2M1A-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/birmingham-museums-trust-nbneQlI2M1A-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'birmingham-museums-trust-_fXZDGdrYZk-unsplash.jpg',
-    title: 'نقاشی کلاسیک ۶',
-    url: '/backgrounds/birmingham-museums-trust-_fXZDGdrYZk-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/birmingham-museums-trust-_fXZDGdrYZk-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'abolfazl-ranjbar-KuDGjdwft9o-unsplash.jpg',
-    title: 'هنر و عکاسی ۱',
-    url: '/backgrounds/abolfazl-ranjbar-KuDGjdwft9o-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/abolfazl-ranjbar-KuDGjdwft9o-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'fatemeh-behvandi-eJRuC6UY7wU-unsplash.jpg',
-    title: 'هنر و عکاسی ۲',
-    url: '/backgrounds/fatemeh-behvandi-eJRuC6UY7wU-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/fatemeh-behvandi-eJRuC6UY7wU-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'niloofar-kanani-VPb7abByEK4-unsplash.jpg',
-    title: 'هنر و عکاسی ۳',
-    url: '/backgrounds/niloofar-kanani-VPb7abByEK4-unsplash.jpg',
-    thumbUrl: '/backgrounds/thumbs/niloofar-kanani-VPb7abByEK4-unsplash.jpg',
-    isCustomImage: true,
-  },
-  {
-    id: 'parchment',
-    title: 'کاغذ کرافت',
-    bgColor: '#f5ebe0',
-  },
-  {
     id: 'clean-light',
     title: 'مینیمال استودیو',
     bgColor: '#f1f5f9',
@@ -115,6 +56,11 @@ export const WALLPAPER_LIST: WallpaperItem[] = [
     id: 'dark-obsidian',
     title: 'آبسیدین شب',
     bgColor: '#0f172a',
+  },
+  {
+    id: 'parchment',
+    title: 'کاغذ کرافت',
+    bgColor: '#f5ebe0',
   },
   {
     id: 'sunset',
@@ -165,6 +111,7 @@ interface ProfileViewProps {
   onGlassBackgroundChange?: (enabled: boolean) => void;
   desktopPosition?: 'right' | 'center' | 'left';
   onDesktopPositionChange?: (pos: 'right' | 'center' | 'left') => void;
+  onOpenAuthModal?: () => void;
 }
 
 // Custom hook for mouse/pointer drag-to-scroll on horizontal rails
@@ -223,7 +170,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onGlassBackgroundChange,
   desktopPosition = 'center',
   onDesktopPositionChange,
+  onOpenAuthModal,
 }) => {
+  const { user, signOut, resendConfirmationEmail } = useAuth();
+  const [syncState, setSyncState] = useState<SyncState>(() => syncManager.getState().state);
+  const [syncMessage, setSyncMessage] = useState<string>(() => syncManager.getState().message);
+  const [lastSyncText, setLastSyncText] = useState<string>(() => syncManager.getFormattedLastSync());
+  const [copiedSql, setCopiedSql] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [emailResendStatus, setEmailResendStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    return syncManager.subscribe((state, msg) => {
+      setSyncState(state);
+      setSyncMessage(msg || '');
+      setLastSyncText(syncManager.getFormattedLastSync());
+    });
+  }, []);
+
+  const isMobile = useIsMobile();
   const [isClosing, setIsClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [themeTab, setThemeTab] = useState<ThemeMode>(() =>
@@ -434,7 +399,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   return (
     <div
-      className={`absolute inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-xs select-none transition-opacity duration-300 ${
+      className={`absolute inset-0 z-50 flex flex-col justify-end bg-black/60 sm:backdrop-blur-xs select-none transition-opacity duration-300 ${
         mounted && !isClosing ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       onClick={handleClose}
@@ -469,6 +434,178 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
         {/* 2. Scrollable Body Content */}
         <div className="flex-1 overflow-y-auto pt-3 pb-1 space-y-4 no-scrollbar">
+          {/* Section: Supabase Cloud Account */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10.5px] font-semibold text-muted-foreground">حساب کاربری و همگام‌سازی ابری</span>
+              <span className="text-[9.5px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                Supabase
+              </span>
+            </div>
+
+            {user ? (
+              <div className="p-3.5 rounded-2xl border border-border/80 bg-secondary/35 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/25 shrink-0 font-bold text-xs uppercase font-mono">
+                      {user.email ? user.email.slice(0, 2) : 'SB'}
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-bold text-foreground font-mono truncate max-w-[190px]" dir="ltr">
+                          {user.email}
+                        </p>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                      </div>
+                      <p className="text-[10.5px] text-muted-foreground mt-0.5">
+                        آخرین سینک: <span className="text-foreground font-semibold">{lastSyncText}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Verification Status / Resend Button */}
+                {user.email_confirmed_at ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
+                    <RiCheckLine className="w-3.5 h-3.5 shrink-0" />
+                    <span>ایمیل حساب کاربری تایید شده است</span>
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-1.5 text-right animate-in fade-in">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                        <RiMailLine className="w-3.5 h-3.5 shrink-0" />
+                        <span>ایمیل شما هنوز تایید نشده است</span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={resendingEmail || !user.email}
+                        onClick={async () => {
+                          if (!user.email) return;
+                          setResendingEmail(true);
+                          setEmailResendStatus(null);
+                          try {
+                            const { error } = await resendConfirmationEmail(user.email);
+                            if (error) {
+                              setEmailResendStatus(`خطا: ${error.message}`);
+                            } else {
+                              setEmailResendStatus('لینک تایید ارسال شد! لطفاً ایمیل خود را بررسی کنید.');
+                            }
+                          } catch {
+                            setEmailResendStatus('خطایی در ارتباط با سرور رخ داد.');
+                          } finally {
+                            setResendingEmail(false);
+                          }
+                        }}
+                        className="py-1 px-2.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-800 dark:text-amber-200 text-[11px] font-bold transition-all cursor-pointer shrink-0 disabled:opacity-60 active:scale-95"
+                      >
+                        {resendingEmail ? 'در حال ارسال...' : 'ارسال لینک تایید'}
+                      </button>
+                    </div>
+                    {emailResendStatus && (
+                      <p className="text-[10.5px] text-muted-foreground pt-0.5 leading-relaxed">{emailResendStatus}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Dynamic Status / Feedback Banner */}
+                {syncState === 'syncing' && (
+                  <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary flex items-center gap-2 animate-in fade-in">
+                    <RiRefreshLine className="w-4 h-4 animate-spin shrink-0" />
+                    <span>در حال ارتباط با سرور و بررسی اطلاعات...</span>
+                  </div>
+                )}
+
+                {syncState === 'synced' && (
+                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-2 animate-in fade-in">
+                    <RiCheckLine className="w-4 h-4 shrink-0" />
+                    <span>{syncMessage || 'همگام‌سازی با موفقیت انجام شد.'}</span>
+                  </div>
+                )}
+
+                {syncState === 'up_to_date' && (
+                  <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/25 text-xs text-sky-600 dark:text-sky-400 flex items-center gap-2 animate-in fade-in">
+                    <RiCheckLine className="w-4 h-4 shrink-0" />
+                    <span>{syncMessage || 'داده‌ها به روز بودند و نیازی به تغییر نیست.'}</span>
+                  </div>
+                )}
+
+                {syncState === 'table_missing' && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-right space-y-2 animate-in fade-in">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+                      <RiAlertLine className="w-4 h-4 shrink-0" />
+                      <span>جدول همگام‌سازی در سوپابیس ساخته نشده است</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      برای ذخیره ابری تسک‌ها، لطفاً اسکریپت SQL زیر را یک‌بار در بخش <b>SQL Editor</b> پنل Supabase کپی و اجرا کنید:
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(SUPABASE_SYNC_SQL);
+                        setCopiedSql(true);
+                        setTimeout(() => setCopiedSql(false), 3000);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-amber-500/30 active:scale-98"
+                    >
+                      {copiedSql ? <RiCheckLine className="w-4 h-4 text-emerald-500" /> : <RiFileCopyLine className="w-4 h-4" />}
+                      <span>{copiedSql ? 'کد SQL با موفقیت کپی شد!' : 'کپی کردن اسکریپت SQL سوپابیس'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {syncState === 'error' && (
+                  <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex items-center gap-2 animate-in fade-in">
+                    <RiAlertLine className="w-4 h-4 shrink-0" />
+                    <span>{syncMessage || 'خطا در همگام‌سازی با سوپابیس'}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1 border-t border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => syncManager.performSync()}
+                    disabled={syncState === 'syncing'}
+                    className="flex-1 py-1.5 px-3 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border/70 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-60"
+                  >
+                    <RiRefreshLine className={`w-3.5 h-3.5 text-emerald-500 ${syncState === 'syncing' ? 'animate-spin' : ''}`} />
+                    <span>{syncState === 'syncing' ? 'در حال سینک...' : 'همگام‌سازی اکنون'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => signOut()}
+                    className="py-1.5 px-3 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer border border-destructive/20"
+                    title="خروج از حساب"
+                  >
+                    <RiLogoutBoxRLine className="w-3.5 h-3.5" />
+                    <span>خروج</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 rounded-2xl border border-border/80 bg-gradient-to-l from-secondary/40 via-secondary/20 to-transparent flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
+                    <RiCloudLine className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-foreground">اتصال به حساب کاربری</p>
+                    <p className="text-[10.5px] text-muted-foreground mt-0.5">همگام‌سازی ابری یادداشت‌ها و تسک‌ها</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onOpenAuthModal}
+                  className="px-3 py-1.5 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 active:scale-95"
+                >
+                  ورود / ثبت‌نام
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Section: Themes Horizontal Rail (Draggable) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -570,17 +707,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </div>
           </div>
 
-          {/* Section: Wallpapers Horizontal Rail (Draggable) */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-foreground">
-                <RiPaletteLine className="w-4 h-4 text-muted-foreground" />
-                <span>تصویر پس‌زمینه</span>
+          {/* Section: Wallpapers Horizontal Rail (Desktop & Tablet only) */}
+          {!isMobile && (
+            <div className="hidden sm:block space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-foreground">
+                  <RiPaletteLine className="w-4 h-4 text-muted-foreground" />
+                  <span>تصویر پس‌زمینه</span>
+                </div>
+                <span className="text-[10.5px] text-muted-foreground font-medium truncate max-w-[150px]">
+                  {activeWallpaperItem?.title || 'انتخاب شده'}
+                </span>
               </div>
-              <span className="text-[10.5px] text-muted-foreground font-medium truncate max-w-[150px]">
-                {activeWallpaperItem?.title || 'انتخاب شده'}
-              </span>
-            </div>
 
             {/* Draggable Wallpaper Rail */}
             <div
@@ -706,101 +844,106 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <span className="text-[10px] text-muted-foreground font-normal">
                 {customWallpaperUrl ? 'تغییر تصویر' : 'آپلود فایل عکس'}
               </span>
-            </button>
-          </div>
-
-          {/* Section: Glass Background Setting Option */}
-          <div className="space-y-1.5 pt-1">
-            <p className="text-[10.5px] font-semibold text-muted-foreground px-1">شخصی‌سازی ظاهر شیشه‌ای</p>
-            <div className="p-3 rounded-2xl border border-border/80 bg-secondary/25 flex items-center justify-between transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
-                  <RiDropLine className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-foreground">پس‌زمینه شیشه‌ای</p>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">مشابه داک</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">افکت بلور و شیشه‌ای مایع روی کادر اصلی برنامه</p>
-                </div>
-              </div>
-
-              {/* Modern iOS / Liquid style Switch Toggle */}
-              <button
-                type="button"
-                role="switch"
-                aria-checked={glassBackground}
-                onClick={() => onGlassBackgroundChange?.(!glassBackground)}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer p-0.5 select-none shrink-0 ${
-                  glassBackground ? 'bg-primary' : 'bg-muted-foreground/30'
-                }`}
-                title="تغییر حالت پس‌زمینه شیشه‌ای"
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                    glassBackground ? '-translate-x-5' : 'translate-x-0'
-                  }`}
-                />
               </button>
             </div>
-          </div>
+          )}
 
-          {/* Section: Desktop Window Position Setting Option (راست / وسط / چپ) */}
-          <div className="space-y-1.5 pt-1">
-            <p className="text-[10.5px] font-semibold text-muted-foreground px-1">چیدمان دسکتاپ</p>
-            <div className="p-3 rounded-2xl border border-border/80 bg-secondary/25 flex items-center justify-between transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
-                  <RiComputerLine className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-foreground">جای پنجره</p>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">دسکتاپ</span>
+          {/* Section: Glass Background Setting Option (Desktop & Tablet only) */}
+          {!isMobile && (
+            <div className="hidden sm:block space-y-1.5 pt-1">
+              <p className="text-[10.5px] font-semibold text-muted-foreground px-1">شخصی‌سازی ظاهر شیشه‌ای</p>
+              <div className="p-3 rounded-2xl border border-border/80 bg-secondary/25 flex items-center justify-between transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
+                    <RiDropLine className="w-4 h-4 text-primary" />
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">موقعیت قرارگیری کادر برنامه روی مانیتور</p>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-foreground">پس‌زمینه شیشه‌ای</p>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">مشابه داک</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">افکت بلور و شیشه‌ای مایع روی کادر اصلی برنامه</p>
+                  </div>
                 </div>
-              </div>
 
-              {/* Segmented Controller: راست / وسط / چپ */}
-              <div className="flex items-center bg-muted/60 dark:bg-zinc-800/80 p-0.5 rounded-xl border border-border/70 text-[11px] font-medium gap-0.5 select-none shrink-0">
+                {/* Modern iOS / Liquid style Switch Toggle */}
                 <button
                   type="button"
-                  onClick={() => onDesktopPositionChange?.('right')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    desktopPosition === 'right'
-                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
-                      : 'text-muted-foreground hover:text-foreground'
+                  role="switch"
+                  aria-checked={glassBackground}
+                  onClick={() => onGlassBackgroundChange?.(!glassBackground)}
+                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer p-0.5 select-none shrink-0 ${
+                    glassBackground ? 'bg-primary' : 'bg-muted-foreground/30'
                   }`}
+                  title="تغییر حالت پس‌زمینه شیشه‌ای"
                 >
-                  راست
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDesktopPositionChange?.('center')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    desktopPosition === 'center'
-                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  وسط
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDesktopPositionChange?.('left')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    desktopPosition === 'left'
-                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  چپ
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
+                      glassBackground ? '-translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
                 </button>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Section: Desktop Window Position Setting Option (راست / وسط / چپ) (Desktop & Tablet only) */}
+          {!isMobile && (
+            <div className="hidden sm:block space-y-1.5 pt-1">
+              <p className="text-[10.5px] font-semibold text-muted-foreground px-1">چیدمان دسکتاپ</p>
+              <div className="p-3 rounded-2xl border border-border/80 bg-secondary/25 flex items-center justify-between transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
+                    <RiComputerLine className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-foreground">جای پنجره</p>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">دسکتاپ</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">موقعیت قرارگیری کادر برنامه روی مانیتور</p>
+                  </div>
+                </div>
+
+                {/* Segmented Controller: راست / وسط / چپ */}
+                <div className="flex items-center bg-muted/60 dark:bg-zinc-800/80 p-0.5 rounded-xl border border-border/70 text-[11px] font-medium gap-0.5 select-none shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onDesktopPositionChange?.('right')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      desktopPosition === 'right'
+                        ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    راست
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDesktopPositionChange?.('center')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      desktopPosition === 'center'
+                        ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    وسط
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDesktopPositionChange?.('left')}
+                    className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                      desktopPosition === 'left'
+                        ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    چپ
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Section: Monochrome Grouped Settings Rows */}
           <div className="space-y-1.5 pt-1">
@@ -838,6 +981,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   <div>
                     <p className="text-xs font-semibold text-foreground">بازگردانی اطلاعات</p>
                     <p className="text-[10px] text-muted-foreground">بارگذاری و ادغام فایل پشتیبان</p>
+                  </div>
+                </div>
+                <RiArrowLeftSLine className="w-4 h-4 text-muted-foreground" />
+              </button>
+
+              {/* Option 2.5: Supabase Auth & Cloud */}
+              <button
+                type="button"
+                onClick={() => {
+                  handleClose();
+                  onOpenAuthModal?.();
+                }}
+                className="w-full px-3.5 py-2.5 flex items-center justify-between hover:bg-secondary/60 active:bg-secondary/80 transition-colors text-right cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
+                    <RiCloudLine className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-foreground">حساب و همگام‌سازی ابری</p>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">Supabase</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{user ? user.email : 'ورود یا ثبت‌نام با ایمیل و گوگل'}</p>
                   </div>
                 </div>
                 <RiArrowLeftSLine className="w-4 h-4 text-muted-foreground" />

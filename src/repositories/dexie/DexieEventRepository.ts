@@ -7,9 +7,9 @@ export class DexieEventRepository implements EventRepository {
     const now = new Date().toISOString();
     const event: EventItem = {
       ...eventData,
-      id: crypto.randomUUID(),
-      created_at: now,
-      updated_at: now,
+      id: (eventData as any).id || crypto.randomUUID(),
+      created_at: (eventData as any).created_at || now,
+      updated_at: (eventData as any).updated_at || now,
     };
     await db.events.add(event);
     return event;

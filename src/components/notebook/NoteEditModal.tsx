@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Note, Tag, Box } from '@/types/models';
 import { noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { TagPickerPopover } from '../tags/TagPickerPopover';
-import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
+const BlockNoteEditor = React.lazy(() => import('@/components/editor/BlockNoteEditor').then(m => ({ default: m.BlockNoteEditor })));
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
 import {
   RiCloseLine,
@@ -428,16 +428,18 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                 isFullscreen ? 'min-h-[60vh]' : 'min-h-[160px] max-h-[46vh]'
               }`}
             >
-              <BlockNoteEditor
-                key={`${note.id}-${isOpen ? 'open' : 'closed'}`}
-                initialContent={description}
-                onChange={(md) => {
-                  setDescription(md);
-                  scheduleSave(400, { description: md });
-                }}
-                placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
-                minHeight={isFullscreen ? '60vh' : '160px'}
-              />
+              <React.Suspense fallback={<div className="p-3 text-xs text-muted-foreground/60 animate-pulse">در حال بارگذاری ادیتور...</div>}>
+                <BlockNoteEditor
+                  key={`${note.id}-${isOpen ? 'open' : 'closed'}`}
+                  initialContent={description}
+                  onChange={(md) => {
+                    setDescription(md);
+                    scheduleSave(400, { description: md });
+                  }}
+                  placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
+                  minHeight={isFullscreen ? '60vh' : '160px'}
+                />
+              </React.Suspense>
             </div>
           </div>
 

@@ -8,8 +8,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Estedad", "sans-serif"],
-        estedad: ["Estedad", "sans-serif"],
+        sans: ["Dana", "system-ui", "sans-serif"],
+        dana: ["Dana", "system-ui", "sans-serif"],
+        digikala: ["Dana", "system-ui", "sans-serif"],
+        estedad: ["Dana", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

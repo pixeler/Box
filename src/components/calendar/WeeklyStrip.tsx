@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import {
   type WeekDayInfo,
   getWeekDaysForDate,
@@ -13,10 +12,11 @@ import {
   getJalaliMonthFirstDayOfWeek,
   getIranianDayOfWeek,
   PERSIAN_MONTH_NAMES,
-  PERSIAN_WEEKDAY_SHORT_NAMES,
 } from '@/lib/jalali';
-import { isOfficialHoliday, getHolidaysForDate, IranianHoliday } from '@/lib/holidays';
-import { RiArrowRightSLine, RiArrowLeftSLine } from '@remixicon/react';
+import { isOfficialHoliday } from '@/lib/holidays';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon, ArrowLeft01Icon } from '@hugeicons/core-free-icons';
+import { RiArrowGoBackLine } from '@remixicon/react';
 
 interface WeeklyStripProps {
   selectedDateKey: string;
@@ -33,81 +33,24 @@ interface MonthData {
   monthName: string;
 }
 
-const WEEK_HEIGHT = 74; // 48px day capsules + 8px padding + 18px dragger
-
-const EN_MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-export interface ThreeCalendarsInfo {
-  solar: string;
-  lunar?: string;
-  gregDay: number;
-  gregMonth: string;
-  gregYear: number;
-  gregFull: string;
-  holidays: IranianHoliday[];
-  holidayText?: string;
-  mainText: string;
+interface MonthDayCell {
+  dayNum: number;
+  dateKey: string;
+  dayDate: Date;
+  isCurrentMonth: boolean;
+  isHoliday: boolean;
+  isFriday: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  hasDot: boolean;
+  dayName: string;
 }
 
-interface HoveredTooltipState extends ThreeCalendarsInfo {
-  x: number;
-  y: number;
-  arrowOffset: number;
-}
+const WEEK_HEIGHT = 94; // Compact week view: 6px pt + 68px body + 20px dragger
+const ROW_HEIGHT = 44;  // Consistent, equal height for every week row
+const GRID_TOP_PADDING = 0; // Space between headers and numbers is handled by the 8px header padding
 
-/**
- * Format 3 calendars on hover: Solar / Lunar Hijri / Gregorian + Holiday occasion
- * Example: ۱۳ فروردین ۱۴۰۴ / ۵ رجب ۱۴۴۶ / 3 Dec 2025
- */
-function formatThreeCalendars(
-  date: Date,
-  jy: number,
-  jm: number,
-  jd: number,
-  dateKey: string
-): ThreeCalendarsInfo {
-  // 1. Solar Jalali
-  const solar = `${toPersianDigits(jd)} ${PERSIAN_MONTH_NAMES[jm - 1]} ${toPersianDigits(jy)}`;
-
-  // 2. Islamic Lunar Hijri
-  let lunar = '';
-  try {
-    const formatter = new Intl.DateTimeFormat('fa-IR-u-ca-islamic-umalqura', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-    lunar = formatter.format(date).replace(/ه[\s\S]*ق\.?/g, '').trim();
-  } catch {
-    lunar = '';
-  }
-
-  // 3. Gregorian
-  const gregDay = date.getDate();
-  const gregMonth = EN_MONTHS[date.getMonth()];
-  const gregYear = date.getFullYear();
-  const gregFull = `${gregDay} ${gregMonth} ${gregYear}`;
-
-  const mainText = lunar ? `${solar} / ${lunar} / ${gregFull}` : `${solar} / ${gregFull}`;
-
-  const holidays = getHolidaysForDate(dateKey);
-  const holidayText = holidays.length > 0 ? holidays.map((h) => h.title).join(' | ') : undefined;
-
-  return {
-    solar,
-    lunar: lunar || undefined,
-    gregDay,
-    gregMonth,
-    gregYear,
-    gregFull,
-    holidays,
-    holidayText,
-    mainText,
-  };
-}
+const PERSIAN_WEEKDAY_NAMES = ['شنبه', '۱شنبه', '۲شنبه', '۳شنبه', '۴شنبه', '۵شنبه', 'جمعه'];
 
 function getMonthData(jy: number, jm: number): MonthData {
   const daysInMonth = getJalaliMonthLength(jy, jm);
@@ -161,35 +104,31 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
   const [expandHeight, setExpandHeight] = useState<number | null>(null);
   const verticalStartYRef = useRef<number>(0);
   const initialHeightRef = useRef<number>(WEEK_HEIGHT);
-  const hasDraggedVertically = useRef(false);
 
-  // Hovered day 3-calendar tooltip state anchored under hovered day with fade transition
-  const [hoveredTooltip, setHoveredTooltip] = useState<HoveredTooltipState | null>(null);
-  const [isTooltipVisible, setIsTooltipVisible] = useState(false);
-  const hideTooltipTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Cleanup timer on unmount
-  useEffect(() => {
-    return () => {
-      if (hideTooltipTimerRef.current) {
-        clearTimeout(hideTooltipTimerRef.current);
-      }
-    };
-  }, []);
 
   // Week 3-pane carousel
   const [displayedWeekDate, setDisplayedWeekDate] = useState<Date>(currentDate);
   const [slideTransition, setSlideTransition] = useState<{
-    direction: 'left' | 'right';
+    direction: 'to-left' | 'to-right';
     incomingWeekDays: WeekDayInfo[];
   } | null>(null);
   const prevDateKeyRef = useRef(selectedDateKey);
+
+  const isGestureSwipeRef = useRef(false);
+  const weekCarouselRef = useRef<HTMLDivElement>(null);
+  const weekDragStartTimeRef = useRef<number>(0);
+  const weekDragOffsetRef = useRef<number>(0);
 
   // Sync displayed week with selectedDateKey and animate slide when switching weeks
   useEffect(() => {
     if (selectedDateKey === prevDateKeyRef.current) return;
     const oldKey = prevDateKeyRef.current;
     prevDateKeyRef.current = selectedDateKey;
+
+    if (isGestureSwipeRef.current) {
+      isGestureSwipeRef.current = false;
+      return;
+    }
 
     const oldJ = parseJalaliKey(oldKey);
     const oldD = jalaliToDate(oldJ.jy, oldJ.jm, oldJ.jd);
@@ -204,18 +143,16 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
     newSat.setDate(newD.getDate() - getIranianDayOfWeek(newD));
     newSat.setHours(0, 0, 0, 0);
 
-    // If same week, just sync displayedWeekDate without slide
     if (oldSat.getTime() === newSat.getTime()) {
       setDisplayedWeekDate(newD);
       return;
     }
 
-    // Different week: trigger sliding days animation!
-    // In Persian RTL layout:
-    // Future dates are to the left -> slide left (translateX: -100%)
-    // Past dates are to the right -> slide right (translateX: +100%)
     const isFuture = newSat.getTime() > oldSat.getTime();
-    const direction: 'left' | 'right' = isFuture ? 'left' : 'right';
+    // In Persian RTL (Sat on right, Fri on left):
+    // Next week (future) is on the left (-100%); parent moves to-right (+100%) to bring it in from the left.
+    // Prev week (past) is on the right (+100%); parent moves to-left (-100%) to bring it in from the right.
+    const direction: 'to-left' | 'to-right' = isFuture ? 'to-right' : 'to-left';
     const incomingDays = getWeekDaysForDate(newD);
 
     setSlideTransition({ direction, incomingWeekDays: incomingDays });
@@ -231,24 +168,56 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
     return () => clearTimeout(timer);
   }, [selectedDateKey]);
 
-  const currentWeekDays = useMemo(() => getWeekDaysForDate(displayedWeekDate), [displayedWeekDate]);
+  const convertWeekDaysToCells = useCallback((days: WeekDayInfo[]): MonthDayCell[] => {
+    return days.map((day) => {
+      const currentKey = day.formattedDate;
+      const isSelected = currentKey === selectedDateKey;
+      const isToday = currentKey === todayKey;
+      const isHoliday = day.isFriday || isOfficialHoliday(currentKey);
+      const hasDot = datesWithItems ? datesWithItems.has(currentKey) : false;
+      return {
+        dayNum: day.dayNumber,
+        dateKey: currentKey,
+        dayDate: day.date,
+        isCurrentMonth: true,
+        isHoliday,
+        isFriday: day.isFriday,
+        isToday,
+        isSelected,
+        hasDot,
+        dayName: day.dayName,
+      };
+    });
+  }, [selectedDateKey, todayKey, datesWithItems]);
+
   const prevWeekDays = useMemo(() => {
     const prevDate = new Date(displayedWeekDate);
     prevDate.setDate(displayedWeekDate.getDate() - 7);
     return getWeekDaysForDate(prevDate);
   }, [displayedWeekDate]);
+
   const nextWeekDays = useMemo(() => {
     const nextDate = new Date(displayedWeekDate);
     nextDate.setDate(displayedWeekDate.getDate() + 7);
     return getWeekDaysForDate(nextDate);
   }, [displayedWeekDate]);
 
+  const prevWeekCells = useMemo(() => {
+    const days = slideTransition?.direction === 'to-left' ? slideTransition.incomingWeekDays : prevWeekDays;
+    return convertWeekDaysToCells(days);
+  }, [slideTransition, prevWeekDays, convertWeekDaysToCells]);
+
+  const nextWeekCells = useMemo(() => {
+    const days = slideTransition?.direction === 'to-right' ? slideTransition.incomingWeekDays : nextWeekDays;
+    return convertWeekDaysToCells(days);
+  }, [slideTransition, nextWeekDays, convertWeekDaysToCells]);
+
   const [weekDragOffset, setWeekDragOffset] = useState(0);
-  const [weekAnimating, setWeekAnimating] = useState<'left' | 'right' | 'reset' | null>(null);
+  const [weekAnimating, setWeekAnimating] = useState<'to-left' | 'to-right' | 'reset' | null>(null);
   const weekDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const weekDragModeRef = useRef<'horizontal' | 'vertical' | null>(null);
 
-  // Month 3-pane carousel
+  // Month data
   const currentMonthData = useMemo(() => getMonthData(viewYear, viewMonth), [viewYear, viewMonth]);
   const prevMonthYear = useMemo(() => getPrevMonthYear(viewYear, viewMonth), [viewYear, viewMonth]);
   const prevMonthData = useMemo(
@@ -262,129 +231,239 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
   );
 
   const [monthDragOffset, setMonthDragOffset] = useState(0);
-  const [monthAnimating, setMonthAnimating] = useState<'left' | 'right' | 'reset' | null>(null);
+  const [monthAnimating, setMonthAnimating] = useState<'to-left' | 'to-right' | 'reset' | null>(null);
   const monthDragStartRef = useRef<{ x: number; y: number } | null>(null);
   const monthDragModeRef = useRef<'horizontal' | 'vertical' | null>(null);
 
   // Guard flag to avoid selecting dates while dragging
   const hasDraggedFar = useRef(false);
 
-  const handleDayMouseEnter = useCallback(
-    (e: React.MouseEvent<HTMLElement>, info: ThreeCalendarsInfo) => {
-      if (isVerticalDragging || weekAnimating || monthAnimating) return;
-      if (hideTooltipTimerRef.current) {
-        clearTimeout(hideTooltipTimerRef.current);
-        hideTooltipTimerRef.current = null;
+  // -------------------------------------------------------------
+  // Full Month Grid Rows with Adjacent Month Days
+  // -------------------------------------------------------------
+  const buildMonthGridRows = useCallback(
+    (mData: MonthData) => {
+      const { jy, jm, daysInMonth, firstDayOffset } = mData;
+      const prevMY = getPrevMonthYear(jy, jm);
+      const prevMonthLength = getJalaliMonthLength(prevMY.jy, prevMY.jm);
+      const nextMY = getNextMonthYear(jy, jm);
+
+      const rows: MonthDayCell[][] = [];
+      let currentCells: MonthDayCell[] = [];
+
+      // 1. Leading days from previous month
+      for (let i = 0; i < firstDayOffset; i++) {
+        const d = prevMonthLength - firstDayOffset + 1 + i;
+        const currentKey = formatJalaliKey({ jy: prevMY.jy, jm: prevMY.jm, jd: d });
+        const dayDate = jalaliToDate(prevMY.jy, prevMY.jm, d);
+        const dayOfWeek = i; // 0 = Sat, 6 = Fri
+        const isFriday = dayOfWeek === 6;
+        const isHoliday = isFriday || isOfficialHoliday(currentKey);
+        const isSelected = currentKey === selectedDateKey;
+        const isToday = currentKey === todayKey;
+        const hasDot = datesWithItems ? datesWithItems.has(currentKey) : false;
+        const dayName = PERSIAN_WEEKDAY_NAMES[dayOfWeek];
+
+        currentCells.push({
+          dayNum: d,
+          dateKey: currentKey,
+          dayDate,
+          isCurrentMonth: false,
+          isHoliday,
+          isFriday,
+          isToday,
+          isSelected,
+          hasDot,
+          dayName,
+        });
       }
 
-      const buttonRect = e.currentTarget.getBoundingClientRect();
-      const buttonCenterX = buttonRect.left + buttonRect.width / 2;
-      const buttonBottomY = buttonRect.bottom + 6;
+      // 2. Days of current month
+      for (let d = 1; d <= daysInMonth; d++) {
+        const currentKey = formatJalaliKey({ jy, jm, jd: d });
+        const dayDate = jalaliToDate(jy, jm, d);
+        const dayOfWeek = (firstDayOffset + d - 1) % 7;
+        const isFriday = dayOfWeek === 6;
+        const isHoliday = isFriday || isOfficialHoliday(currentKey);
+        const isSelected = currentKey === selectedDateKey;
+        const isToday = currentKey === todayKey;
+        const hasDot = datesWithItems ? datesWithItems.has(currentKey) : false;
+        const dayName = PERSIAN_WEEKDAY_NAMES[dayOfWeek];
 
-      setHoveredTooltip({
-        ...info,
-        x: buttonCenterX,
-        y: buttonBottomY,
-        arrowOffset: 0,
-      });
-      setIsTooltipVisible(true);
+        currentCells.push({
+          dayNum: d,
+          dateKey: currentKey,
+          dayDate,
+          isCurrentMonth: true,
+          isHoliday,
+          isFriday,
+          isToday,
+          isSelected,
+          hasDot,
+          dayName,
+        });
+
+        if (currentCells.length === 7) {
+          rows.push(currentCells);
+          currentCells = [];
+        }
+      }
+
+      // 3. Trailing days from next month
+      if (currentCells.length > 0) {
+        const remaining = 7 - currentCells.length;
+        for (let d = 1; d <= remaining; d++) {
+          const currentKey = formatJalaliKey({ jy: nextMY.jy, jm: nextMY.jm, jd: d });
+          const dayDate = jalaliToDate(nextMY.jy, nextMY.jm, d);
+          const dayOfWeek = (7 - remaining + d - 1) % 7;
+          const isFriday = dayOfWeek === 6;
+          const isHoliday = isFriday || isOfficialHoliday(currentKey);
+          const isSelected = currentKey === selectedDateKey;
+          const isToday = currentKey === todayKey;
+          const hasDot = datesWithItems ? datesWithItems.has(currentKey) : false;
+          const dayName = PERSIAN_WEEKDAY_NAMES[dayOfWeek];
+
+          currentCells.push({
+            dayNum: d,
+            dateKey: currentKey,
+            dayDate,
+            isCurrentMonth: false,
+            isHoliday,
+            isFriday,
+            isToday,
+            isSelected,
+            hasDot,
+            dayName,
+          });
+        }
+        rows.push(currentCells);
+      }
+
+      return rows;
     },
-    [isVerticalDragging, weekAnimating, monthAnimating]
+    [selectedDateKey, todayKey, datesWithItems]
   );
 
-  const handleDayMouseLeave = useCallback(() => {
-    setIsTooltipVisible(false);
-    if (hideTooltipTimerRef.current) {
-      clearTimeout(hideTooltipTimerRef.current);
-    }
-    hideTooltipTimerRef.current = setTimeout(() => {
-      setHoveredTooltip(null);
-    }, 180);
-  }, []);
+  const currentMonthRows = useMemo(() => buildMonthGridRows(currentMonthData), [
+    buildMonthGridRows,
+    currentMonthData,
+  ]);
+  const prevMonthRows = useMemo(() => buildMonthGridRows(prevMonthData), [
+    buildMonthGridRows,
+    prevMonthData,
+  ]);
+  const nextMonthRows = useMemo(() => buildMonthGridRows(nextMonthData), [
+    buildMonthGridRows,
+    nextMonthData,
+  ]);
 
-  const clearTooltipImmediately = useCallback(() => {
-    if (hideTooltipTimerRef.current) {
-      clearTimeout(hideTooltipTimerRef.current);
-      hideTooltipTimerRef.current = null;
+  // Which row index in current month corresponds to the active/selected date
+  const selectedWeekRowIndex = useMemo(() => {
+    // Check if any row directly contains the selected date
+    for (let r = 0; r < currentMonthRows.length; r++) {
+      if (currentMonthRows[r].some((c) => c.dateKey === selectedDateKey)) {
+        return r;
+      }
     }
-    setIsTooltipVisible(false);
-    setHoveredTooltip(null);
-  }, []);
+    // If not found in current month rows, clamp based on selected day
+    if (selectedJalali.jy === viewYear && selectedJalali.jm === viewMonth) {
+      const slotIndex = currentMonthData.firstDayOffset + (selectedJalali.jd - 1);
+      const r = Math.floor(slotIndex / 7);
+      return Math.max(0, Math.min(currentMonthRows.length - 1, r));
+    }
+    return 0;
+  }, [currentMonthRows, selectedDateKey, selectedJalali, viewYear, viewMonth, currentMonthData.firstDayOffset]);
+
+  const isSelectedOtherThanToday = selectedDateKey !== todayKey;
+  const returnBtnOffset = isSelectedOtherThanToday ? 36 : 0;
 
   // Calculated target height for full month view:
-  // 32px Month Header + 24px weekday header + (rowCount * 46px) + 26px bottom breathing room
+  // 6px pt + 32px header + 28px weekdays + (rowCount * ROW_HEIGHT) + 20px dragger + return button offset
   const targetMonthHeight = useMemo(() => {
-    return 32 + 24 + currentMonthData.rowCount * 46 + 26;
-  }, [currentMonthData.rowCount]);
+    return 86 + currentMonthRows.length * ROW_HEIGHT + returnBtnOffset;
+  }, [currentMonthRows.length, returnBtnOffset]);
 
   // Current active height
   const currentHeight = useMemo(() => {
     if (expandHeight !== null) return expandHeight;
-    return isExpanded ? targetMonthHeight : WEEK_HEIGHT;
-  }, [expandHeight, isExpanded, targetMonthHeight]);
+    const baseWeekH = WEEK_HEIGHT + returnBtnOffset;
+    return isExpanded ? targetMonthHeight : baseWeekH;
+  }, [expandHeight, isExpanded, targetMonthHeight, returnBtnOffset]);
 
   // Expansion progress ratio from 0 (week) to 1 (full month)
   const expansionProgress = useMemo(() => {
-    const range = targetMonthHeight - WEEK_HEIGHT;
+    const baseWeekH = WEEK_HEIGHT + returnBtnOffset;
+    const range = targetMonthHeight - baseWeekH;
     if (range <= 0) return isExpanded ? 1 : 0;
-    const progress = (currentHeight - WEEK_HEIGHT) / range;
+    const progress = (currentHeight - baseWeekH) / range;
     return Math.max(0, Math.min(1, progress));
-  }, [currentHeight, targetMonthHeight, isExpanded]);
+  }, [currentHeight, targetMonthHeight, isExpanded, returnBtnOffset]);
 
   // -------------------------------------------------------------
   // Week Navigation
   // -------------------------------------------------------------
   const goToPrevWeek = useCallback(() => {
-    if (weekAnimating) return;
     const prevDate = new Date(displayedWeekDate);
     prevDate.setDate(displayedWeekDate.getDate() - 7);
     const prevJalali = getJalaliDate(prevDate);
     onSelectDate(formatJalaliKey(prevJalali));
-  }, [displayedWeekDate, onSelectDate, weekAnimating]);
+  }, [displayedWeekDate, onSelectDate]);
 
   const goToNextWeek = useCallback(() => {
-    if (weekAnimating) return;
     const nextDate = new Date(displayedWeekDate);
     nextDate.setDate(displayedWeekDate.getDate() + 7);
     const nextJalali = getJalaliDate(nextDate);
     onSelectDate(formatJalaliKey(nextJalali));
-  }, [displayedWeekDate, onSelectDate, weekAnimating]);
+  }, [displayedWeekDate, onSelectDate]);
 
   // -------------------------------------------------------------
   // Month Navigation
   // -------------------------------------------------------------
   const goToPrevMonth = useCallback(() => {
-    const prev = getPrevMonthYear(viewYear, viewMonth);
-    setViewYear(prev.jy);
-    setViewMonth(prev.jm);
-  }, [viewYear, viewMonth]);
+    if (monthAnimating) return;
+    setMonthAnimating('to-left');
+    setTimeout(() => {
+      const prev = getPrevMonthYear(viewYear, viewMonth);
+      setViewYear(prev.jy);
+      setViewMonth(prev.jm);
+      setMonthAnimating(null);
+      setMonthDragOffset(0);
+    }, 280);
+  }, [viewYear, viewMonth, monthAnimating]);
 
   const goToNextMonth = useCallback(() => {
-    const next = getNextMonthYear(viewYear, viewMonth);
-    setViewYear(next.jy);
-    setViewMonth(next.jm);
-  }, [viewYear, viewMonth]);
+    if (monthAnimating) return;
+    setMonthAnimating('to-right');
+    setTimeout(() => {
+      const next = getNextMonthYear(viewYear, viewMonth);
+      setViewYear(next.jy);
+      setViewMonth(next.jm);
+      setMonthAnimating(null);
+      setMonthDragOffset(0);
+    }, 280);
+  }, [viewYear, viewMonth, monthAnimating]);
 
   // -------------------------------------------------------------
-  // Vertical Drag Handle Gesture (Down to expand, Up to collapse)
+  // Dragger Pointer Handlers (Pulling down/up on the dragger line)
   // -------------------------------------------------------------
-  const handleHandlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleDraggerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    clearTooltipImmediately();
+    e.stopPropagation();
+    setIsVerticalDragging(true);
+    verticalStartYRef.current = e.clientY;
+    initialHeightRef.current = currentHeight;
+    hasDraggedFar.current = false;
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
-    verticalStartYRef.current = e.clientY;
-    initialHeightRef.current = isExpanded ? targetMonthHeight : WEEK_HEIGHT;
-    hasDraggedVertically.current = false;
-    setIsVerticalDragging(true);
   };
 
-  const handleHandlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleDraggerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isVerticalDragging) return;
+    e.stopPropagation();
     const deltaY = e.clientY - verticalStartYRef.current;
     if (Math.abs(deltaY) > 5) {
-      hasDraggedVertically.current = true;
+      hasDraggedFar.current = true;
     }
     const newHeight = Math.max(
       WEEK_HEIGHT,
@@ -393,8 +472,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
     setExpandHeight(newHeight);
   };
 
-  const handleHandlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleDraggerPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isVerticalDragging) return;
+    e.stopPropagation();
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -404,46 +484,44 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
     const deltaY = e.clientY - verticalStartYRef.current;
     setIsVerticalDragging(false);
 
-    const midPoint = (WEEK_HEIGHT + targetMonthHeight) / 2;
-    const finalH = expandHeight !== null ? expandHeight : initialHeightRef.current + deltaY;
-
-    if (initialHeightRef.current === WEEK_HEIGHT) {
-      // Dragged down: expand if moved > 25px or past halfway
-      setIsExpanded(deltaY > 25 || finalH > midPoint);
-    } else {
-      // Dragged up: collapse if moved up > 25px or below halfway
-      setIsExpanded(deltaY > -25 && finalH > midPoint);
+    if (hasDraggedFar.current) {
+      const midPoint = (WEEK_HEIGHT + targetMonthHeight) / 2;
+      const finalH = expandHeight !== null ? expandHeight : initialHeightRef.current + deltaY;
+      if (isExpanded) {
+        setIsExpanded(deltaY > -25 && finalH > midPoint);
+      } else {
+        setIsExpanded(deltaY > 25 || finalH > midPoint);
+      }
     }
-
     setExpandHeight(null);
+    setTimeout(() => {
+      hasDraggedFar.current = false;
+    }, 100);
   };
 
-  const handleHandlePointerCancel = () => {
-    setIsVerticalDragging(false);
-    setExpandHeight(null);
-  };
-
-  const handleHandleClick = () => {
-    if (hasDraggedVertically.current) {
-      hasDraggedVertically.current = false;
-      return;
-    }
+  const handleDraggerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasDraggedFar.current) return;
     setIsExpanded((prev) => !prev);
   };
 
   // -------------------------------------------------------------
-  // Horizontal & Vertical Swipe Gestures on Week Strip
+  // Horizontal & Vertical Gestures on Calendar Body
   // -------------------------------------------------------------
   const handleWeekPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || weekAnimating || isVerticalDragging) return;
-    clearTooltipImmediately();
+    if ((e.target as HTMLElement).closest('.calendar-nav-chevron')) return;
+    e.stopPropagation();
     weekDragStartRef.current = { x: e.clientX, y: e.clientY };
+    weekDragStartTimeRef.current = performance.now();
+    weekDragOffsetRef.current = 0;
     weekDragModeRef.current = null;
     hasDraggedFar.current = false;
   };
 
   const handleWeekPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!weekDragStartRef.current || weekAnimating) return;
+    e.stopPropagation();
     const deltaX = e.clientX - weekDragStartRef.current.x;
     const deltaY = e.clientY - weekDragStartRef.current.y;
 
@@ -464,9 +542,13 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
       if (Math.abs(deltaX) > 8) {
         hasDraggedFar.current = true;
       }
-      setWeekDragOffset(deltaX);
+      weekDragOffsetRef.current = deltaX;
+      // Direct GPU transform - 0ms main thread lag, 120fps smooth!
+      if (weekCarouselRef.current) {
+        weekCarouselRef.current.style.transition = 'none';
+        weekCarouselRef.current.style.transform = `translate3d(${deltaX}px, 0, 0)`;
+      }
     } else if (weekDragModeRef.current === 'vertical') {
-      // Swiping down on week strip initiates vertical expansion
       if (deltaY > 6 && !isExpanded) {
         if (!isVerticalDragging) {
           setIsVerticalDragging(true);
@@ -493,9 +575,12 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
       }
     } catch {}
 
-    const deltaX = weekDragOffset;
+    const deltaX = weekDragOffsetRef.current;
     const deltaY = e.clientY - weekDragStartRef.current.y;
     const mode = weekDragModeRef.current;
+    const dt = Math.max(1, performance.now() - weekDragStartTimeRef.current);
+    const velocity = deltaX / dt;
+
     weekDragStartRef.current = null;
     weekDragModeRef.current = null;
 
@@ -509,33 +594,74 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
     }
 
     if (mode === 'horizontal') {
-      const threshold = 40;
-      if (deltaX > threshold) {
-        // Dragged to right in RTL -> previous week
-        goToPrevWeek();
-      } else if (deltaX < -threshold) {
-        // Dragged to left in RTL -> next week
-        goToNextWeek();
-      } else {
-        setWeekAnimating('reset');
+      const containerWidth = weekCarouselRef.current?.offsetWidth || window.innerWidth || 360;
+      // Threshold: 20% of screen width OR flick velocity (> 0.22 px/ms)
+      const passedDistanceLeft = deltaX < -(containerWidth * 0.2);
+      const passedDistanceRight = deltaX > (containerWidth * 0.2);
+      const isFlickLeft = velocity < -0.22;
+      const isFlickRight = velocity > 0.22;
+
+      if (passedDistanceLeft || isFlickLeft) {
+        // Dragged left -> Next week enters from left (-100%) in RTL
+        isGestureSwipeRef.current = true;
+        setWeekAnimating('to-left');
+        if (weekCarouselRef.current) {
+          weekCarouselRef.current.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
+          weekCarouselRef.current.style.transform = 'translate3d(-100%, 0, 0)';
+        }
         setTimeout(() => {
+          const nextDate = new Date(displayedWeekDate);
+          nextDate.setDate(displayedWeekDate.getDate() + 7);
+          const nextJ = getJalaliDate(nextDate);
+          setDisplayedWeekDate(nextDate);
+          onSelectDate(formatJalaliKey(nextJ));
           setWeekAnimating(null);
-          setWeekDragOffset(0);
-        }, 220);
+          weekDragOffsetRef.current = 0;
+          if (weekCarouselRef.current) {
+            weekCarouselRef.current.style.transition = 'none';
+            weekCarouselRef.current.style.transform = 'translate3d(0, 0, 0)';
+          }
+        }, 280);
+      } else if (passedDistanceRight || isFlickRight) {
+        // Dragged right -> Previous week enters from right (+100%) in RTL
+        isGestureSwipeRef.current = true;
+        setWeekAnimating('to-right');
+        if (weekCarouselRef.current) {
+          weekCarouselRef.current.style.transition = 'transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1)';
+          weekCarouselRef.current.style.transform = 'translate3d(100%, 0, 0)';
+        }
+        setTimeout(() => {
+          const prevDate = new Date(displayedWeekDate);
+          prevDate.setDate(displayedWeekDate.getDate() - 7);
+          const prevJ = getJalaliDate(prevDate);
+          setDisplayedWeekDate(prevDate);
+          onSelectDate(formatJalaliKey(prevJ));
+          setWeekAnimating(null);
+          weekDragOffsetRef.current = 0;
+          if (weekCarouselRef.current) {
+            weekCarouselRef.current.style.transition = 'none';
+            weekCarouselRef.current.style.transform = 'translate3d(0, 0, 0)';
+          }
+        }, 280);
+      } else {
+        // Snap back to 0 smoothly if released below threshold
+        if (weekCarouselRef.current) {
+          weekCarouselRef.current.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1)';
+          weekCarouselRef.current.style.transform = 'translate3d(0, 0, 0)';
+        }
+        weekDragOffsetRef.current = 0;
       }
     }
 
     setTimeout(() => {
       hasDraggedFar.current = false;
-    }, 150);
+    }, 120);
   };
 
-  // -------------------------------------------------------------
-  // Horizontal & Vertical Swipe Gestures on Month View
-  // -------------------------------------------------------------
   const handleMonthPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || monthAnimating || isVerticalDragging) return;
-    clearTooltipImmediately();
+    if ((e.target as HTMLElement).closest('.calendar-nav-chevron')) return;
+    e.stopPropagation();
     monthDragStartRef.current = { x: e.clientX, y: e.clientY };
     monthDragModeRef.current = null;
     hasDraggedFar.current = false;
@@ -543,6 +669,8 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
 
   const handleMonthPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!monthDragStartRef.current || monthAnimating) return;
+    e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
     const deltaX = e.clientX - monthDragStartRef.current.x;
     const deltaY = e.clientY - monthDragStartRef.current.y;
 
@@ -555,6 +683,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
           } catch {}
         } else {
           monthDragModeRef.current = 'vertical';
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {}
         }
       }
     }
@@ -565,14 +696,10 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
       }
       setMonthDragOffset(deltaX);
     } else if (monthDragModeRef.current === 'vertical') {
-      // Swiping up/down on month view smoothly collapses or expands
       if (!isVerticalDragging) {
         setIsVerticalDragging(true);
         verticalStartYRef.current = monthDragStartRef.current.y;
         initialHeightRef.current = targetMonthHeight;
-        try {
-          e.currentTarget.setPointerCapture(e.pointerId);
-        } catch {}
       }
       const newHeight = Math.max(
         WEEK_HEIGHT,
@@ -584,6 +711,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
 
   const handleMonthPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!monthDragStartRef.current) return;
+    e.stopPropagation();
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -600,7 +728,6 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
       setIsVerticalDragging(false);
       const midPoint = (WEEK_HEIGHT + targetMonthHeight) / 2;
       const finalH = expandHeight !== null ? expandHeight : targetMonthHeight + deltaY;
-      // If dragged up by > 25px or collapsed past midpoint, collapse!
       setIsExpanded(deltaY > -25 && finalH > midPoint);
       setExpandHeight(null);
       return;
@@ -608,17 +735,17 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
 
     if (mode === 'horizontal') {
       const threshold = 40;
-      if (deltaX > threshold) {
-        // Dragged right -> Previous month
-        setMonthAnimating('right');
+      if (deltaX < -threshold) {
+        // Dragged left -> Previous month enters from the right
+        setMonthAnimating('to-left');
         setTimeout(() => {
           goToPrevMonth();
           setMonthAnimating(null);
           setMonthDragOffset(0);
         }, 260);
-      } else if (deltaX < -threshold) {
-        // Dragged left -> Next month
-        setMonthAnimating('left');
+      } else if (deltaX > threshold) {
+        // Dragged right -> Next month enters from the left
+        setMonthAnimating('to-right');
         setTimeout(() => {
           goToNextMonth();
           setMonthAnimating(null);
@@ -639,539 +766,450 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
   };
 
   // -------------------------------------------------------------
-  // Render Helpers: Single Week Row (Matching User Screenshot)
+  // Render: Single Week Day Button (in Week Row or Morphing Grid)
   // -------------------------------------------------------------
-  const renderWeekDays = (weekDays: WeekDayInfo[]) => (
-    <div className="w-full flex items-center justify-between px-6">
-      {weekDays.map((day) => {
-        const isSelected = day.formattedDate === selectedDateKey;
-        const isToday = day.formattedDate === todayKey;
-        const isHoliday = day.isFriday || isOfficialHoliday(day.formattedDate);
-        const hasDot = datesWithItems
-          ? datesWithItems.has(day.formattedDate)
-          : day.dayNumber === 1 || day.dayNumber === 2 || day.dayNumber === 3;
+  const renderDayButton = (
+    cell: MonthDayCell,
+    showDayNameUnder: boolean
+  ) => {
+    const isSelected = cell.dateKey === selectedDateKey;
 
-        const threeInfo = formatThreeCalendars(
-          day.date,
-          day.jalali.jy,
-          day.jalali.jm,
-          day.dayNumber,
-          day.formattedDate
-        );
-
-        return (
-          <button
-            key={day.formattedDate}
-            type="button"
-            onMouseEnter={(e) => handleDayMouseEnter(e, threeInfo)}
-            onMouseLeave={handleDayMouseLeave}
-            onClick={(e) => {
-              if (hasDraggedFar.current) {
-                e.preventDefault();
-                return;
-              }
-              onSelectDate(day.formattedDate);
-            }}
-            className="group flex flex-col items-center justify-center flex-1 outline-none focus:outline-none ring-0 border-none select-none cursor-pointer"
-          >
-            {/* Capsule container enclosing weekday letter on top + day number below */}
-            <div
-              className={`relative w-[40px] h-[48px] rounded-full flex flex-col items-center justify-center transition-all duration-150 border-[1.5px] ${
-                isSelected
-                  ? isHoliday
-                    ? 'holiday-glass-pill border-transparent text-white'
-                    : 'theme-glass-pill border-transparent text-white'
-                  : isToday
-                  ? isHoliday
-                    ? 'border-rose-400 text-rose-500 bg-transparent font-bold'
-                    : 'border-border text-foreground bg-transparent font-bold'
-                  : 'border-transparent bg-transparent text-foreground/80'
-              }`}
-            >
-              {/* 1. Day Abbreviation Letter on TOP */}
-              <span
-                className={`text-[12px] leading-none transition-colors ${
-                  isSelected
-                    ? 'text-white font-medium'
-                    : isToday
-                    ? isHoliday
-                      ? 'text-rose-500 font-bold'
-                      : 'text-foreground font-bold'
-                    : isHoliday
-                    ? 'text-rose-500 font-medium'
-                    : 'text-muted-foreground group-hover:text-foreground'
-                }`}
-              >
-                {day.dayShortName}
-              </span>
-
-              <div className="h-[5px]" />
-
-              {/* 2. Day Number BELOW letter */}
-              <span
-                className={`text-[15px] leading-none transition-colors ${
-                  isSelected
-                    ? 'text-white font-bold'
-                    : isToday
-                    ? isHoliday
-                      ? 'text-rose-500 font-bold'
-                      : 'text-foreground font-bold'
-                    : isHoliday
-                    ? 'text-rose-500 font-medium'
-                    : 'text-foreground/85 font-medium group-hover:text-foreground'
-                }`}
-              >
-                {toPersianDigits(day.dayNumber)}
-              </span>
-
-              {/* 3. Event dot indicator */}
-              {!isSelected && hasDot && (
-                <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-muted-foreground/80 pointer-events-none" />
-              )}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  // -------------------------------------------------------------
-  // Render Helpers: Month Days Grid (15px digits matching week view)
-  // -------------------------------------------------------------
-  const renderMonthGrid = (mData: MonthData) => {
-    const { jy, jm, daysInMonth, firstDayOffset } = mData;
     return (
-      <div className="grid grid-cols-7 gap-y-1.5 text-center select-none px-6 pb-3">
-        {/* Empty leading slots */}
-        {Array.from({ length: firstDayOffset }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-10 flex items-center justify-center" />
-        ))}
+      <button
+        key={cell.dateKey}
+        type="button"
+        onClick={(e) => {
+          if (hasDraggedFar.current) {
+            e.preventDefault();
+            return;
+          }
+          onSelectDate(cell.dateKey);
+        }}
+        className="group relative flex flex-col items-center justify-center flex-1 h-[44px] outline-none focus:outline-none ring-0 border-none select-none cursor-pointer overflow-visible"
+      >
+        {/* Circle container: Selected day is slightly larger (38x38px) than other days (32x32px) */}
+        <div
+          className={`relative rounded-full flex items-center justify-center shrink-0 overflow-hidden ${
+            isSelected
+              ? `w-[38px] h-[38px] ${
+                  cell.isHoliday
+                    ? 'text-white font-bold bg-rose-500 shadow-xs'
+                    : 'theme-add-btn text-white font-bold shadow-xs'
+                }`
+              : `w-[32px] h-[32px] ${
+                  cell.isToday
+                    ? cell.isHoliday
+                      ? 'text-rose-500 font-bold border border-rose-400 bg-rose-500/5'
+                      : 'text-foreground font-bold border border-foreground/30 bg-foreground/5'
+                    : !cell.isCurrentMonth
+                    ? 'text-muted-foreground/35 font-normal hover:bg-muted/40'
+                    : cell.isHoliday
+                    ? 'text-rose-500 font-semibold hover:bg-rose-500/10'
+                    : 'text-foreground/90 font-medium hover:bg-muted/60'
+                }`
+          }`}
+        >
+          <span className={`relative z-10 leading-none select-none ${isSelected ? 'text-[15.5px]' : 'text-[13.5px]'}`}>
+            {toPersianDigits(cell.dayNum)}
+          </span>
 
-        {/* Days of month */}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const dayNum = i + 1;
-          const currentKey = formatJalaliKey({ jy, jm, jd: dayNum });
-          const isSelected = selectedDateKey === currentKey;
-          const isToday = currentKey === todayKey;
-          const isFriday = (firstDayOffset + i) % 7 === 6;
-          const isHoliday = isFriday || isOfficialHoliday(currentKey);
-          const hasDot = datesWithItems ? datesWithItems.has(currentKey) : false;
+          {/* Event dot indicator */}
+          {!isSelected && cell.hasDot && (
+            <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-muted-foreground/80 pointer-events-none" />
+          )}
+        </div>
 
-          const dayDate = jalaliToDate(jy, jm, dayNum);
-          const threeInfo = formatThreeCalendars(dayDate, jy, jm, dayNum, currentKey);
+        {/* Persian Weekday Name directly under the circle in the active week */}
+        {showDayNameUnder && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '50px',
+              opacity: Math.max(0, 1 - expansionProgress * 2.5),
+              transform: `translateY(${-expansionProgress * 12}px)`,
+              transition: isVerticalDragging || expansionProgress === 0 ? 'none' : 'opacity 0.22s ease, transform 0.22s ease',
+              display: expansionProgress > 0.65 ? 'none' : 'block',
+            }}
+            className={`text-[12px] leading-tight select-none pointer-events-none whitespace-nowrap ${
+              cell.isHoliday
+                ? 'text-rose-500 font-medium'
+                : isSelected
+                ? 'text-foreground font-semibold'
+                : 'text-muted-foreground font-normal group-hover:text-foreground'
+            }`}
+          >
+            {cell.dayName}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  // -------------------------------------------------------------
+  // Render: Month Grid with Morphing Week Rows (Strictly equal spacing)
+  // -------------------------------------------------------------
+  const renderMonthRowsGrid = (rows: MonthDayCell[][], isStatic: boolean = false) => {
+    return (
+      <div className="w-full relative overflow-visible">
+        {rows.map((rowCells, r) => {
+          const isCurrentWeekRow = r === selectedWeekRowIndex;
+
+          // For the current active week row:
+          // In week view (p = 0): Y = GRID_TOP_PADDING
+          // In month view (p = 1): Y = GRID_TOP_PADDING + r * ROW_HEIGHT
+          // Thus it slides down to its exact slot in the month with equal row height!
+          const activeWeekY =
+            GRID_TOP_PADDING + Math.round(expansionProgress * (r * ROW_HEIGHT));
+
+          // For non-active rows:
+          // They unfold smoothly from the active week row into their month positions
+          const otherRowY =
+            GRID_TOP_PADDING +
+            Math.round(
+              expansionProgress * (r * ROW_HEIGHT) +
+                (1 - expansionProgress) * (selectedWeekRowIndex * ROW_HEIGHT)
+            );
+
+          const rowY = isStatic
+            ? GRID_TOP_PADDING + r * ROW_HEIGHT
+            : isCurrentWeekRow
+            ? activeWeekY
+            : otherRowY;
+
+          const rowOpacity = isStatic
+            ? 1
+            : isCurrentWeekRow
+            ? 1
+            : Math.max(0, (expansionProgress - 0.25) / 0.75);
+
+          const pointerEvents = isStatic
+            ? 'auto'
+            : isCurrentWeekRow
+            ? 'auto'
+            : expansionProgress > 0.5
+            ? 'auto'
+            : 'none';
 
           return (
-            <button
-              key={dayNum}
-              type="button"
-              onMouseEnter={(e) => handleDayMouseEnter(e, threeInfo)}
-              onMouseLeave={handleDayMouseLeave}
-              onClick={(e) => {
-                if (hasDraggedFar.current) {
-                  e.preventDefault();
-                  return;
-                }
-                onSelectDate(currentKey);
+            <div
+              key={`month-row-${r}`}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: `${ROW_HEIGHT}px`,
+                transform: `translateY(${rowY}px)`,
+                opacity: rowOpacity,
+                pointerEvents,
+                transition: isVerticalDragging || expansionProgress === 0
+                  ? 'none'
+                  : 'transform 0.34s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease',
               }}
-              className="flex flex-col items-center justify-center h-10 outline-none group cursor-pointer"
+              className="flex items-center justify-between px-4 sm:px-6 overflow-visible"
             >
-              <div
-                className={`relative w-[38px] h-[38px] rounded-full flex items-center justify-center text-[15px] leading-none transition-all border-[1.5px] ${
-                  isSelected
-                    ? isHoliday
-                      ? 'holiday-glass-pill border-transparent text-white font-bold'
-                      : 'theme-glass-pill border-transparent text-white font-bold'
-                    : isToday
-                    ? isHoliday
-                      ? 'border-rose-400 text-rose-500 bg-transparent font-bold'
-                      : 'border-border text-foreground bg-transparent font-bold'
-                    : 'border-transparent bg-transparent text-foreground/80'
-                }`}
-              >
-                <span
-                  className={`transition-colors ${
-                    isSelected
-                      ? 'text-white font-bold'
-                      : isToday
-                      ? isHoliday
-                        ? 'text-rose-500 font-bold'
-                        : 'text-foreground font-bold'
-                      : isHoliday
-                      ? 'text-rose-500 font-medium'
-                      : 'text-foreground/85 font-medium group-hover:text-foreground'
-                  }`}
-                >
-                  {toPersianDigits(dayNum)}
-                </span>
-                {!isSelected && hasDot && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-muted-foreground/80 pointer-events-none" />
-                )}
-              </div>
-            </button>
+              {rowCells.map((cell) =>
+                renderDayButton(cell, isCurrentWeekRow)
+              )}
+            </div>
           );
         })}
       </div>
     );
   };
 
-  // -------------------------------------------------------------
-  // Dynamic Transform Helpers for Carousels
-  // -------------------------------------------------------------
+  // Dynamic transforms for carousels
   const getWeekTransform = () => {
-    if (weekAnimating === 'left') return 'translateX(-100%)';
-    if (weekAnimating === 'right') return 'translateX(100%)';
+    if (weekAnimating === 'to-left') return 'translateX(-100%)';
+    if (weekAnimating === 'to-right') return 'translateX(100%)';
     if (weekAnimating === 'reset') return 'translateX(0px)';
-    return `translateX(${weekDragOffset}px)`;
+    return 'none';
   };
 
   const getWeekTransition = () => {
-    if (weekAnimating) return 'transform 0.26s cubic-bezier(0.16, 1, 0.3, 1)';
+    if (weekAnimating) return 'transform 0.28s cubic-bezier(0.25, 1, 0.5, 1)';
     return 'none';
   };
 
   const getMonthTransform = () => {
-    if (monthAnimating === 'left') return 'translateX(-100%)';
-    if (monthAnimating === 'right') return 'translateX(100%)';
+    if (monthAnimating === 'to-left') return 'translateX(-100%)';
+    if (monthAnimating === 'to-right') return 'translateX(100%)';
     if (monthAnimating === 'reset') return 'translateX(0px)';
     return `translateX(${monthDragOffset}px)`;
   };
 
   const getMonthTransition = () => {
-    if (monthAnimating) return 'transform 0.26s cubic-bezier(0.16, 1, 0.3, 1)';
+    if (monthAnimating) return 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)';
     return 'none';
   };
 
   return (
     <div
+      data-no-drag-scroll="true"
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
       style={{
         height: `${currentHeight}px`,
+        touchAction: 'none',
         transition: isVerticalDragging
           ? 'none'
-          : 'height 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+          : 'height 0.34s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
-      className={`w-full relative flex flex-col justify-between select-none group/strip ${
-        isExpanded || isVerticalDragging ? 'overflow-hidden' : 'overflow-visible'
-      }`}
+      className="w-full relative flex flex-col justify-start select-none group/strip pt-1.5 overflow-visible touch-none"
     >
       {/* -------------------------------------------------------------
-          MAIN CALENDAR BODY (Week row OR Month grid)
+          1. TOP MONTH HEADER (Month Name + Year + Chevrons)
+          Fades and expands gracefully in place as calendar opens
          ------------------------------------------------------------- */}
       <div
-        className={`w-full flex-1 relative flex flex-col ${
-          isExpanded || isVerticalDragging ? 'overflow-hidden' : 'overflow-visible'
-        }`}
+        style={{
+          height: `${Math.round(expansionProgress * 32)}px`,
+          opacity: Math.max(0, (expansionProgress - 0.25) / 0.75),
+          transform: `translateY(${(1 - expansionProgress) * -12}px)`,
+          transition: isVerticalDragging
+            ? 'none'
+            : 'height 0.34s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, transform 0.28s ease',
+        }}
+        className="w-full flex items-center justify-between px-6 overflow-hidden shrink-0 select-none"
       >
-        {!isExpanded && !isVerticalDragging ? (
-          /* 1. WEEK VIEW CAROUSEL (Visible when collapsed) */
+        <span className="text-sm font-bold text-foreground">
+          {currentMonthData.monthName} {toPersianDigits(currentMonthData.jy)}
+        </span>
+
+        <div className="flex items-center gap-1">
+          {/* In Persian RTL: Right button navigates to previous month */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToPrevMonth();
+            }}
+            className="calendar-nav-chevron p-1 rounded-full hover:bg-muted/80 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            title="ماه قبل"
+          >
+            <HugeiconsIcon icon={ArrowRight01Icon} className="w-5 h-5 shrink-0" />
+          </button>
+
+          {/* Left button navigates to next month */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNextMonth();
+            }}
+            className="calendar-nav-chevron p-1 rounded-full hover:bg-muted/80 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            title="ماه بعد"
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="w-5 h-5 shrink-0" />
+          </button>
+        </div>
+      </div>
+
+      {/* -------------------------------------------------------------
+          2. TOP WEEKDAY COLUMN HEADERS (Above the numbers)
+          Glides smoothly up from below to sit above the columns!
+         ------------------------------------------------------------- */}
+      <div
+        style={{
+          height: `${Math.round(expansionProgress * 28)}px`,
+          paddingBottom: `${Math.round(expansionProgress * 8)}px`,
+          opacity: Math.max(0, (expansionProgress - 0.15) / 0.85),
+          transform: `translateY(${(1 - expansionProgress) * 16}px)`,
+          transition: isVerticalDragging
+            ? 'none'
+            : 'height 0.34s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, transform 0.28s ease, padding 0.34s ease',
+        }}
+        className="w-full grid grid-cols-7 text-center overflow-hidden px-4 sm:px-6 shrink-0 select-none"
+      >
+        {PERSIAN_WEEKDAY_NAMES.map((wd, i) => (
           <div
-            onPointerDown={handleWeekPointerDown}
-            onPointerMove={handleWeekPointerMove}
-            onPointerUp={handleWeekPointerUp}
-            onPointerCancel={handleWeekPointerUp}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            data-no-drag-scroll="true"
-            style={{ touchAction: 'pan-y' }}
-            className={`w-full h-full flex flex-col justify-center will-change-transform group/week relative py-0.5 ${
-              weekDragOffset !== 0 ? 'cursor-grabbing' : 'cursor-grab'
+            key={i}
+            className={`text-[12px] font-semibold flex items-center justify-center tracking-tight ${
+              i === 6 ? 'text-rose-500' : 'text-muted-foreground/75'
             }`}
           >
-            {/* Desktop-only hover navigation chevrons for Week view: Clean icons, no border, no background */}
+            {wd}
+          </div>
+        ))}
+      </div>
+
+      {/* -------------------------------------------------------------
+          3. MAIN CALENDAR BODY (Morphing Week-to-Month Rows)
+         ------------------------------------------------------------- */}
+      <div
+        onPointerDown={isExpanded ? handleMonthPointerDown : handleWeekPointerDown}
+        onPointerMove={isExpanded ? handleMonthPointerMove : handleWeekPointerMove}
+        onPointerUp={isExpanded ? handleMonthPointerUp : handleWeekPointerUp}
+        onPointerCancel={isExpanded ? handleMonthPointerUp : handleWeekPointerUp}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        data-no-drag-scroll="true"
+        style={{
+          touchAction: 'none',
+          height: `${Math.round(
+            68 + expansionProgress * (currentMonthRows.length * ROW_HEIGHT - 68)
+          )}px`,
+          transition: isVerticalDragging
+            ? 'none'
+            : 'height 0.34s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+        className={`w-full relative shrink-0 overflow-visible touch-none ${
+          weekDragOffset !== 0 || monthDragOffset !== 0 ? 'cursor-grabbing' : 'cursor-grab'
+        }`}
+      >
+        {/* Desktop-only hover navigation chevrons for Week view: Clean Hugeicons, no border, no background */}
+        {!isExpanded && expansionProgress === 0 && (
+          <>
             {/* Right Chevron: Previous Week (هفته قبل) in RTL */}
             <button
               type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 goToPrevWeek();
               }}
-              className="hidden md:flex absolute right-0.5 top-1/2 -translate-y-1/2 z-20 p-1 items-center justify-center text-muted-foreground/60 hover:text-foreground hover:scale-125 cursor-pointer opacity-0 group-hover/week:opacity-100 transition-all duration-200 pointer-events-none group-hover/week:pointer-events-auto select-none"
+              className="calendar-nav-chevron flex absolute right-0.5 top-1/2 -translate-y-1/2 z-30 p-1.5 items-center justify-center text-muted-foreground/60 hover:text-foreground hover:scale-125 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
               title="هفته قبل"
             >
-              <RiArrowRightSLine className="w-5 h-5 shrink-0" />
+              <HugeiconsIcon icon={ArrowRight01Icon} className="w-5 h-5 shrink-0" />
             </button>
 
             {/* Left Chevron: Next Week (هفته بعد) in RTL */}
             <button
               type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 goToNextWeek();
               }}
-              className="hidden md:flex absolute left-0.5 top-1/2 -translate-y-1/2 z-20 p-1 items-center justify-center text-muted-foreground/60 hover:text-foreground hover:scale-125 cursor-pointer opacity-0 group-hover/week:opacity-100 transition-all duration-200 pointer-events-none group-hover/week:pointer-events-auto select-none"
+              className="calendar-nav-chevron flex absolute left-0.5 top-1/2 -translate-y-1/2 z-30 p-1.5 items-center justify-center text-muted-foreground/60 hover:text-foreground hover:scale-125 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
               title="هفته بعد"
             >
-              <RiArrowLeftSLine className="w-5 h-5 shrink-0" />
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="w-5 h-5 shrink-0" />
             </button>
+          </>
+        )}
 
-            <div
-              className="w-full h-[52px] relative will-change-transform"
-              style={{
-                transform: getWeekTransform(),
-                transition: getWeekTransition(),
-              }}
-            >
-              {/* Previous Week Pane (-100%) */}
+        {/* Unified calendar rows container: Never unmounts between static / morphing */}
+        <div
+          ref={weekCarouselRef}
+          className="w-full relative will-change-transform"
+          style={{
+            transform:
+              expansionProgress === 1
+                ? getMonthTransform()
+                : expansionProgress === 0
+                ? getWeekTransform()
+                : 'none',
+            transition:
+              expansionProgress === 1
+                ? getMonthTransition()
+                : expansionProgress === 0
+                ? getWeekTransition()
+                : 'none',
+          }}
+        >
+          {/* When collapsed and week swiping is active, show adjacent weeks */}
+          {expansionProgress === 0 && (
+            <>
+              {/* Previous Week Pane (+100%, entering from the right) */}
               <div
-                className="w-full h-full absolute inset-0 flex items-center justify-between"
-                style={{ transform: 'translateX(-100%)' }}
-              >
-                {renderWeekDays(
-                  slideTransition?.direction === 'right'
-                    ? slideTransition.incomingWeekDays
-                    : prevWeekDays
-                )}
-              </div>
-
-              {/* Current Week Pane (0%) */}
-              <div
-                className="w-full h-full absolute inset-0 flex items-center justify-between"
-                style={{ transform: 'translateX(0%)' }}
-              >
-                {renderWeekDays(currentWeekDays)}
-              </div>
-
-              {/* Next Week Pane (+100%) */}
-              <div
-                className="w-full h-full absolute inset-0 flex items-center justify-between"
+                className="w-full absolute top-0 left-0 right-0 h-[44px] flex items-center justify-between px-4 sm:px-6 overflow-visible"
                 style={{ transform: 'translateX(100%)' }}
               >
-                {renderWeekDays(
-                  slideTransition?.direction === 'left'
-                    ? slideTransition.incomingWeekDays
-                    : nextWeekDays
-                )}
+                {prevWeekCells.map((cell) => renderDayButton(cell, true))}
               </div>
-            </div>
-          </div>
-        ) : (
-          /* 2. MONTH VIEW (Visible when expanded or dragging) */
-          <div className="w-full h-full flex flex-col pt-0.5 overflow-hidden animate-in fade-in duration-150">
-            {/* Month Header: Month Name + Year + Chevrons (Smoothly fades in as expanded) */}
-            <div
-              style={{
-                opacity: isVerticalDragging
-                  ? Math.max(0, (expansionProgress - 0.45) * 1.8)
-                  : isExpanded
-                  ? 1
-                  : 0,
-              }}
-              className="flex items-center justify-between px-6 pb-1.5 pt-0.5 select-none shrink-0 transition-opacity duration-150"
-            >
-              <span className="text-sm font-bold text-foreground">
-                {currentMonthData.monthName} {toPersianDigits(currentMonthData.jy)}
-              </span>
 
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={goToPrevMonth}
-                  className="p-1 rounded-full hover:bg-muted/80 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                  title="ماه قبل"
-                >
-                  <RiArrowRightSLine className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={goToNextMonth}
-                  className="p-1 rounded-full hover:bg-muted/80 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                  title="ماه بعد"
-                >
-                  <RiArrowLeftSLine className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Weekday Abbreviations Row */}
-            <div
-              style={{
-                opacity: isVerticalDragging
-                  ? Math.max(0, (expansionProgress - 0.25) * 1.33)
-                  : isExpanded
-                  ? 1
-                  : 0,
-              }}
-              className="grid grid-cols-7 text-center mb-1 text-[11px] font-semibold text-muted-foreground/70 px-6 shrink-0 transition-opacity duration-150"
-            >
-              {PERSIAN_WEEKDAY_SHORT_NAMES.map((wd, i) => (
-                <div key={i} className={i === 6 ? 'text-rose-500' : ''}>
-                  {wd}
-                </div>
-              ))}
-            </div>
-
-            {/* 3-Pane Month Carousel for Smooth Horizontal Swiping */}
-            <div
-              onPointerDown={handleMonthPointerDown}
-              onPointerMove={handleMonthPointerMove}
-              onPointerUp={handleMonthPointerUp}
-              onPointerCancel={handleMonthPointerUp}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              data-no-drag-scroll="true"
-              style={{ touchAction: 'pan-y' }}
-              className={`w-full flex-1 relative will-change-transform ${
-                monthDragOffset !== 0 ? 'cursor-grabbing' : 'cursor-grab'
-              }`}
-            >
+              {/* Next Week Pane (-100%, entering from the left) */}
               <div
-                className="w-full relative will-change-transform"
+                className="w-full absolute top-0 left-0 right-0 h-[44px] flex items-center justify-between px-4 sm:px-6 overflow-visible"
+                style={{ transform: 'translateX(-100%)' }}
+              >
+                {nextWeekCells.map((cell) => renderDayButton(cell, true))}
+              </div>
+            </>
+          )}
+
+          {/* When expanded to month view and swiping between months */}
+          {expansionProgress > 0.8 && (
+            <>
+              {/* Previous Month (+100%, entering from the right) */}
+              <div
+                className="w-full absolute inset-x-0 top-0 pointer-events-none"
                 style={{
-                  transform: getMonthTransform(),
-                  transition: getMonthTransition(),
+                  transform: 'translateX(100%)',
+                  opacity: Math.max(0, (expansionProgress - 0.8) / 0.2),
                 }}
               >
-                {/* Previous Month (-100%) */}
-                <div
-                  className="w-full absolute inset-x-0 top-0"
-                  style={{ transform: 'translateX(-100%)' }}
-                >
-                  {renderMonthGrid(prevMonthData)}
-                </div>
-
-                {/* Current Month (0%) */}
-                <div
-                  className="w-full absolute inset-x-0 top-0"
-                  style={{ transform: 'translateX(0%)' }}
-                >
-                  {renderMonthGrid(currentMonthData)}
-                </div>
-
-                {/* Next Month (+100%) */}
-                <div
-                  className="w-full absolute inset-x-0 top-0"
-                  style={{ transform: 'translateX(100%)' }}
-                >
-                  {renderMonthGrid(nextMonthData)}
-                </div>
+                {renderMonthRowsGrid(prevMonthRows, true)}
               </div>
-            </div>
-          </div>
-        )}
+
+              {/* Next Month (-100%, entering from the left) */}
+              <div
+                className="w-full absolute inset-x-0 top-0 pointer-events-none"
+                style={{
+                  transform: 'translateX(-100%)',
+                  opacity: Math.max(0, (expansionProgress - 0.8) / 0.2),
+                }}
+              >
+                {renderMonthRowsGrid(nextMonthRows, true)}
+              </div>
+            </>
+          )}
+
+          {/* Morphing Month Rows: Active week glides down to row index; others unfold */}
+          {renderMonthRowsGrid(currentMonthRows, false)}
+        </div>
       </div>
 
       {/* -------------------------------------------------------------
-          FLOATING TOOLTIP ANCHORED DIRECTLY UNDER HOVERED DAY
-          (Portaled to document.body with fixed positioning so it never gets clipped)
-         ------------------------------------------------------------- */}
-      {hoveredTooltip && typeof document !== 'undefined' && (() => {
-        return createPortal(
-          <div
-            style={{
-              position: 'fixed',
-              left: `${hoveredTooltip.x}px`,
-              top: `${hoveredTooltip.y}px`,
-              transform: 'translateX(-50%)',
-              transition: 'left 150ms ease-out, top 150ms ease-out',
-            }}
-            className={`fixed z-[9999] pointer-events-none flex flex-col items-center will-change-transform max-w-[92vw] sm:max-w-md ${
-              isTooltipVisible ? 'animate-tooltip-in' : 'animate-tooltip-out'
-            }`}
-          >
-            {/* Popover Bubble */}
-            <div
-              dir="rtl"
-              className="relative flex flex-col gap-1.5 px-3.5 py-2 rounded-xl bg-secondary/95 dark:bg-zinc-900/95 text-foreground border border-border/85 shadow-xl backdrop-blur-md select-none text-right min-w-[210px]"
-            >
-              {/* Caret pointing straight up to hovered day */}
-              <div
-                style={{
-                  left: '50%',
-                }}
-                className="absolute -top-1 -translate-x-1/2 w-2 h-2 rotate-45 bg-secondary/95 dark:bg-zinc-900/95 border-t border-l border-border/85"
-              />
-
-              {/* 1. Top Section: 3 Calendars (Solar / Lunar / Gregorian) */}
-              <div className="inline-flex items-center justify-center gap-2 text-[11px] font-medium whitespace-nowrap">
-                {/* Solar Jalali */}
-                <span className="font-bold text-foreground">
-                  {hoveredTooltip.solar}
-                </span>
-
-                <span className="text-muted-foreground/40 font-light select-none">/</span>
-
-                {/* Islamic Lunar Hijri */}
-                {hoveredTooltip.lunar && (
-                  <>
-                    <span className="text-foreground/80 font-medium">
-                      {hoveredTooltip.lunar}
-                    </span>
-                    <span className="text-muted-foreground/40 font-light select-none">/</span>
-                  </>
-                )}
-
-                {/* Gregorian: strictly isolated with dir="ltr" and bdi */}
-                <bdi
-                  dir="ltr"
-                  style={{ unicodeBidi: 'isolate' }}
-                  className="inline-flex items-center gap-1 font-semibold text-foreground/90 tabular-nums"
-                >
-                  <span>{hoveredTooltip.gregDay}</span>
-                  <span>{hoveredTooltip.gregMonth}</span>
-                  <span>{hoveredTooltip.gregYear}</span>
-                </bdi>
-              </div>
-
-              {/* 2. Bottom Section: Occasions / Holidays as a bulleted list below */}
-              {hoveredTooltip.holidays && hoveredTooltip.holidays.length > 0 && (
-                <div className="pt-1.5 border-t border-border/50 flex flex-col gap-1">
-                  {hoveredTooltip.holidays.map((h, idx) => {
-                    const isHolidayRed = h.isOfficial;
-                    return (
-                      <div
-                        key={idx}
-                        className={`flex items-start gap-1.5 text-[11px] leading-snug font-medium ${
-                          isHolidayRed
-                            ? 'text-rose-500'
-                            : 'text-foreground/90 dark:text-zinc-200'
-                        }`}
-                      >
-                        <span
-                          className={`text-[13px] leading-none select-none shrink-0 ${
-                            isHolidayRed ? 'text-rose-500' : 'text-foreground/70 dark:text-zinc-400'
-                          }`}
-                        >
-                          •
-                        </span>
-                        <span className="leading-tight">{h.title}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>,
-          document.body
-        );
-      })()}
-
-      {/* -------------------------------------------------------------
-          3. DRAG HANDLE BAR (Strictly below the days row, centered)
+          4. RETURN TO TODAY PILL BUTTON:
+          Appears smoothly below days and above dragger when viewing another day
          ------------------------------------------------------------- */}
       <div
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          handleHandlePointerDown(e);
+        style={{
+          height: isSelectedOtherThanToday ? '30px' : '0px',
+          opacity: isSelectedOtherThanToday ? 1 : 0,
+          marginTop: isSelectedOtherThanToday ? '6px' : '0px',
+          transition: isVerticalDragging
+            ? 'none'
+            : 'height 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, margin-top 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+          pointerEvents: isSelectedOtherThanToday ? 'auto' : 'none',
         }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-        }}
-        onTouchStart={(e) => {
-          e.stopPropagation();
-        }}
-        onPointerMove={handleHandlePointerMove}
-        onPointerUp={handleHandlePointerUp}
-        onPointerCancel={handleHandlePointerCancel}
-        onClick={handleHandleClick}
-        data-no-drag-scroll="true"
-        className="w-full flex items-center justify-center pt-2.5 pb-2 cursor-grab active:cursor-grabbing touch-none select-none group shrink-0"
+        className="w-full flex items-center justify-end px-4 sm:px-6 overflow-hidden shrink-0 select-none"
       >
-        <div
-          className={`h-1 rounded-full transition-all duration-200 ${
-            isVerticalDragging
-              ? 'w-14 bg-foreground/60 dark:bg-white/60 scale-y-125 opacity-100'
-              : 'w-10 bg-muted-foreground/30 group-hover:bg-muted-foreground/50 dark:bg-zinc-600 dark:group-hover:bg-zinc-400 opacity-0 group-hover/strip:opacity-100 group-hover:opacity-100'
-          }`}
-        />
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelectDate(todayKey);
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/80 hover:bg-secondary text-foreground text-[12px] font-medium border border-border/70 shadow-xs cursor-pointer transition-all duration-150 active:scale-95"
+          title="بازگشت به امروز"
+        >
+          <span>امروز</span>
+          <RiArrowGoBackLine className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        </button>
+      </div>
+
+      {/* -------------------------------------------------------------
+          CENTERED DRAGGER LINE:
+          12px padding top, 4px padding bottom, interactive & non-scroll!
+         ------------------------------------------------------------- */}
+      <div
+        data-no-drag-scroll="true"
+        onPointerDown={handleDraggerPointerDown}
+        onPointerMove={handleDraggerPointerMove}
+        onPointerUp={handleDraggerPointerUp}
+        onPointerCancel={handleDraggerPointerUp}
+        onClick={handleDraggerClick}
+        style={{ paddingTop: '12px', paddingBottom: '4px' }}
+        className="w-full flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none group/dragger"
+        title={isExpanded ? 'بستن نمای ماهانه' : 'نمایش تقویم ماهانه'}
+      >
+        <div className="w-[48px] h-[3.5px] rounded-full bg-muted-foreground/30 dark:bg-muted-foreground/40 group-hover/dragger:bg-foreground/50 transition-colors" />
       </div>
     </div>
   );

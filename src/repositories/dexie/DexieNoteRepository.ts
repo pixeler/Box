@@ -1,15 +1,16 @@
 import { db } from '@/lib/db/dexie';
 import type { Note } from '@/types/models';
 import type { NoteRepository } from '../interfaces';
+import { markIdAsDeleted } from '@/lib/storage';
 
 export class DexieNoteRepository implements NoteRepository {
   async create(noteData: Omit<Note, 'id' | 'created_at' | 'updated_at'>): Promise<Note> {
     const now = new Date().toISOString();
     const note: Note = {
       ...noteData,
-      id: crypto.randomUUID(),
-      created_at: now,
-      updated_at: now,
+      id: (noteData as any).id || crypto.randomUUID(),
+      created_at: (noteData as any).created_at || now,
+      updated_at: (noteData as any).updated_at || now,
     };
     await db.notes.add(note);
     return note;
@@ -48,8 +49,8 @@ export class DexieNoteRepository implements NoteRepository {
 
 
   async softDelete(id: string): Promise<void> {
-    // We can tag as dropped or remove from main view
     await db.notes.delete(id);
+    markIdAsDeleted(id);
   }
 
   async duplicate(id: string): Promise<Note> {

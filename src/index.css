@@ -3,8 +3,18 @@
 @tailwind utilities;
 
 @font-face {
+  font-family: 'Dana';
+  src: url('/fonts/Dana/DanaVF.woff2') format('woff2-variations'),
+       url('/fonts/Dana/DanaVF.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Estedad';
-  src: url('/fonts/estedad/Estedad-Variable.ttf') format('truetype');
+  src: url('/fonts/Dana/DanaVF.woff2') format('woff2-variations'),
+       url('/fonts/Dana/DanaVF.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -1300,9 +1310,9 @@ button:active {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='pr2' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.38 0.14' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.4' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.2 C 18 6.5, 34 10.5, 52 7.2 C 68 6.5, 84 10.2, 100 8.0 C 108 7.2, 114 8.5, 118 7.8' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23pr2)' opacity='0.95'/%3E%3Cpath d='M2 8 C 20 7.2, 38 9.5, 56 7.5 C 74 9.2, 92 7.2, 118 8.0' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round' stroke-dasharray='8 2 12 3 6 1' opacity='0.7'/%3E%3C/svg%3E");
 }
 
-/* Dashed separator border (خط چین) between stream items */
+/* Dotted separator border (نقطه‌چین) between stream items */
 .task-dashed-border {
-  border-bottom: 1px dashed hsl(var(--border));
+  border-bottom: 1px dotted hsl(var(--border) / 0.85);
 }
 
 /* Holiday Glass Pill for Selected Holiday in Weekly Strip & Calendar */

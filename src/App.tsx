@@ -13,12 +13,12 @@ import { TodoView } from './components/todo/TodoView';
 import { FocusView } from './components/focus/FocusView';
 // Archived: import { BoxesModal } from './components/boxes/BoxesModal';
 import { ToastContainer } from './components/ui/Toast';
-import { DailyTimelineBar } from './components/calendar/DailyTimelineBar';
-import { EventDetailModal } from './components/calendar/EventDetailModal';
-import { TaskEditModal } from './components/task/TaskEditModal';
+import { LoginModal } from './components/auth/LoginModal';
+import { useAuth } from './lib/auth';
+import { syncManager, type SyncState } from './lib/sync';
 
 import { taskRepo, noteRepo, eventRepo, tagRepo } from './repositories';
-import { RiCalendarEventLine, RiArrowLeftSLine, RiMedal2Line } from '@remixicon/react';
+import { syncWidgetData } from './lib/widget';
 import {
   getTodayJalaliKey,
   formatJalaliKey,
@@ -26,9 +26,7 @@ import {
   parseJalaliKey,
   jalaliToDate,
   getFullPersianWeekdayName,
-  getRelativeDayPrefix,
   extractDateOnly,
-  toPersianDigits,
   addJalaliDays,
 } from './lib/jalali';
 import { isOfficialHoliday } from './lib/holidays';
@@ -64,11 +62,12 @@ export function App() {
   const [datesWithItems, setDatesWithItems] = useState<Set<string>>(new Set());
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
+  const { user } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [_syncState, setSyncState] = useState<SyncState>('idle');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
   const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
-  const [timelineEditingTask, setTimelineEditingTask] = useState<Task | null>(null);
-  const [timelineSelectedEvent, setTimelineSelectedEvent] = useState<EventItem | null>(null);
 
   // Daily 5 Tasks Target state
   const [todayDoneCount, setTodayDoneCount] = useState<number>(0);
@@ -76,6 +75,20 @@ export function App() {
   const goalPillRef = useRef<HTMLDivElement | null>(null);
   const isInitialLoadRef = useRef(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Listen to cloud sync state
+  useEffect(() => {
+    return syncManager.subscribe((state) => {
+      setSyncState(state);
+    });
+  }, []);
+
+  // Auto trigger sync on user login or mount
+  useEffect(() => {
+    if (user) {
+      syncManager.performSync();
+    }
+  }, [user]);
 
   // Apply active theme on mount and change
   useEffect(() => {
@@ -300,8 +313,18 @@ export function App() {
       setFutureTasks(futureT);
       setFutureEvents(futureEv);
       setDisplayedDateKey(targetDateKey);
+
+      // Sync summary to native Android home screen widget
+      const openDayTasks = dayTasks.filter((t) => t.status === 'open');
+      syncWidgetData({
+        todayTaskCount: openDayTasks.length,
+        doneTaskCount: doneToday,
+        nextTaskTitle: openDayTasks[0]?.title || (dayTasks.length > 0 ? 'همه کارهای امروز انجام شد ✨' : 'کاری برای امروز ثبت نشده'),
+      });
+      setIsInitialLoading(false);
     } catch (err) {
       console.error('Failed loading day data:', err);
+      setIsInitialLoading(false);
     }
   }, []);
 
@@ -332,25 +355,6 @@ export function App() {
     loadDayData();
   };
 
-  // Schedule task with time from timeline drag-and-drop
-  const handleScheduleTaskFromTimeline = async (
-    taskId: string,
-    targetDateKey: string,
-    dueTime: string,
-    durationMinutes: number = 60
-  ) => {
-    await taskRepo.update(taskId, {
-      due_date: targetDateKey,
-      due_time: dueTime,
-      duration_minutes: durationMinutes,
-    });
-    if (targetDateKey !== selectedDateKey) {
-      setSelectedDateKey(targetDateKey);
-    } else {
-      await loadDayData();
-    }
-  };
-
   const handleItemCreated = async (createdId?: string) => {
     if (createdId) {
       setNewlyAddedTaskId(createdId);
@@ -361,12 +365,9 @@ export function App() {
     await loadDayData();
   };
 
-  const todayKey = getTodayJalaliKey();
   const selectedJalali = parseJalaliKey(selectedDateKey);
   const selectedGregorianDate = jalaliToDate(selectedJalali.jy, selectedJalali.jm, selectedJalali.jd);
   const currentWeekdayName = getFullPersianWeekdayName(selectedGregorianDate);
-  const relativePrefix = getRelativeDayPrefix(selectedDateKey, todayKey);
-  const isSelectedOtherThanToday = selectedDateKey !== todayKey;
   const isFriday = selectedGregorianDate.getDay() === 5;
   const isSelectedHoliday = isFriday || isOfficialHoliday(selectedDateKey);
 
@@ -379,88 +380,33 @@ export function App() {
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
-      {/* Scrollable Content Area with auto-hiding flush scrollbar */}
+      {/* Scrollable       {/* Scrollable Content Area with auto-hiding flush scrollbar */}
       <MobileScrollArea
         className="flex-1 min-h-0"
-        contentClassName="pt-6 pb-24 flex flex-col min-h-full"
+        contentClassName="pt-0 pb-0 flex flex-col min-h-full"
       >
         {activeTab === 'day' && (
           <>
-            {/* Top Greeting Header & Weekly Strip (scrolls together with content) */}
-            <div className="w-full shrink-0 select-none">
+            {/* Top Greeting Header & Weekly Strip */}
+            <div
+              data-no-drag-scroll="true"
+              className="w-full shrink-0 select-none pb-0 pt-3 overflow-hidden"
+            >
               {/* Top Greeting Header */}
               <div className="w-full pb-2 px-6">
                 <div className="flex items-center justify-between min-h-[36px]">
-                  {/* Right side: Relative Prefix + Chevron + Weekday Name + Teal/Red Dot */}
+                  {/* Right side: Weekday Name + Teal/Red Dot */}
                   <div className="flex items-center gap-1.5">
-                    {relativePrefix && (
-                      <>
-                        <span className="text-2xl font-normal text-muted-foreground/90 tracking-tight">
-                          {relativePrefix}
-                        </span>
-                        <RiArrowLeftSLine className="w-5 h-5 text-muted-foreground/60 -mx-0.5" />
-                      </>
-                    )}
-                    <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                    <h1 className="text-[21px] font-bold text-foreground tracking-tight">
                       {currentWeekdayName}
                     </h1>
                     <span
-                      className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 transition-colors duration-200 ${
+                      className={`w-2 h-2 rounded-full inline-block shrink-0 transition-colors duration-200 ${
                         isSelectedHoliday
                           ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]'
-                          : 'bg-primary'
+                          : 'bg-foreground'
                       }`}
                     />
-                  </div>
-
-                  {/* Left side: Daily goal counter pill + Capsule "بازگشت به امروز" button */}
-                  <div className="flex items-center gap-1.5">
-                    {/* Daily Goal Counter Pill (Smaller size, celebratory only at 5 tasks) */}
-                    <div
-                      ref={goalPillRef}
-                      dir="ltr"
-                      onClick={() => {
-                        // Only celebrate if user has completed 5 tasks
-                        if (todayDoneCount < 5) return;
-                        if (goalPillRef.current) {
-                          const rect = goalPillRef.current.getBoundingClientRect();
-                          setCelebrationCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-                        } else {
-                          setCelebrationCoords({ x: 80, y: 50 });
-                        }
-                      }}
-                      className={`inline-flex items-center gap-1 px-1.5 h-[25px] rounded-full transition-all select-none border ${
-                        todayDoneCount >= 5
-                          ? 'bg-primary/15 dark:bg-primary/20 text-primary border-primary/40 shadow-xs cursor-pointer hover:scale-105 active:scale-95'
-                          : 'bg-muted/70 dark:bg-white/10 text-muted-foreground/85 border-transparent cursor-default'
-                      }`}
-                      title={
-                        todayDoneCount >= 5
-                          ? `تبریک! هدف روزانه تکمیل شد (${toPersianDigits(todayDoneCount)} از ۵)`
-                          : `هدف روزانه: ۵ تسک (${toPersianDigits(todayDoneCount)} از ۵ تسک امروز انجام شد)`
-                      }
-                    >
-                      <RiMedal2Line
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          todayDoneCount >= 5 ? 'text-primary' : 'text-muted-foreground/75'
-                        }`}
-                      />
-                      <span className="font-semibold text-[11.5px] leading-none pt-0.5">
-                        {toPersianDigits(todayDoneCount)}/۵
-                      </span>
-                    </div>
-
-                    {/* Back to Today Button (visible when viewing any other day) */}
-                    {isSelectedOtherThanToday && (
-                      <button
-                        onClick={() => setSelectedDateKey(todayKey)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary hover:bg-secondary/80 transition-colors text-foreground text-[12px] font-normal border border-border shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
-                        title="بازگشت به امروز"
-                      >
-                        <span>امروز</span>
-                        <RiCalendarEventLine className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      </button>
-                    )}
                   </div>
                 </div>
                 <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right truncate" title={getDailyQuote(selectedDateKey)}>
@@ -476,48 +422,40 @@ export function App() {
               />
             </div>
 
-            {/* Daily 24-Hour Timeline Bar under WeeklyStrip */}
-            <div className="w-full mb-3 overflow-visible">
-              <DailyTimelineBar
-                selectedDateKey={selectedDateKey}
-                events={events}
+            {/* Stream Content Area sitting flush on the app container with full-width rows */}
+            <div className="w-full flex-1 px-0 pt-3 pb-24 bg-transparent">
+
+              {/* Pinned Items Section (سنجاق شده) - Below WeeklyStrip and above DayStream */}
+              {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
+                <PinnedSection
+                  pinnedTasks={pinnedTasks}
+                  pinnedNotes={pinnedNotes}
+                  tagsMap={tagsMap}
+                  currentDateKey={displayedDateKey}
+                  onStatusChanged={loadDayData}
+                />
+              )}
+
+              {/* Day stream */}
+              <DayStream
+                key={displayedDateKey}
+                selectedDateKey={displayedDateKey}
                 tasks={tasks}
-                onSelectEvent={(ev) => setTimelineSelectedEvent(ev)}
-                onSelectTask={(t) => setTimelineEditingTask(t)}
-                onSelectDate={setSelectedDateKey}
-                onScheduleTask={handleScheduleTaskFromTimeline}
+                notes={notes}
+                events={events}
+                overdueTasks={overdueTasks}
+                futureTasks={futureTasks}
+                futureEvents={futureEvents}
+                tagsMap={tagsMap}
+                onStatusChanged={loadDayData}
+                onMigrateTask={handleMigrateTask}
+                onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
+                onOpenAdd={() => setQuickCaptureOpen(true)}
+                newlyAddedTaskId={newlyAddedTaskId}
+                isLoading={isInitialLoading}
+                todayDoneCount={todayDoneCount}
               />
             </div>
-
-            {/* Pinned Items Section (سنجاق شده) - Below WeeklyStrip and above DayStream */}
-            {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
-              <PinnedSection
-                pinnedTasks={pinnedTasks}
-                pinnedNotes={pinnedNotes}
-                tagsMap={tagsMap}
-                currentDateKey={displayedDateKey}
-                onStatusChanged={loadDayData}
-              />
-            )}
-
-            {/* Day stream */}
-            <DayStream
-              key={displayedDateKey}
-              selectedDateKey={displayedDateKey}
-              tasks={tasks}
-              notes={notes}
-              events={events}
-              overdueTasks={overdueTasks}
-              futureTasks={futureTasks}
-              futureEvents={futureEvents}
-              tagsMap={tagsMap}
-              onStatusChanged={loadDayData}
-              onMigrateTask={handleMigrateTask}
-              onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
-              onOpenAdd={() => setQuickCaptureOpen(true)}
-              newlyAddedTaskId={newlyAddedTaskId}
-              isLoading={isInitialLoading}
-            />
           </>
         )}
 
@@ -526,8 +464,13 @@ export function App() {
         {activeTab === 'focus' && <FocusView />}
       </MobileScrollArea>
 
-      {/* Floating Bottom Navigation Dock in Liquid Glass Apple style */}
-      <div className="absolute bottom-5 inset-x-0 z-20 flex justify-center pointer-events-none px-4">
+      {/* Floating Bottom Navigation Dock */}
+      <div
+        className="absolute bottom-5 inset-x-0 z-20 flex justify-center pointer-events-none px-4"
+        style={{
+          bottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         <BottomDock
           activeTab={settingsOpen ? 'profile' : activeTab}
           onTabChange={(tab) => {
@@ -565,10 +508,17 @@ export function App() {
         onGlassBackgroundChange={handleGlassBackgroundChange}
         desktopPosition={desktopPosition}
         onDesktopPositionChange={handleDesktopPositionChange}
+        onOpenAuthModal={() => setAuthModalOpen(true)}
         onOpenSearch={() => {
           setSettingsOpen(false);
           setSearchOpen(true);
         }}
+      />
+
+      {/* Supabase Login / Auth Modal */}
+      <LoginModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
       />
 
       {/* Quick Capture Modal */}
@@ -603,24 +553,6 @@ export function App() {
           onComplete={() => setCelebrationCoords(null)}
         />
       )}
-
-      {/* Modals for Timeline Event / Task */}
-      <EventDetailModal
-        event={timelineSelectedEvent}
-        isOpen={!!timelineSelectedEvent}
-        onClose={() => setTimelineSelectedEvent(null)}
-        onSaved={loadDayData}
-      />
-
-      {timelineEditingTask && (
-        <TaskEditModal
-          task={timelineEditingTask}
-          isOpen={!!timelineEditingTask}
-          onClose={() => setTimelineEditingTask(null)}
-          onSaved={loadDayData}
-        />
-      )}
-
     </AppContainer>
   );
 }

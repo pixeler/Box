@@ -14,6 +14,18 @@ export default defineConfig({
     },
     dedupe: ['react', 'react-dom'],
   },
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-ui': ['@remixicon/react', 'clsx', 'tailwind-merge'],
+          'vendor-db': ['dexie', 'minisearch', 'jalaali-js'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api/unsplash': {

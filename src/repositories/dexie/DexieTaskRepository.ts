@@ -3,15 +3,16 @@ import type { Task, TaskFilter } from '@/types/models';
 import type { TaskRepository } from '../interfaces';
 import { getTodayJalaliKey, extractDateOnly } from '@/lib/jalali';
 import { isTaskOccurringOnDate } from '@/lib/recurrence';
+import { markIdAsDeleted } from '@/lib/storage';
 
 export class DexieTaskRepository implements TaskRepository {
   async create(taskData: Omit<Task, 'id' | 'created_at' | 'updated_at'>): Promise<Task> {
     const now = new Date().toISOString();
     const task: Task = {
       ...taskData,
-      id: crypto.randomUUID(),
-      created_at: now,
-      updated_at: now,
+      id: (taskData as any).id || crypto.randomUUID(),
+      created_at: (taskData as any).created_at || now,
+      updated_at: (taskData as any).updated_at || now,
     };
     await db.tasks.add(task);
     return task;
@@ -138,6 +139,7 @@ export class DexieTaskRepository implements TaskRepository {
 
   async softDelete(id: string): Promise<void> {
     await this.update(id, { status: 'dropped' });
+    markIdAsDeleted(id);
   }
 
   async migrate(id: string, newDueDate: string): Promise<Task> {

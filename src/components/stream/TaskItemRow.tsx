@@ -6,6 +6,7 @@ import {
   addJalaliDays,
   nextWeekendFrom,
   formatTaskDateDisplay,
+  formatTaskTimeRange,
 } from '@/lib/jalali';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
@@ -20,6 +21,9 @@ import {
 } from '@/components/ui/context-menu';
 import { TaskEditModal } from '@/components/task/TaskEditModal';
 import { JalaliDatePicker } from '@/components/calendar/JalaliDatePicker';
+import { useIsMobile } from '@/lib/device';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CalendarUpload02Icon } from '@hugeicons/core-free-icons';
 import {
   RiCheckLine,
   RiMoreLine,
@@ -55,7 +59,8 @@ interface TaskItemRowProps {
   isLast?: boolean;
 }
 
-export const TaskItemRow: React.FC<TaskItemRowProps> = ({
+export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
+
   task,
   tagsMap: _tagsMap,
   currentDateKey,
@@ -69,6 +74,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   isNewlyAdded = false,
   isLast = false,
 }) => {
+  const isMobile = useIsMobile();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -80,13 +86,18 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
   const tomorrowKey = addJalaliDays(todayKey, 1);
   const nextWeekKey = addJalaliDays(todayKey, 7);
   const weekendKey = nextWeekendFrom(todayKey);
-  const dateDisplay = formatTaskDateDisplay(
-    task.due_date,
-    currentDateKey || todayKey,
-    isPinned,
-    task.due_time,
-    task.duration_minutes
-  );
+  const recurringTime = isRecurring
+    ? formatTaskTimeRange(task.due_time, task.duration_minutes)
+    : null;
+  const dateDisplay = isRecurring
+    ? null
+    : formatTaskDateDisplay(
+        task.due_date,
+        currentDateKey || todayKey,
+        isPinned,
+        task.due_time,
+        task.duration_minutes
+      );
 
   const handleToggle = async () => {
     if (!isDone) {
@@ -131,39 +142,54 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
 
   return (
     <>
-      <ContextMenu open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
-        <ContextMenuTrigger asChild>
+      <ContextMenu
+        open={isMobile ? false : contextMenuOpen}
+        onOpenChange={(open) => {
+          if (isMobile) {
+            setContextMenuOpen(false);
+            return;
+          }
+          setContextMenuOpen(open);
+        }}
+      >
+        <ContextMenuTrigger disabled={isMobile} asChild>
           <div
-            draggable={draggable}
+            draggable={!isMobile && draggable}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDragEnd={onDragEnd}
             onDrop={onDrop}
+            onContextMenu={(e) => {
+              if (isMobile) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
             onClick={() => setEditModalOpen(true)}
             className={`group relative w-full ${
               !isLast ? 'task-dashed-border' : ''
             } py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             } ${
-              isDone ? 'opacity-55' : ''
+              isDone ? 'opacity-60' : ''
             } ${
               isNewlyAdded ? 'animate-task-insert' : ''
             }`}
           >
             <div className="flex items-start justify-between w-full">
-              {/* 1. RIGHT SIDE in RTL: Checkbox and Content (Title + Description) */}
+              {/* 1. RIGHT SIDE in RTL: Checkbox and Content (Title + Description + Date) */}
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                {/* Checkbox: Circle for normal tasks, slightly rounded square with dashed border for recurring tasks */}
+                {/* Circular checkbox */}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleToggle();
                   }}
-                  className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
+                  className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer rounded-full border ${
                     isRecurring
-                      ? 'rounded-[5px] border-[1.5px] border-dashed'
-                      : 'rounded-full border border-solid'
+                      ? 'border-dashed'
+                      : 'border-solid'
                   } ${
                     isDone
                       ? 'bg-primary border-primary text-primary-foreground border-solid'
@@ -173,74 +199,103 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
                       ? 'border-amber-500 hover:border-amber-600 bg-card'
                       : task.priority === 1
                       ? 'border-blue-500 hover:border-blue-600 bg-card'
-                      : 'border-muted-foreground/60 hover:border-foreground bg-card'
+                      : 'border-muted-foreground/40 hover:border-foreground bg-card'
                   }`}
                   title={isDone ? 'بازگردانی' : 'انجام شد'}
                 >
                   {isDone && <RiCheckLine className="w-3.5 h-3.5 stroke-[3]" />}
                 </button>
 
-                {/* Content: Title + Badges + Description */}
+                {/* Content: Title + Description + Meta */}
                 <div className="flex flex-col flex-1 min-w-0 text-right">
-                  <div className="flex items-start gap-1.5 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                     {/* Pin icon if pinned */}
                     {isPinned && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTogglePin();
-                        }}
-                        title="برداشتن سنجاق"
-                        className="shrink-0 flex items-center text-muted-foreground hover:text-foreground cursor-pointer p-0.5 mt-0.5"
-                      >
+                      <span title="سنجاق‌شده" className="shrink-0 flex items-center text-primary">
                         <RiPushpin2Fill className="w-3.5 h-3.5 text-primary" />
-                      </button>
+                      </span>
                     )}
 
-                    <span
-                      className={`text-[13.5px] font-medium leading-snug transition-all break-words ${
+                    <h3
+                      className={`text-[14.5px] font-semibold dark:font-medium leading-snug transition-all break-words ${
                         isDone
-                          ? 'pencil-strike text-muted-foreground font-normal'
+                          ? 'pencil-strike text-muted-foreground font-normal line-through'
                           : 'text-foreground'
                       }`}
                     >
                       {stripMarkdownForPreview(task.title)}
-                    </span>
+                    </h3>
                   </div>
 
                   {/* Task Description if present */}
                   {task.description && task.description.trim() && (
                     <p
-                      className={`text-[12px] font-normal leading-relaxed mt-2 select-none break-words line-clamp-2 ${
+                      className={`text-[12px] font-normal leading-relaxed mt-1 select-none break-words line-clamp-2 ${
                         isDone ? 'line-through text-muted-foreground/50' : 'text-muted-foreground'
                       }`}
                     >
                       {stripMarkdownForPreview(task.description)}
                     </p>
                   )}
+
+                  {/* Meta: Recurring tasks show only time and repeat icon. Non-recurring tasks show date/time */}
+                  {isRecurring ? (
+                    <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/80 font-normal mt-1.5 select-none">
+                      {recurringTime && <span>{recurringTime}</span>}
+                      <RiRepeatLine className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                    </div>
+                  ) : dateDisplay ? (
+                    <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/80 font-normal mt-1.5 select-none">
+                      <span>{dateDisplay}</span>
+                    </div>
+                  ) : null}
+
+                  </div>
                 </div>
+
+                {/* 2. LEFT SIDE in RTL: Image/Illustration slot (e.g. runner or medicine icon) */}
+                {Boolean((task as any).image_url || (task as any).icon) && (
+                  <div className="shrink-0 w-12 h-12 flex items-center justify-center self-center mr-3 select-none pointer-events-none">
+                    <img
+                      src={(task as any).image_url || (task as any).icon}
+                      alt=""
+                      className="w-10 h-10 object-contain"
+                    />
+                  </div>
+                )}
               </div>
 
-              {/* 2. LEFT SIDE in RTL: Date/Time display */}
-              {dateDisplay && (
-                <span className="text-[12px] text-muted-foreground font-normal select-none shrink-0 mt-0.5 mr-2 flex items-center gap-1">
-                  {task.recurrence_rule && task.recurrence_rule !== 'none' && (
-                    <RiRepeatLine className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-                  )}
-                  <span>{dateDisplay}</span>
-                </span>
+              {/* Overdue Transfer to Today Action Button (only for non-recurring tasks) - Equal side and bottom padding */}
+              {!isRecurring && onMigrate && task.due_date && task.due_date < todayKey && (
+                <div className="mt-3 flex items-center">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMigrate(task.id);
+                    }}
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/80 bg-card hover:bg-muted/50 text-foreground text-[12.5px] font-normal transition-colors cursor-pointer shadow-2xs active:scale-95"
+                  >
+                    <HugeiconsIcon
+                      icon={CalendarUpload02Icon}
+                      size={16}
+                      strokeWidth={1.8}
+                      className="shrink-0 text-foreground"
+                    />
+                    <span>انتقال به امروز</span>
+                  </button>
+                </div>
               )}
             </div>
-          </div>
         </ContextMenuTrigger>
 
         {/* Right Click Context Menu matching reference project */}
-        <ContextMenuContent
-          className="w-[15.5rem] p-1.5"
-          dir="rtl"
-          onClick={(e) => e.stopPropagation()}
-        >
+        {!isMobile && (
+          <ContextMenuContent
+            className="w-[15.5rem] p-1.5"
+            dir="rtl"
+            onClick={(e) => e.stopPropagation()}
+          >
           <ContextMenuItem
             className="gap-2 cursor-pointer"
             onClick={() => {
@@ -491,15 +546,18 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
             <span>حذف</span>
           </ContextMenuItem>
         </ContextMenuContent>
+        )}
       </ContextMenu>
 
       {/* Edit Modal */}
-      <TaskEditModal
-        task={task}
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onSaved={onStatusChanged}
-      />
+      {editModalOpen && (
+        <TaskEditModal
+          task={task}
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          onSaved={onStatusChanged}
+        />
+      )}
 
       {/* Date Picker if chosen from context menu (Full-width bottom sheet) */}
       {datePickerOpen && (
@@ -531,4 +589,4 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = ({
       )}
     </>
   );
-};
+});

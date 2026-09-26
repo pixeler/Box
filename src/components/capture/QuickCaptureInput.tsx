@@ -5,28 +5,32 @@ import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories'
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { extractQuickTokens } from '@/lib/quick-parser';
 import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
-import { BlockNoteEditor } from '@/components/editor/BlockNoteEditor';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
+
+const BlockNoteEditor = React.lazy(() =>
+  import('@/components/editor/BlockNoteEditor').then((m) => ({ default: m.BlockNoteEditor }))
+);
 import { QuickTagSuggest } from './QuickTagSuggest';
 import { QuickCommandPalette } from './QuickCommandPalette';
 import {
-  RiCloseLine,
+  RiCheckLine,
   RiCheckboxLine,
-  RiCalendarScheduleLine,
   RiCalendarLine,
   RiFlagLine,
   RiFlagFill,
   RiPriceTag3Line,
-  RiInboxArchiveLine,
   RiPushpinLine,
   RiPushpinFill,
   RiLink,
   RiImageLine,
   RiFullscreenLine,
   RiFullscreenExitLine,
+  RiInboxArchiveLine,
   RiSparklingLine,
+  RiAlarmLine,
 } from '@remixicon/react';
+import { ReminderPickerSheet } from '../pickers/ReminderPickerSheet';
 
 import { toast } from '@/lib/toast';
 import { playPencilWriteSound } from '@/lib/sound';
@@ -50,7 +54,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   onOpen,
   defaultBoxId,
 }) => {
-  const [activeTab, setActiveTab] = useState<CaptureTab>('task');
+  const [activeTab, _setActiveTab] = useState<CaptureTab>('task');
+  void _setActiveTab;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState<string | null>(currentSelectedDateKey);
@@ -68,10 +73,11 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
-  // Pickers modal states
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
   const [priorityPickerOpen, setPriorityPickerOpen] = useState(false);
+  const [reminder, setReminder] = useState<string | null>(null);
+  const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
 
   // Slash commands and # tag autocomplete states
   const [tagSuggestQuery, setTagSuggestQuery] = useState<string | null>(null);
@@ -85,6 +91,11 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   // Track if priority/date were set via title regex tokens
   const hadDateTokenRef = useRef(false);
   const hadPriorityTokenRef = useRef(false);
+
+  const isAndroid = typeof navigator !== 'undefined' && (
+    /android/i.test(navigator.userAgent) ||
+    Boolean((window as any)?.Capacitor?.getPlatform?.() === 'android')
+  );
 
   const todayKey = getTodayJalaliKey();
 
@@ -106,6 +117,50 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     boxRepo.list().then(setBoxes);
   }, [isOpen]);
 
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setKeyboardHeight(0);
+      return;
+    }
+
+    let cleanup: (() => void) | undefined;
+    import('@capacitor/keyboard')
+      .then(({ Keyboard }) => {
+        const showSub = Keyboard.addListener('keyboardWillShow', (info) => {
+          if (info.keyboardHeight > 0) {
+            setKeyboardHeight(info.keyboardHeight);
+          }
+        });
+        const hideSub = Keyboard.addListener('keyboardWillHide', () => {
+          setKeyboardHeight(0);
+        });
+        cleanup = () => {
+          showSub.then((h) => h.remove());
+          hideSub.then((h) => h.remove());
+        };
+      })
+      .catch(() => {});
+
+    const handleVisualViewport = () => {
+      if (window.visualViewport) {
+        const diff = window.innerHeight - window.visualViewport.height;
+        if (diff > 120) {
+          setKeyboardHeight(diff);
+        } else {
+          setKeyboardHeight(0);
+        }
+      }
+    };
+    window.visualViewport?.addEventListener('resize', handleVisualViewport);
+
+    return () => {
+      cleanup?.();
+      window.visualViewport?.removeEventListener('resize', handleVisualViewport);
+    };
+  }, [isOpen]);
+
   // When opening or switching tab, focus title input immediately and sync due date
   useEffect(() => {
     if (isOpen) {
@@ -113,13 +168,15 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         setSelectedBox(defaultBoxId);
       }
       setDueDate(currentSelectedDateKey);
+      // Trigger focus smoothly with tiny delay so keyboard and sheet emerge together without bounce
+      const delay = 60;
       const timer = setTimeout(() => {
         if (titleInputRef.current) {
           titleInputRef.current.style.height = 'auto';
           titleInputRef.current.style.height = `${titleInputRef.current.scrollHeight}px`;
-          titleInputRef.current.focus();
+          titleInputRef.current.focus({ preventScroll: true });
         }
-      }, 50);
+      }, delay);
       return () => clearTimeout(timer);
     }
   }, [isOpen, activeTab, currentSelectedDateKey, defaultBoxId]);
@@ -232,6 +289,10 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           }
           if (priorityPickerOpen) {
             setPriorityPickerOpen(false);
+            return;
+          }
+          if (reminderPickerOpen) {
+            setReminderPickerOpen(false);
             return;
           }
           e.preventDefault();
@@ -361,7 +422,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setTimeout(() => {
       setIsClosing(false);
       resetForm();
-    }, 240);
+    }, 350);
   };
 
   const resetForm = () => {
@@ -374,6 +435,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setIsFullscreen(false);
     setDatePickerOpen(false);
     setBoxPickerOpen(false);
+    setReminder(null);
+    setReminderPickerOpen(false);
     setDueDate(currentSelectedDateKey);
     setDueTime(null);
     setDurationMinutes(null);
@@ -442,6 +505,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           recurrence_end_date: recurrenceEndDate || undefined,
           priority: effectivePriority,
           tag_ids: finalTagIds,
+          pinned: isPinned,
+          reminder: reminder || undefined,
         });
         createdId = createdTask?.id;
         toast.show(
@@ -471,7 +536,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       setTimeout(() => {
         setIsClosing(false);
         resetForm();
-      }, 240);
+      }, 350);
     } catch (err) {
       console.error('Failed to create item:', err);
     } finally {
@@ -581,18 +646,16 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   if (!isOpen && !isClosing) return null;
 
   const isNoteFullscreen = isFullscreen && activeTab === 'note';
-  const portalTarget = typeof document !== 'undefined'
-    ? (isNoteFullscreen ? document.body : (document.getElementById('app-main') || document.body))
-    : null;
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
   if (!portalTarget) return null;
 
   return createPortal(
     <div
       className={
         isNoteFullscreen
-          ? 'fixed inset-0 z-[100] w-screen h-screen flex flex-col bg-black/65 backdrop-blur-xs select-none'
-          : `absolute inset-0 z-50 flex flex-col justify-end bg-black/70 backdrop-blur-xs select-none ${
-              isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
+          ? 'fixed inset-0 z-[100] w-screen h-screen flex flex-col bg-black/65 sm:backdrop-blur-xs select-none'
+          : `fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 sm:backdrop-blur-xs select-none ${
+              isClosing ? 'animate-panel-backdrop-out' : 'animate-panel-backdrop-in'
             }`
       }
       onClick={handleClose}
@@ -600,11 +663,16 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-card text-card-foreground font-sans text-right flex flex-col transition-all duration-200 overflow-hidden ${
+        data-open={isClosing ? 'false' : 'true'}
+        style={{
+          transform: keyboardHeight > 0 ? `translate3d(0, -${keyboardHeight}px, 0)` : undefined,
+          transition: keyboardHeight > 0 ? 'transform 0.16s cubic-bezier(0.2, 0, 0, 1)' : undefined,
+        }}
+        className={`bg-card text-card-foreground font-sans text-right flex flex-col overflow-hidden will-change-transform ${
           isNoteFullscreen
             ? 'fixed inset-0 z-[101] w-screen h-screen pb-6 px-6 md:px-14 md:py-8 flex flex-col bg-card'
-            : `relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-5 min-h-[440px] max-h-[92%] border-t border-border/80 dark:border-white/10 ${
-                isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
+            : `t-panel-slide relative w-full sm:max-w-[460px] sm:mx-auto rounded-t-[28px] shadow-2xl pb-4 px-5 pt-4 max-h-[92%] border-t border-border/80 dark:border-white/10 ${
+                isClosing ? 'animate-panel-out' : 'animate-panel-in'
               }`
         }`}
         dir="rtl"
@@ -629,19 +697,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
               )}
             </button>
           )}
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              handleClose();
-            }}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted/60 dark:hover:bg-white/10 transition-colors cursor-pointer relative z-30 pointer-events-auto"
-            title="بستن"
-          >
-            <RiCloseLine className="w-5 h-5" />
-          </button>
+          {/* Close button removed for minimal Todoist style */}
         </div>
 
         <form
@@ -659,7 +715,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <div
                   ref={backdropRef}
                   aria-hidden="true"
-                  className="absolute inset-0 pointer-events-none overflow-hidden select-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-bold text-xl leading-snug pl-28 pr-0 pt-0"
+                  className="absolute inset-0 pointer-events-none overflow-hidden select-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-bold text-xl leading-snug px-0 pt-0"
                   dir="rtl"
                 >
                   {renderHighlightedTitle()}
@@ -671,6 +727,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 ref={titleInputRef}
                 rows={1}
                 value={title}
+                enterKeyHint="send"
                 onScroll={handleTitleScroll}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -717,10 +774,10 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                     ? 'چی کاره‌ای؟ (فردا، #تگ، p1، یا / را تایپ کنید)'
                     : 'چی تو ذهنته؟'
                 }
-                className={`relative z-10 w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition-all resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] ${
+                className={`relative z-10 w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition-all resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] px-0 ${
                   isFullscreen && activeTab === 'note'
-                    ? 'text-2xl md:text-3xl pl-28'
-                    : 'text-xl pl-28'
+                    ? 'text-2xl md:text-3xl'
+                    : 'text-xl'
                 }`}
                 dir="rtl"
               />
@@ -871,17 +928,26 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   isNoteFullscreen ? 'min-h-[60vh]' : 'min-h-[160px] max-h-[46vh]'
                 }`}
               >
-                <BlockNoteEditor
-                  initialContent={description}
-                  onChange={(md) => setDescription(md)}
-                  placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
-                  minHeight={isNoteFullscreen ? '60vh' : '160px'}
-                />
+                <React.Suspense
+                  fallback={
+                    <div className="h-32 flex items-center justify-center text-xs text-muted-foreground animate-pulse">
+                      در حال آماده‌سازی ویرایشگر...
+                    </div>
+                  }
+                >
+                  <BlockNoteEditor
+                    initialContent={description}
+                    onChange={(md: string) => setDescription(md)}
+                    placeholder="متن یادداشت یا خاطره خود را بنویسید یا برای دیدن دستورات / را تایپ کنید..."
+                    minHeight={isNoteFullscreen ? '60vh' : '160px'}
+                  />
+                </React.Suspense>
               </div>
             ) : (
               <textarea
                 ref={noteBodyRef}
                 value={description}
+                enterKeyHint="send"
                 onChange={(e) => setDescription(e.target.value)}
                 onKeyDown={(e) => {
                   const isEnter =
@@ -894,9 +960,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                     handleSubmit();
                   }
                 }}
-                placeholder="توضیحات (Enter برای ایجاد تسک، Shift+Enter برای خط بعد)"
-                rows={7}
-                className="w-full resize-none text-sm text-foreground/90 bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal leading-relaxed mt-4 flex-1"
+                placeholder="توضیحات"
+                rows={2}
+                className="w-full resize-none text-sm text-foreground/85 bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal leading-relaxed mt-2.5 min-h-[46px] max-h-[92px]"
                 dir="rtl"
               />
             )}
@@ -907,6 +973,20 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
             {/* Task Tool Bar */}
             {activeTab === 'task' && (
               <div className="flex items-center gap-2 pb-3 overflow-x-auto no-scrollbar py-0.5">
+                {/* پین کردن - گزینه اول، بدون حاشیه و بدون زاویه */}
+                <button
+                  type="button"
+                  onClick={() => setIsPinned(!isPinned)}
+                  className="p-1.5 flex items-center justify-center transition-all cursor-pointer active:scale-90 shrink-0"
+                  title={isPinned ? 'پین‌شده (حذف پین)' : 'پین کردن'}
+                >
+                  {isPinned ? (
+                    <RiPushpinFill className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                  ) : (
+                    <RiPushpinLine className="w-4 h-4 text-muted-foreground/75 hover:text-foreground transition-colors" />
+                  )}
+                </button>
+
                 {/* امروز */}
                 <button
                   type="button"
@@ -979,21 +1059,22 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   </span>
                 </button>
 
-                {/* جعبه (آرشیو شده موقت) */}
-                {/* <button
+                {/* یادآور */}
+                <button
                   type="button"
-                  onClick={() => setBoxPickerOpen(true)}
+                  onClick={() => setReminderPickerOpen(true)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
-                    selectedBox
-                      ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
+                    reminder
+                      ? 'bg-primary/15 border-primary/40 text-primary font-bold shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
                   }`}
+                  title="تنظیم یادآور"
                 >
-                  <RiInboxArchiveLine
-                    className={`w-3.5 h-3.5 ${selectedBox ? 'text-foreground' : 'text-muted-foreground'}`}
+                  <RiAlarmLine
+                    className={`w-3.5 h-3.5 ${reminder ? 'text-primary' : 'text-muted-foreground'}`}
                   />
-                  <span>{selectedBoxObj?.title || 'جعبه'}</span>
-                </button> */}
+                  <span>{reminder || 'یادآور'}</span>
+                </button>
               </div>
             )}
 
@@ -1051,54 +1132,19 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
               </div>
             )}
 
-            {/* Common Bottom Bar: Submit button and mode toggle pills */}
-            <div className="flex items-center justify-between pt-3 border-t border-border/70 dark:border-white/10">
-              {/* Right side in RTL: اضافه کردن */}
-              <button
-                type="submit"
-                disabled={!title.trim()}
-                className="flex items-center gap-1.5 rounded-full bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 disabled:opacity-40 px-5 py-2.5 text-sm font-bold shadow-xs transition-all cursor-pointer active:scale-95"
-              >
-                <span>اضافه کردن</span>
-                <kbd className="inline-flex items-center justify-center text-[10px] font-mono text-white/80 bg-white/20 dark:text-zinc-700 dark:bg-black/15 px-1.5 py-0.5 rounded mr-0.5 select-none font-bold">
-                  ↵
-                </kbd>
-              </button>
-
-              {/* Left side in RTL: Mode toggle pills */}
-              <div className="flex items-center gap-2">
-                {/* کار */}
+            {/* Common Bottom Bar: Only show if not using keyboard submit on Android for task creation */}
+            {(!isAndroid || activeTab !== 'task') && (
+              <div className="flex items-center justify-start pt-2.5 border-t border-border/70 dark:border-white/10">
                 <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('task');
-                    setIsFullscreen(false);
-                  }}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
-                    activeTab === 'task'
-                      ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900 font-bold shadow-xs'
-                      : 'border-border/70 dark:border-white/10 text-muted-foreground hover:border-foreground/30 hover:text-foreground'
-                  }`}
+                  type="submit"
+                  disabled={!title.trim()}
+                  className="w-9 h-9 rounded-full bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shadow-xs transition-all cursor-pointer active:scale-90"
+                  title="ایجاد تسک"
                 >
-                  <RiCheckboxLine className="w-4 h-4" />
-                  <span>کار</span>
-                </button>
-
-                {/* یادداشت */}
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('note')}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border ${
-                    activeTab === 'note'
-                      ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900 font-bold shadow-xs'
-                      : 'border-border/70 dark:border-white/10 text-muted-foreground hover:border-foreground/30 hover:text-foreground'
-                  }`}
-                >
-                  <RiCalendarScheduleLine className="w-4 h-4" />
-                  <span>یادداشت</span>
+                  <RiCheckLine className="w-5 h-5 stroke-[2.5]" />
                 </button>
               </div>
-            </div>
+            )}
           </div>
         </form>
 
@@ -1150,6 +1196,14 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           boxes={boxes}
           selectedBoxId={selectedBox}
           onSelectBox={(bId) => setSelectedBox(bId || '')}
+        />
+
+        {/* Reminder Picker Sheet */}
+        <ReminderPickerSheet
+          isOpen={reminderPickerOpen}
+          onClose={() => setReminderPickerOpen(false)}
+          value={reminder}
+          onChange={(r) => setReminder(r)}
         />
       </div>
     </div>,

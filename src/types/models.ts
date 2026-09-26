@@ -28,6 +28,9 @@ export interface Task {
   done_dates?: string[]; // تاریخ‌هایی که این تسک تکرارشونده در آن‌ها انجام شده است
   migrated_from_id?: string; // زنجیره‌ی تاریخچه‌ی migrate
   pinned?: boolean;
+  reminder?: string | null;
+  image_url?: string;
+  icon?: string;
   order?: number;
   created_at: string;
   updated_at: string;
@@ -109,5 +112,17 @@ export interface TaskFilter {
   search_query?: string;
   tag_id?: string;
   box_id?: string | null;
+}
+
+export interface FocusSession {
+  id: string;
+  task_id?: string | null;
+  task_title?: string;
+  date_key: string;
+  start_at: string;
+  end_at: string;
+  duration_minutes: number;
+  completed: boolean;
+  created_at: string;
 }
 

@@ -241,7 +241,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
               [
                 { id: 'all', label: 'همه' },
                 { id: 'task', label: `تسک‌ها (${toPersianDigits(tasks.length)})` },
-                { id: 'note', label: `یادداشت‌ها (${toPersianDigits(notes.length)})` },
+                // { id: 'note', label: `یادداشت‌ها (${toPersianDigits(notes.length)})` },
               ] as const
             ).map((tab) => (
               <button
@@ -342,7 +342,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                   {/* Task Content */}
                   <div className="flex-1 min-w-0">
                     <span
-                      className={`text-xs font-semibold block truncate leading-snug ${
+                      className={`text-xs font-semibold dark:font-medium block truncate leading-snug ${
                         isDone ? 'pencil-strike text-muted-foreground' : 'text-foreground'
                       }`}
                     >

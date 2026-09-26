@@ -21,6 +21,11 @@ interface DailyTimelineBarProps {
     dueTime: string,
     durationMinutes: number
   ) => Promise<void> | void;
+  activeFocusInterval?: {
+    startMinute: number;
+    durationMinutes: number;
+    elapsedMinutes: number;
+  } | null;
 }
 
 interface ParsedInterval {
@@ -101,6 +106,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
   onSelectTask,
   onSelectDate,
   onScheduleTask,
+  activeFocusInterval = null,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(400);
@@ -579,6 +585,39 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
                         </div>
                       );
                     })}
+
+                    {/* Active Focus Session: Whole interval is gray, elapsed progress turns RED from left */}
+                    {activeFocusInterval && dayOffset === selectedDayOffset && (
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 h-[4px] bg-zinc-400/80 dark:bg-zinc-600 rounded-none shadow-xs z-20 pointer-events-none"
+                        style={{
+                          left: `${activeFocusInterval.startMinute * PX_PER_MINUTE}px`,
+                          width: `${Math.max(4, activeFocusInterval.durationMinutes * PX_PER_MINUTE)}px`,
+                        }}
+                      >
+                        {/* Start boundary tick mark */}
+                        <span className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[10px] bg-zinc-500 dark:bg-zinc-400 rounded-full" />
+                        {/* End boundary tick mark */}
+                        <span className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[10px] bg-zinc-500 dark:bg-zinc-400 rounded-full" />
+
+                        {/* Red Progressed Segment from left to right */}
+                        {activeFocusInterval.elapsedMinutes > 0 && (
+                          <div
+                            className="absolute top-0 left-0 h-full bg-red-600 dark:bg-red-500 rounded-none shadow-xs transition-all duration-500"
+                            style={{
+                              width: `${Math.min(
+                                activeFocusInterval.durationMinutes * PX_PER_MINUTE,
+                                Math.max(2, activeFocusInterval.elapsedMinutes * PX_PER_MINUTE)
+                              )}px`,
+                            }}
+                          >
+                            {/* Red active progress boundary ticks */}
+                            <span className="absolute -left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[10px] bg-red-600 dark:bg-red-500 rounded-full" />
+                            <span className="absolute -right-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[10px] bg-red-600 dark:bg-red-500 rounded-full" />
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Live Drag-and-Drop Scheduling Preview */}
                     {taskDragOverInfo && taskDragOverInfo.dayIndex === dayOffset && (

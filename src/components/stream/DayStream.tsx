@@ -8,6 +8,7 @@ import { ResurfacingSection } from './ResurfacingSection';
 import { setupDragCardGhost } from '@/lib/drag';
 import { CardDropPreview } from './CardDropPreview';
 import { getTodayJalaliKey } from '@/lib/jalali';
+import { triggerHaptic } from '@/lib/capacitor';
 
 export type UnifiedStreamItem =
   | { id: string; type: 'task'; data: Task }
@@ -29,6 +30,7 @@ interface DayStreamProps {
   onOpenAdd?: () => void;
   newlyAddedTaskId?: string | null;
   isLoading?: boolean;
+  todayDoneCount?: number;
 }
 
 function getPriorityScore(item: UnifiedStreamItem): number {
@@ -161,13 +163,39 @@ export const DayStream: React.FC<DayStreamProps> = ({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropSlotIndex, setDropSlotIndex] = useState<number | null>(null);
 
+  // Mobile Touch Drag and Drop state (with hold delay & card elevation)
+  const [touchDragIndex, setTouchDragIndex] = useState<number | null>(null);
+  const [touchDeltaY, setTouchDeltaY] = useState<number>(0);
+  const touchHoldTimerRef = useRef<number | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number; index: number } | null>(null);
+  const isTouchDraggingRef = useRef<boolean>(false);
+  const targetSlotRef = useRef<number | null>(null);
+  const justFinishedTouchDragRef = useRef<boolean>(false);
+
+  // External Touch Drag State (from overdue / future sections into today)
+  const [externalTouchDragInfo, setExternalTouchDragInfo] = useState<{
+    taskId: string;
+    task: Task;
+    source: 'overdue' | 'future';
+  } | null>(null);
+  const [externalTouchDeltaY, setExternalTouchDeltaY] = useState<number>(0);
+  const externalTouchHoldTimerRef = useRef<number | null>(null);
+  const externalTouchStartPosRef = useRef<{
+    x: number;
+    y: number;
+    task: Task;
+    source: 'overdue' | 'future';
+  } | null>(null);
+  const isExternalTouchDraggingRef = useRef<boolean>(false);
+  const streamContainerRef = useRef<HTMLDivElement | null>(null);
+
   // FLIP layout animation refs for smooth sliding when tasks are completed or reordered
   const itemElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const prevPositionsRef = useRef<Map<string, number>>(new Map());
 
   useLayoutEffect(() => {
-    // Skip FLIP during HTML5 drag-and-drop to avoid conflicts
-    if (draggedIndex !== null) return;
+    // Skip FLIP during HTML5 or touch drag-and-drop to avoid conflicts
+    if (draggedIndex !== null || touchDragIndex !== null || externalTouchDragInfo !== null) return;
 
     const prevPositions = prevPositionsRef.current;
     const currentPositions = new Map<string, number>();
@@ -231,19 +259,304 @@ export const DayStream: React.FC<DayStreamProps> = ({
       cancelAnimationFrame(rafId);
       clearTimeout(cleanupTimer);
     };
-  }, [streamItems, draggedIndex]);
+  }, [streamItems, draggedIndex, touchDragIndex]);
 
-  // پاک‌سازی کامل وضعیت درگ با پایان حرکت
+  // Clean reorder helper
+  const reorderItems = (fromIdx: number, toSlot: number) => {
+    let targetIndex = toSlot;
+    if (fromIdx < targetIndex) {
+      targetIndex = targetIndex - 1;
+    }
+
+    if (fromIdx !== targetIndex && targetIndex >= 0 && targetIndex < streamItems.length) {
+      const updated = [...streamItems];
+      const [movedItem] = updated.splice(fromIdx, 1);
+      updated.splice(targetIndex, 0, movedItem);
+      setStreamItems(updated);
+    }
+  };
+
+  // Mobile Touch Drag handlers (300ms hold delay + elevated card lift)
+  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+    if (e.touches.length > 1) return;
+
+    // Do not initiate drag if user tapped an interactive button or control
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest('button, input, textarea, a, [role="button"], .no-drag')) {
+      return;
+    }
+
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY, index };
+
+    if (touchHoldTimerRef.current) {
+      window.clearTimeout(touchHoldTimerRef.current);
+    }
+
+    // 300ms hold delay: user holds firmly before drag begins ("یک کوچولو بیشتر باید نگه داره")
+    touchHoldTimerRef.current = window.setTimeout(() => {
+      isTouchDraggingRef.current = true;
+      setTouchDragIndex(index);
+      setTouchDeltaY(0);
+      setDropSlotIndex(index);
+      targetSlotRef.current = index;
+
+      triggerHaptic('medium');
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate(35);
+        } catch {}
+      }
+
+      const onWindowTouchMove = (we: TouchEvent) => {
+        if (!isTouchDraggingRef.current) return;
+        if (we.cancelable) {
+          we.preventDefault(); // Stop mobile browser scrolling while dragging
+        }
+        const t = we.touches[0];
+        if (!t || !touchStartPosRef.current) return;
+
+        const dy = t.clientY - touchStartPosRef.current.y;
+        setTouchDeltaY(dy);
+
+        // Auto-scroll when dragging near viewport edges
+        const touchY = t.clientY;
+        const edgeThreshold = 65;
+        if (touchY < edgeThreshold) {
+          window.scrollBy({ top: -7, behavior: 'auto' });
+        } else if (window.innerHeight - touchY < edgeThreshold) {
+          window.scrollBy({ top: 7, behavior: 'auto' });
+        }
+
+        // Determine target drop slot
+        let newSlot = streamItems.length;
+        for (let i = 0; i < streamItems.length; i++) {
+          const it = streamItems[i];
+          const el = itemElementsRef.current.get(it.id);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (touchY < midY) {
+              newSlot = i;
+              break;
+            }
+          }
+        }
+
+        if (newSlot !== targetSlotRef.current) {
+          targetSlotRef.current = newSlot;
+          setDropSlotIndex(newSlot);
+        }
+      };
+
+      const onWindowTouchEnd = () => {
+        window.removeEventListener('touchmove', onWindowTouchMove);
+        window.removeEventListener('touchend', onWindowTouchEnd);
+        window.removeEventListener('touchcancel', onWindowTouchEnd);
+
+        if (isTouchDraggingRef.current) {
+          justFinishedTouchDragRef.current = true;
+          setTimeout(() => {
+            justFinishedTouchDragRef.current = false;
+          }, 350);
+
+          const fromIdx = touchStartPosRef.current?.index ?? null;
+          const toSlot = targetSlotRef.current;
+
+          if (fromIdx !== null && toSlot !== null) {
+            reorderItems(fromIdx, toSlot);
+          }
+        }
+
+        isTouchDraggingRef.current = false;
+        setTouchDragIndex(null);
+        setTouchDeltaY(0);
+        setDropSlotIndex(null);
+        targetSlotRef.current = null;
+        touchStartPosRef.current = null;
+      };
+
+      window.addEventListener('touchmove', onWindowTouchMove, { passive: false });
+      window.addEventListener('touchend', onWindowTouchEnd, { once: true });
+      window.addEventListener('touchcancel', onWindowTouchEnd, { once: true });
+    }, 300);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // If user moved > 8px before hold delay fired, cancel drag timer so natural scroll occurs
+    if (touchHoldTimerRef.current && !isTouchDraggingRef.current) {
+      const start = touchStartPosRef.current;
+      if (start) {
+        const touch = e.touches[0];
+        const dist = Math.hypot(touch.clientX - start.x, touch.clientY - start.y);
+        if (dist > 8) {
+          window.clearTimeout(touchHoldTimerRef.current);
+          touchHoldTimerRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchHoldTimerRef.current && !isTouchDraggingRef.current) {
+      window.clearTimeout(touchHoldTimerRef.current);
+      touchHoldTimerRef.current = null;
+      touchStartPosRef.current = null;
+    }
+  };
+
+  // Touch drag from external sections (overdue / future) into Today
+  const handleExternalTouchStart = (
+    e: React.TouchEvent,
+    task: Task,
+    source: 'overdue' | 'future'
+  ) => {
+    if (e.touches.length > 1) return;
+
+    // Ignore taps on interactive elements like checkboxes or buttons
+    const target = e.target as HTMLElement | null;
+    if (target && target.closest('button, input, textarea, a, [role="button"], .no-drag')) {
+      return;
+    }
+
+    const touch = e.touches[0];
+    externalTouchStartPosRef.current = { x: touch.clientX, y: touch.clientY, task, source };
+
+    if (externalTouchHoldTimerRef.current) {
+      window.clearTimeout(externalTouchHoldTimerRef.current);
+    }
+
+    // 300ms hold delay for external cards
+    externalTouchHoldTimerRef.current = window.setTimeout(() => {
+      isExternalTouchDraggingRef.current = true;
+      setExternalTouchDragInfo({ taskId: task.id, task, source });
+      setExternalTouchDeltaY(0);
+
+      triggerHaptic('medium');
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate(35);
+        } catch {}
+      }
+
+      const onWindowTouchMove = (we: TouchEvent) => {
+        if (!isExternalTouchDraggingRef.current) return;
+        if (we.cancelable) we.preventDefault();
+
+        const t = we.touches[0];
+        if (!t || !externalTouchStartPosRef.current) return;
+
+        const dy = t.clientY - externalTouchStartPosRef.current.y;
+        setExternalTouchDeltaY(dy);
+
+        const touchY = t.clientY;
+        const edgeThreshold = 65;
+        if (touchY < edgeThreshold) {
+          window.scrollBy({ top: -7, behavior: 'auto' });
+        } else if (window.innerHeight - touchY < edgeThreshold) {
+          window.scrollBy({ top: 7, behavior: 'auto' });
+        }
+
+        // Check if dragged over or into today's stream
+        let newSlot: number | null = null;
+        const container = streamContainerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
+          if (touchY <= rect.bottom + 35) {
+            if (streamItems.length === 0) {
+              newSlot = 0;
+              setIsDragOverEmpty(true);
+            } else {
+              setIsDragOverEmpty(false);
+              newSlot = streamItems.length;
+              for (let i = 0; i < streamItems.length; i++) {
+                const it = streamItems[i];
+                const el = itemElementsRef.current.get(it.id);
+                if (el) {
+                  const elRect = el.getBoundingClientRect();
+                  const midY = elRect.top + elRect.height / 2;
+                  if (touchY < midY) {
+                    newSlot = i;
+                    break;
+                  }
+                }
+              }
+            }
+          } else {
+            setIsDragOverEmpty(false);
+          }
+        }
+
+        setDropSlotIndex(newSlot);
+        targetSlotRef.current = newSlot;
+      };
+
+      const onWindowTouchEnd = () => {
+        window.removeEventListener('touchmove', onWindowTouchMove);
+        window.removeEventListener('touchend', onWindowTouchEnd);
+        window.removeEventListener('touchcancel', onWindowTouchEnd);
+
+        if (isExternalTouchDraggingRef.current) {
+          justFinishedTouchDragRef.current = true;
+          setTimeout(() => {
+            justFinishedTouchDragRef.current = false;
+          }, 350);
+
+          const startInfo = externalTouchStartPosRef.current;
+          const targetSlot = targetSlotRef.current;
+
+          // If dragged into today's stream area
+          if (startInfo && (targetSlot !== null || isDragOverEmpty)) {
+            onMigrateTask(startInfo.task.id, selectedDateKey);
+            triggerHaptic('heavy');
+          }
+        }
+
+        isExternalTouchDraggingRef.current = false;
+        setExternalTouchDragInfo(null);
+        setExternalTouchDeltaY(0);
+        setDropSlotIndex(null);
+        setIsDragOverEmpty(false);
+        targetSlotRef.current = null;
+        externalTouchStartPosRef.current = null;
+      };
+
+      window.addEventListener('touchmove', onWindowTouchMove, { passive: false });
+      window.addEventListener('touchend', onWindowTouchEnd, { once: true });
+      window.addEventListener('touchcancel', onWindowTouchEnd, { once: true });
+    }, 300);
+  };
+
+  const handleExternalTouchMove = (e: React.TouchEvent) => {
+    if (externalTouchHoldTimerRef.current && !isExternalTouchDraggingRef.current) {
+      const start = externalTouchStartPosRef.current;
+      if (start) {
+        const touch = e.touches[0];
+        const dist = Math.hypot(touch.clientX - start.x, touch.clientY - start.y);
+        if (dist > 8) {
+          window.clearTimeout(externalTouchHoldTimerRef.current);
+          externalTouchHoldTimerRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handleExternalTouchEnd = () => {
+    if (externalTouchHoldTimerRef.current && !isExternalTouchDraggingRef.current) {
+      window.clearTimeout(externalTouchHoldTimerRef.current);
+      externalTouchHoldTimerRef.current = null;
+      externalTouchStartPosRef.current = null;
+    }
+  };
+
   useEffect(() => {
-    const handleGlobalDragEnd = () => {
-      setDraggedIndex(null);
-      setDropSlotIndex(null);
-    };
-    window.addEventListener('dragend', handleGlobalDragEnd);
-    window.addEventListener('drop', handleGlobalDragEnd);
     return () => {
-      window.removeEventListener('dragend', handleGlobalDragEnd);
-      window.removeEventListener('drop', handleGlobalDragEnd);
+      if (touchHoldTimerRef.current) {
+        window.clearTimeout(touchHoldTimerRef.current);
+      }
+      if (externalTouchHoldTimerRef.current) {
+        window.clearTimeout(externalTouchHoldTimerRef.current);
+      }
     };
   }, []);
 
@@ -305,11 +618,15 @@ export const DayStream: React.FC<DayStreamProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
-    // انتقال تسک از بخش روزهای قبل به این روز
+    // انتقال تسک از بخش روزهای قبل یا بعد به این روز
     const textData = e.dataTransfer.getData('text/plain');
-    if (textData && textData.startsWith('migrate:')) {
-      const taskId = textData.replace('migrate:', '');
-      onMigrateTask(taskId, selectedDateKey);
+    const xTaskId = e.dataTransfer.getData('application/x-task-id');
+    const migrateTaskId = (textData && textData.startsWith('migrate:'))
+      ? textData.replace('migrate:', '')
+      : (xTaskId || null);
+
+    if (migrateTaskId) {
+      onMigrateTask(migrateTaskId, selectedDateKey);
       handleDragEnd();
       return;
     }
@@ -319,28 +636,16 @@ export const DayStream: React.FC<DayStreamProps> = ({
       return;
     }
 
-    // بازآرایی تسک‌ها در جریان روز
-    let targetIndex = slot;
-    if (draggedIndex < targetIndex) {
-      targetIndex = targetIndex - 1;
-    }
-
-    if (draggedIndex !== targetIndex) {
-      const updated = [...streamItems];
-      const [movedItem] = updated.splice(draggedIndex, 1);
-      updated.splice(targetIndex, 0, movedItem);
-      setStreamItems(updated);
-    }
-
+    reorderItems(draggedIndex, slot);
     handleDragEnd();
   };
 
   const hasAnyItems = streamItems.length > 0;
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-between day-slide-transition">
+    <div className="w-full flex-1 flex flex-col justify-between">
       <div>
-        {/* Header (Date on right, filter/sort icon on left) */}
+        {/* Header (Date on right, celebration goal badge on left) */}
         <DayHeader
           selectedDateKey={selectedDateKey}
           filterType={filterType}
@@ -348,6 +653,8 @@ export const DayStream: React.FC<DayStreamProps> = ({
           sortBy={sortBy}
           onSortByChange={setSortBy}
           onGoToToday={onGoToToday}
+          todayDoneCount={tasks.filter((t) => t.status === 'done').length}
+          todayTotalCount={tasks.length > 0 ? tasks.length : 5}
         />
 
         {/* Skeleton loading state on initial load */}
@@ -380,6 +687,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
         ) : (
           /* Unified List of stream items with drag-and-drop */
           <div
+            ref={streamContainerRef}
             className="w-full min-h-[70px]"
           onDragOver={(e) => {
             e.preventDefault();
@@ -397,82 +705,121 @@ export const DayStream: React.FC<DayStreamProps> = ({
             handleDropAtSlot(e, targetSlot);
           }}
         >
-          {/* نمایش اسلات در ابتدای لیست اگر اسلات ۰ انتخاب شده باشد */}
-          {hasAnyItems && dropSlotIndex === 0 && (draggedIndex === null || draggedIndex > 0) && (
-            <CardDropPreview />
-          )}
-
-          {streamItems.map((item, idx) => {
-            const isDragging = draggedIndex === idx;
-
+          {/* Active drag index across HTML5 or touch */}
+          {(() => {
+            const activeDragIndex = draggedIndex !== null ? draggedIndex : touchDragIndex;
+            const isExternalDragging = externalTouchDragInfo !== null;
             return (
-              <React.Fragment key={item.id}>
-                <div
-                  ref={(el) => {
-                    if (el) {
-                      itemElementsRef.current.set(item.id, el);
-                    } else {
-                      itemElementsRef.current.delete(item.id);
-                    }
-                  }}
-                  onDragOver={(e) => handleItemDragOver(e, idx)}
-                  onDrop={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const isLowerHalf = e.clientY - rect.top > rect.height / 2;
-                    const targetSlot = isLowerHalf ? idx + 1 : idx;
-                    handleDropAtSlot(e, targetSlot);
-                  }}
-                  className={`transition-opacity duration-150 relative rounded-xl will-change-transform ${
-                    isDragging ? 'opacity-30' : 'opacity-100'
-                  }`}
-                >
-                  {item.type === 'task' && (
-                    <TaskItemRow
-                      task={item.data}
-                      tagsMap={tagsMap}
-                      currentDateKey={selectedDateKey}
-                      onStatusChanged={onStatusChanged}
-                      onMigrate={(id) => onMigrateTask(id)}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, idx)}
-                      onDragEnd={handleDragEnd}
-                      isNewlyAdded={item.data.id === newlyAddedTaskId}
-                      isLast={idx === streamItems.length - 1}
-                    />
-                  )}
-
-                  {item.type === 'note' && (
-                    <NoteItemRow
-                      note={item.data}
-                      tagsMap={tagsMap}
-                      onStatusChanged={onStatusChanged}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, idx)}
-                      onDragEnd={handleDragEnd}
-                      isLast={idx === streamItems.length - 1}
-                    />
-                  )}
-
-                  {item.type === 'event' && (
-                    <EventItemRow
-                      event={item.data}
-                      onStatusChanged={onStatusChanged}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, idx)}
-                      onDragEnd={handleDragEnd}
-                      isLast={idx === streamItems.length - 1}
-                    />
-                  )}
-                </div>
-
-                {/* پیش‌نمایش خاکستری کارت پس از این ردیف در صورتی که اسلات هدف باشد */}
-                {dropSlotIndex === idx + 1 &&
-                  (draggedIndex === null || (draggedIndex !== idx && draggedIndex !== idx + 1)) && (
+              <>
+                {/* نمایش اسلات در ابتدای لیست اگر اسلات ۰ انتخاب شده باشد */}
+                {hasAnyItems &&
+                  dropSlotIndex === 0 &&
+                  (activeDragIndex === null || activeDragIndex > 0 || isExternalDragging) && (
                     <CardDropPreview />
                   )}
-              </React.Fragment>
+
+                {streamItems.map((item, idx) => {
+                  const isHtml5Dragging = draggedIndex === idx;
+                  const isTouchDragging = touchDragIndex === idx;
+
+                  return (
+                    <React.Fragment key={item.id}>
+                      <div
+                        ref={(el) => {
+                          if (el) {
+                            itemElementsRef.current.set(item.id, el);
+                          } else {
+                            itemElementsRef.current.delete(item.id);
+                          }
+                        }}
+                        onTouchStart={(e) => handleTouchStart(e, idx)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchCancel={handleTouchEnd}
+                        onClickCapture={(e) => {
+                          if (justFinishedTouchDragRef.current) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }
+                        }}
+                        onDragOver={(e) => handleItemDragOver(e, idx)}
+                        onDrop={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const isLowerHalf = e.clientY - rect.top > rect.height / 2;
+                          const targetSlot = isLowerHalf ? idx + 1 : idx;
+                          handleDropAtSlot(e, targetSlot);
+                        }}
+                        style={
+                          isTouchDragging
+                            ? {
+                                transform: `translate3d(0, ${touchDeltaY}px, 0) scale(1.03)`,
+                                zIndex: 60,
+                                boxShadow:
+                                  '0 20px 35px -8px rgba(0, 0, 0, 0.22), 0 10px 18px -4px rgba(0, 0, 0, 0.12), 0 0 0 1.5px rgba(99, 102, 241, 0.35)',
+                                pointerEvents: 'none',
+                              }
+                            : undefined
+                        }
+                        className={`relative will-change-transform ${
+                          isTouchDragging
+                            ? 'transition-none select-none ring-2 ring-primary/30 rounded-lg'
+                            : isHtml5Dragging
+                            ? 'opacity-30'
+                            : 'opacity-100 transition-opacity duration-150'
+                        }`}
+                      >
+                        {item.type === 'task' && (
+                          <TaskItemRow
+                            task={item.data}
+                            tagsMap={tagsMap}
+                            currentDateKey={selectedDateKey}
+                            onStatusChanged={onStatusChanged}
+                            onMigrate={(id) => onMigrateTask(id)}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, idx)}
+                            onDragEnd={handleDragEnd}
+                            isNewlyAdded={item.data.id === newlyAddedTaskId}
+                            isLast={idx === streamItems.length - 1}
+                          />
+                        )}
+
+                        {item.type === 'note' && (
+                          <NoteItemRow
+                            note={item.data}
+                            tagsMap={tagsMap}
+                            onStatusChanged={onStatusChanged}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, idx)}
+                            onDragEnd={handleDragEnd}
+                            isLast={idx === streamItems.length - 1}
+                          />
+                        )}
+
+                        {item.type === 'event' && (
+                          <EventItemRow
+                            event={item.data}
+                            onStatusChanged={onStatusChanged}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, idx)}
+                            onDragEnd={handleDragEnd}
+                            isLast={idx === streamItems.length - 1}
+                          />
+                        )}
+                      </div>
+
+                      {/* پیش‌نمایش خاکستری کارت پس از این ردیف در صورتی که اسلات هدف باشد */}
+                      {dropSlotIndex === idx + 1 &&
+                        (isExternalDragging ||
+                          activeDragIndex === null ||
+                          (activeDragIndex !== idx && activeDragIndex !== idx + 1)) && (
+                          <CardDropPreview />
+                        )}
+                    </React.Fragment>
+                  );
+                })}
+              </>
             );
-          })}
+          })()}
 
           {/* پیش‌نمایش در حالت خالی بودن لیست فقط اگر آیتم درگی غیر از روی کامپوننت خالی هست */}
           {/* Empty state when no items */}
@@ -544,8 +891,8 @@ export const DayStream: React.FC<DayStreamProps> = ({
         </div>
         )}
 
-        {/* Resurfacing sections: independent of today's items and outside the right dashed line */}
-        <div className="w-full mt-2">
+        {/* Resurfacing sections: smoothly placed under today's tasks */}
+        <div className="w-full mt-6">
           <ResurfacingSection
             overdueTasks={overdueTasks}
             futureTasks={futureTasks}
@@ -554,6 +901,11 @@ export const DayStream: React.FC<DayStreamProps> = ({
             selectedDateKey={selectedDateKey}
             onMigrateToCurrentDate={(id) => onMigrateTask(id, selectedDateKey)}
             onStatusChanged={onStatusChanged}
+            onExternalTouchStart={handleExternalTouchStart}
+            onExternalTouchMove={handleExternalTouchMove}
+            onExternalTouchEnd={handleExternalTouchEnd}
+            externalDraggingTaskId={externalTouchDragInfo?.taskId ?? null}
+            externalTouchDeltaY={externalTouchDeltaY}
           />
         </div>
       </div>

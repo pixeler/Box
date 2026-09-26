@@ -1,10 +1,17 @@
 import React, { useRef, useState, useEffect, useId } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  RiUser3Line,
-  RiInboxLine,
-  RiCalendarEventLine,
-  RiHourglass2Line,
-} from '@remixicon/react';
+  UserIcon,
+  Task01Icon,
+  Calendar03Icon,
+  HourglassIcon,
+  Add01Icon,
+} from '@hugeicons/core-free-icons';
+import { useFocusTimer } from '../focus/FocusTimerContext';
+import { toPersianDigits } from '@/lib/jalali';
+import { useIsMobile } from '@/lib/device';
+import { syncManager, type SyncState } from '@/lib/sync';
+import { RiRefreshLine } from '@remixicon/react';
 
 export type ActiveTab = 'day' | 'todo' | 'focus' | 'notebook' | 'profile' | 'boxes';
 
@@ -13,7 +20,6 @@ interface BottomDockProps {
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd: () => void;
 }
-
 
 /**
  * Generates an accurate normal displacement map for a pill glass shape
@@ -91,25 +97,27 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   onTabChange,
   onOpenAdd,
 }) => {
+  const isMobile = useIsMobile();
+  const { timerState, remainingMinutes } = useFocusTimer();
+  const isFocusRunning = timerState === 'running' || timerState === 'paused';
+  const [syncState, setSyncState] = useState<SyncState>(() => syncManager.getState().state);
+
+  useEffect(() => {
+    return syncManager.subscribe((st) => setSyncState(st));
+  }, []);
 
   const dockRef = useRef<HTMLElement>(null);
   const rawId = useId();
   const filterId = `figma-glass-${rawId.replace(/:/g, '')}`;
   const [dispMapUrl, setDispMapUrl] = useState<string>('');
 
-  // Figma Exact Settings:
-  // Refraction: 68
-  // Depth: 27
-  // Dispersion: 53
-  // Frost: 1 (blur 1.5px)
-  // Splay: 47
-  // Light: -45°, 80%
-
   useEffect(() => {
+    // Skip SVG displacement canvas generation on mobile to boost performance and reduce CPU/GPU lag
+    if (isMobile) return;
     if (!dockRef.current) return;
     const rect = dockRef.current.getBoundingClientRect();
     const w = rect.width || 270;
-    const h = rect.height || 60;
+    const h = rect.height || 68;
     const url = generatePillDisplacementMap(w, h, 27, 47);
     setDispMapUrl(url);
 
@@ -124,15 +132,15 @@ export const BottomDock: React.FC<BottomDockProps> = ({
 
     observer.observe(dockRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [isMobile]);
 
   const refractionScale = 48; // Scaled for CSS displacement coordinates
   const dispersionOffset = 14; // Dispersion: 53 -> RGB chromatic split
 
   return (
     <>
-      {/* SVG Chromatic Dispersion & Refraction Filter */}
-      {dispMapUrl && (
+      {/* SVG Chromatic Dispersion & Refraction Filter (Desktop/Tablet only for max 60fps mobile) */}
+      {!isMobile && dispMapUrl && (
         <svg
           className="absolute w-0 h-0 pointer-events-none"
           aria-hidden="true"
@@ -238,21 +246,21 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       {/* Main Glass Navigation Dock */}
       <nav
         ref={dockRef}
-        className="figma-glass-dock relative flex items-center gap-1.5 h-[60px] px-2 py-1 rounded-full select-none pointer-events-auto transition-all duration-300 overflow-hidden"
+        className="figma-glass-dock relative flex items-center justify-between h-[68px] w-full max-w-[390px] px-2.5 py-1.5 rounded-full select-none pointer-events-auto transition-all duration-300 overflow-hidden"
         style={{
-          // Filter + Frost 1 + Specular Lighting (-45°, 80%)
-          backdropFilter: dispMapUrl
+          // On mobile, use sleek hardware-accelerated CSS blur; on desktop use displacement filter
+          backdropFilter: (!isMobile && dispMapUrl)
             ? `url(#${filterId}) blur(1.5px) saturate(180%)`
-            : 'blur(3px) saturate(180%)',
-          WebkitBackdropFilter: dispMapUrl
+            : 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: (!isMobile && dispMapUrl)
             ? `url(#${filterId}) blur(1.5px) saturate(180%)`
-            : 'blur(3px) saturate(180%)',
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.08) 100%)',
+            : 'blur(20px) saturate(180%)',
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.1) 100%)',
           boxShadow: `
             inset 1px 1px 2px 0px rgba(255, 255, 255, 0.8),
             inset -0.5px -0.5px 1.5px 0px rgba(255, 255, 255, 0.35),
-            0 8px 24px -4px rgba(0, 0, 0, 0.08),
-            0 2px 6px -1px rgba(0, 0, 0, 0.04)
+            0 8px 24px -4px rgba(0, 0, 0, 0.1),
+            0 2px 6px -1px rgba(0, 0, 0, 0.05)
           `,
           border: '1px solid rgba(255, 255, 255, 0.65)',
         }}
@@ -267,44 +275,53 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           }}
         />
 
-        {/* 1. اول از سمت راست: گزینه امروز (Today Button) */}
-        <button
-          type="button"
-          onClick={() => onTabChange('day')}
-          className={`group/today h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            activeTab === 'day'
-              ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
-          }`}
-          title="امروز"
-        >
-          <RiCalendarEventLine
-            className={`w-5 h-5 transition-colors duration-200 ${
-              activeTab === 'day' ? 'text-primary' : 'text-foreground/75'
+        {/* گروه سمت راست: امروز و اینباکس با فاصله کمتر و گرد کامل */}
+        <div className="flex items-center gap-1 shrink-0 z-10">
+          {/* 1. اول از سمت راست: گزینه امروز (Today Button) - گرد کامل */}
+          <button
+            type="button"
+            onClick={() => onTabChange('day')}
+            className={`group/today w-[46px] h-[46px] aspect-square rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center text-xs font-semibold shrink-0 ${
+              activeTab === 'day'
+                ? 'liquid-glass-pill-active text-primary'
+                : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
             }`}
-          />
-        </button>
+            title="امروز"
+          >
+            <HugeiconsIcon
+              icon={Calendar03Icon}
+              size={22}
+              strokeWidth={1.8}
+              className={`transition-colors duration-200 ${
+                activeTab === 'day' ? 'text-primary' : 'text-foreground/75'
+              }`}
+            />
+          </button>
 
-        {/* 2. دوم از راست: گزینه اینباکس (Inbox / To-do Button) */}
-        <button
-          type="button"
-          onClick={() => onTabChange('todo')}
-          className={`group/inbox h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            activeTab === 'todo'
-              ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
-          }`}
-          title="لیست کارها"
-        >
-          <RiInboxLine
-            className={`w-5 h-5 transition-colors duration-200 ${
-              activeTab === 'todo' ? 'text-primary' : 'text-foreground/75'
+          {/* 2. دوم از راست: گزینه اینباکس (Inbox / To-do Button) - گرد کامل */}
+          <button
+            type="button"
+            onClick={() => onTabChange('todo')}
+            className={`group/inbox w-[46px] h-[46px] aspect-square rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center text-xs font-semibold shrink-0 ${
+              activeTab === 'todo'
+                ? 'liquid-glass-pill-active text-primary'
+                : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
             }`}
-          />
-        </button>
+            title="لیست کارها"
+          >
+            <HugeiconsIcon
+              icon={Task01Icon}
+              size={22}
+              strokeWidth={1.8}
+              className={`transition-colors duration-200 ${
+                activeTab === 'todo' ? 'text-primary' : 'text-foreground/75'
+              }`}
+            />
+          </button>
+        </div>
 
-        {/* 3. سوم (وسط): دکمه اضافه کردن (Add Button) */}
-        <div className="relative z-10 group/add p-[1px] rounded-full overflow-hidden transition-colors duration-200 active:scale-95 shrink-0 w-auto min-w-fit">
+        {/* 3. دکمه اضافه کردن (Add Button) - پر کننده فضای کانتینر (fill) */}
+        <div className="relative z-10 group/add flex-1 h-[52px] mx-1 p-[1px] rounded-full overflow-hidden transition-all duration-200 active:scale-95 min-w-[70px]">
           {/* Rotating gradient stroke animation - Dark mode only */}
           <div
             className="hidden dark:block absolute -inset-[150%] rounded-full opacity-0 group-hover/add:opacity-100 transition-opacity duration-300 pointer-events-none animate-spin-slow"
@@ -317,10 +334,11 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           <button
             type="button"
             onClick={onOpenAdd}
-            className="relative z-10 h-[48px] px-5 py-3 rounded-full flex items-center justify-center gap-2 font-medium cursor-pointer select-none whitespace-nowrap theme-glass-pill theme-add-btn transition-colors duration-200 shrink-0 w-auto min-w-fit"
+            className="relative z-10 w-full h-full px-3 py-2 rounded-full flex items-center justify-center gap-1.5 font-medium cursor-pointer select-none whitespace-nowrap theme-glass-pill theme-add-btn transition-colors duration-200"
             title="اضافه کردن (N)"
           >
-            <span className="text-[13px] font-medium tracking-tight whitespace-nowrap">
+            <HugeiconsIcon icon={Add01Icon} size={18} strokeWidth={2.2} className="shrink-0" />
+            <span className="text-[13px] font-semibold tracking-tight whitespace-nowrap">
               اضافه کردن
             </span>
             <kbd className="hidden sm:inline-flex items-center justify-center text-[10px] font-bold text-current/80 bg-black/15 dark:bg-white/20 px-1.5 py-0.5 rounded font-mono tracking-normal select-none shrink-0">
@@ -329,43 +347,67 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           </button>
         </div>
 
-        {/* 4. چهارم: تمرکز (Focus Button) */}
-        <button
-          type="button"
-          onClick={() => onTabChange('focus')}
-          className={`group/focus h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            activeTab === 'focus'
-              ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
-          }`}
-          title="تمرکز"
-        >
-          <RiHourglass2Line
-            className={`w-5 h-5 transition-colors duration-200 ${
-              activeTab === 'focus' ? 'text-primary' : 'text-foreground/75'
+        {/* گروه سمت چپ: تمرکز و پروفایل با فاصله کمتر و گرد کامل */}
+        <div className="flex items-center gap-1 shrink-0 z-10">
+          {/* 4. چهارم: تمرکز (Focus Button) - گرد کامل */}
+          <button
+            type="button"
+            onClick={() => onTabChange('focus')}
+            className={`group/focus w-[46px] h-[46px] aspect-square rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center text-xs font-semibold shrink-0 ${
+              activeTab === 'focus'
+                ? 'liquid-glass-pill-active text-primary'
+                : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
             }`}
-          />
-        </button>
+            title={isFocusRunning ? `تمرکز (${toPersianDigits(remainingMinutes)} دقیقه باقی‌مانده)` : 'تمرکز'}
+          >
+            <div className="relative flex items-center justify-center">
+              <HugeiconsIcon
+                icon={HourglassIcon}
+                size={22}
+                strokeWidth={1.8}
+                className={`transition-colors duration-200 ${
+                  activeTab === 'focus' ? 'text-primary' : 'text-foreground/75'
+                }`}
+              />
+              {isFocusRunning && (
+                <span
+                  className="absolute -top-1.5 -left-2.5 min-w-[17px] h-[17px] px-1 rounded-full text-white text-[9px] font-bold flex items-center justify-center bg-rose-500 font-sans leading-none z-20 shadow-xs"
+                >
+                  {toPersianDigits(remainingMinutes)}
+                </span>
+              )}
+            </div>
+          </button>
 
-        {/* 5. پنجم (سمت چپ): پروفایل و تنظیمات (Profile Button) */}
-        <button
-          type="button"
-          onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}
-          className={`group/profile h-11 px-3.5 rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center gap-1.5 text-xs font-semibold relative z-10 ${
-            activeTab === 'profile'
-              ? 'liquid-glass-pill-active text-primary'
-              : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
-          }`}
-          title="پروفایل و تنظیمات"
-        >
-          <RiUser3Line
-            className={`w-5 h-5 transition-colors duration-200 ${
-              activeTab === 'profile' ? 'text-primary' : 'text-foreground/75'
+          {/* 5. پنجم (سمت چپ): پروفایل و تنظیمات (Profile Button) - گرد کامل */}
+          <button
+            type="button"
+            onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}
+            className={`group/profile relative w-[46px] h-[46px] aspect-square rounded-full transition-colors duration-200 cursor-pointer flex items-center justify-center text-xs font-semibold shrink-0 ${
+              activeTab === 'profile'
+                ? 'liquid-glass-pill-active text-primary'
+                : 'text-foreground/75 hover:text-foreground hover:bg-white/15 dark:hover:bg-white/10 active:scale-95'
             }`}
-          />
-        </button>
+            title="پروفایل و تنظیمات"
+          >
+            <div className="relative flex items-center justify-center">
+              <HugeiconsIcon
+                icon={UserIcon}
+                size={22}
+                strokeWidth={1.8}
+                className={`transition-colors duration-200 ${
+                  activeTab === 'profile' ? 'text-primary' : 'text-foreground/75'
+                }`}
+              />
+              {syncState === 'syncing' && (
+                <span className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full bg-card border border-emerald-500/50 flex items-center justify-center shadow-xs">
+                  <RiRefreshLine className="w-2.5 h-2.5 text-emerald-500 animate-spin" />
+                </span>
+              )}
+            </div>
+          </button>
+        </div>
       </nav>
     </>
   );
 };
-

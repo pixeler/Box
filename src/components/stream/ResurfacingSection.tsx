@@ -15,6 +15,11 @@ interface ResurfacingSectionProps {
   selectedDateKey?: string;
   onMigrateToCurrentDate?: (taskId: string) => void;
   onStatusChanged: () => void;
+  onExternalTouchStart?: (e: React.TouchEvent, task: Task, source: 'overdue' | 'future') => void;
+  onExternalTouchMove?: (e: React.TouchEvent) => void;
+  onExternalTouchEnd?: () => void;
+  externalDraggingTaskId?: string | null;
+  externalTouchDeltaY?: number;
 }
 
 export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
@@ -23,8 +28,13 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
   futureEvents,
   tagsMap,
   selectedDateKey,
-  onMigrateToCurrentDate: _onMigrateToCurrentDate,
+  onMigrateToCurrentDate,
   onStatusChanged,
+  onExternalTouchStart,
+  onExternalTouchMove,
+  onExternalTouchEnd,
+  externalDraggingTaskId,
+  externalTouchDeltaY = 0,
 }) => {
   const [openPrevious, setOpenPrevious] = useState(() => overdueTasks.length > 0);
   const [openFuture, setOpenFuture] = useState(false);
@@ -185,6 +195,10 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                   return (
                     <React.Fragment key={task.id}>
                       <div
+                        onTouchStart={(e) => onExternalTouchStart?.(e, task, 'overdue')}
+                        onTouchMove={onExternalTouchMove}
+                        onTouchEnd={onExternalTouchEnd}
+                        onTouchCancel={onExternalTouchEnd}
                         onDragOver={(e) => handleItemDragOver(e, idx)}
                         onDrop={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -192,8 +206,23 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                           const targetSlot = isLowerHalf ? idx + 1 : idx;
                           handleDropAtSlot(e, targetSlot);
                         }}
+                        style={
+                          externalDraggingTaskId === task.id
+                            ? {
+                                transform: `translate3d(0, ${externalTouchDeltaY}px, 0) scale(1.03)`,
+                                zIndex: 60,
+                                boxShadow:
+                                  '0 20px 35px -8px rgba(0, 0, 0, 0.22), 0 10px 18px -4px rgba(0, 0, 0, 0.12), 0 0 0 1.5px rgba(99, 102, 241, 0.35)',
+                                pointerEvents: 'none',
+                              }
+                            : undefined
+                        }
                         className={`transition-opacity duration-150 relative w-full ${
-                          isDragging ? 'opacity-30' : 'opacity-100'
+                          externalDraggingTaskId === task.id
+                            ? 'transition-none select-none ring-2 ring-primary/30 rounded-lg'
+                            : isDragging
+                            ? 'opacity-30'
+                            : 'opacity-100'
                         }`}
                       >
                         <TaskItemRow
@@ -201,6 +230,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                           tagsMap={tagsMap}
                           currentDateKey={selectedDateKey}
                           onStatusChanged={onStatusChanged}
+                          onMigrate={onMigrateToCurrentDate}
                           draggable
                           onDragStart={(e) => handleDragStart(e, idx, task)}
                           onDragEnd={() => {
@@ -267,32 +297,55 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                       const isLast = idx === futureItems.length - 1;
                       if (item.type === 'task') {
                         return (
-                          <TaskItemRow
+                          <div
                             key={item.data.id}
-                            task={item.data}
-                            tagsMap={tagsMap}
-                            currentDateKey={selectedDateKey}
-                            onStatusChanged={onStatusChanged}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.effectAllowed = 'move';
-                              e.dataTransfer.setData('text/plain', `migrate:${item.data.id}`);
-                              e.dataTransfer.setData('application/x-task-id', item.data.id);
-                              try {
-                                e.dataTransfer.setData(
-                                  'application/json',
-                                  JSON.stringify({
-                                    type: 'task',
-                                    taskId: item.data.id,
-                                    title: item.data.title,
-                                    durationMinutes: item.data.duration_minutes || 60,
-                                  })
-                                );
-                              } catch {}
-                              setupDragCardGhost(e);
-                            }}
-                            isLast={isLast}
-                          />
+                            onTouchStart={(e) => onExternalTouchStart?.(e, item.data, 'future')}
+                            onTouchMove={onExternalTouchMove}
+                            onTouchEnd={onExternalTouchEnd}
+                            onTouchCancel={onExternalTouchEnd}
+                            style={
+                              externalDraggingTaskId === item.data.id
+                                ? {
+                                    transform: `translate3d(0, ${externalTouchDeltaY}px, 0) scale(1.03)`,
+                                    zIndex: 60,
+                                    boxShadow:
+                                      '0 20px 35px -8px rgba(0, 0, 0, 0.22), 0 10px 18px -4px rgba(0, 0, 0, 0.12), 0 0 0 1.5px rgba(99, 102, 241, 0.35)',
+                                    pointerEvents: 'none',
+                                  }
+                                : undefined
+                            }
+                            className={`transition-opacity duration-150 relative w-full ${
+                              externalDraggingTaskId === item.data.id
+                                ? 'transition-none select-none ring-2 ring-primary/30 rounded-lg'
+                                : 'opacity-100'
+                            }`}
+                          >
+                            <TaskItemRow
+                              task={item.data}
+                              tagsMap={tagsMap}
+                              currentDateKey={selectedDateKey}
+                              onStatusChanged={onStatusChanged}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.effectAllowed = 'move';
+                                e.dataTransfer.setData('text/plain', `migrate:${item.data.id}`);
+                                e.dataTransfer.setData('application/x-task-id', item.data.id);
+                                try {
+                                  e.dataTransfer.setData(
+                                    'application/json',
+                                    JSON.stringify({
+                                      type: 'task',
+                                      taskId: item.data.id,
+                                      title: item.data.title,
+                                      durationMinutes: item.data.duration_minutes || 60,
+                                    })
+                                  );
+                                } catch {}
+                                setupDragCardGhost(e);
+                              }}
+                              isLast={isLast}
+                            />
+                          </div>
                         );
                       }
                       return (
