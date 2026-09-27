@@ -136,21 +136,7 @@ export async function checkAndSeedDesignDemoData() {
       tag_ids: [],
     });
 
-    // 4. Event 1 (مصرف دارو)
-    const entry3 = await entryRepo.create({
-      raw_text: 'مصرف دارو ۱۲:۰۰ هرروز',
-      source: 'text',
-      processed: true,
-    });
-    await eventRepo.create({
-      entry_id: entry3.id,
-      title: 'مصرف دارو',
-      start_at: '12:00',
-      recurrence_rule: 'هرروز',
-      tag_ids: [],
-    });
-
-    // 5. Overdue Task (از روزهای قبل)
+    // 4. Overdue Task (از روزهای قبل)
     await taskRepo.create({
       entry_id: null,
       title: 'بررسی فیدبک‌های کاربر',
@@ -160,7 +146,7 @@ export async function checkAndSeedDesignDemoData() {
       tag_ids: [],
     });
 
-    // 6. Future Task (برای بعدا)
+    // 5. Future Task (برای بعدا)
     await taskRepo.create({
       entry_id: null,
       title: 'آماده‌سازی خروجی نهایی',
@@ -171,9 +157,69 @@ export async function checkAndSeedDesignDemoData() {
     });
 
     localStorage.setItem('second_brain_demo_seeded', 'true');
-
   } catch (err) {
-    console.error('Failed to seed design demo data:', err);
+    console.warn('Failed to seed design demo data:', err);
+  } finally {
+    await cleanupDuplicatesAndObsoleteItems();
+  }
+}
+
+/**
+ * پاکسازی موارد تکراری و رویدادهای منسوخ‌شده (مانند مصرف دارو)
+ */
+export async function cleanupDuplicatesAndObsoleteItems() {
+  try {
+    const { db } = await import('./db/dexie');
+    const { markIdAsDeleted } = await import('./storage');
+
+    // 1. حذف رویدادهای «مصرف دارو»
+    const allEvents = await eventRepo.list();
+    for (const ev of allEvents) {
+      if (ev.title.includes('مصرف دارو')) {
+        await db.events.delete(ev.id);
+        markIdAsDeleted(ev.id);
+      }
+    }
+
+    // 2. حذف تسک‌های کاملاً تکراری
+    const allTasks = await db.tasks.toArray();
+
+    const seen = new Map<string, typeof allTasks[0]>();
+    const idsToDelete: string[] = [];
+
+    for (const t of allTasks) {
+      if (t.status === 'dropped') continue;
+
+      // کلید یکتا بر اساس عنوان، قوانین تکرار یا تاریخ
+      const cleanTitle = t.title.trim().toLowerCase();
+      const normRecurrence = (t.recurrence_rule || 'none').trim();
+      const normDate = (t.due_date || '').trim();
+
+      const uniqueKey = `${cleanTitle}|${normRecurrence}|${normRecurrence !== 'none' ? '' : normDate}`;
+
+      if (seen.has(uniqueKey)) {
+        const existing = seen.get(uniqueKey)!;
+        // نگه‌داشتن تسکی که وضعیت انجام بیشتری دارد یا جدیدتر است
+        const existingDoneCount = (existing.done_dates || []).length;
+        const currentDoneCount = (t.done_dates || []).length;
+
+        if (currentDoneCount > existingDoneCount || (!existingDoneCount && t.status === 'done' && existing.status !== 'done')) {
+          idsToDelete.push(existing.id);
+          seen.set(uniqueKey, t);
+        } else {
+          idsToDelete.push(t.id);
+        }
+      } else {
+        seen.set(uniqueKey, t);
+      }
+    }
+
+    for (const id of idsToDelete) {
+      await db.tasks.delete(id);
+      markIdAsDeleted(id);
+    }
+  } catch (err) {
+    console.warn('cleanupDuplicatesAndObsoleteItems failed:', err);
   }
 }
 

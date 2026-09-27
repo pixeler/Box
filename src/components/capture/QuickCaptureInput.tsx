@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import type { Tag, Box } from '@/types/models';
+import type { Tag, Box, TimeOfDay } from '@/types/models';
 import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { extractQuickTokens } from '@/lib/quick-parser';
 import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
+import { TimeOfDayPickerSheet } from '../pickers/TimeOfDayPickerSheet';
+import { TagPickerSheet } from '../pickers/TagPickerSheet';
+import { HugeiconsIcon } from '@hugeicons/react';
+import {
+  Clock01Icon,
+  EggFriedIcon,
+  Sun01Icon,
+  MoonStarIcon,
+} from '@hugeicons/core-free-icons';
 
 const BlockNoteEditor = React.lazy(() =>
   import('@/components/editor/BlockNoteEditor').then((m) => ({ default: m.BlockNoteEditor }))
@@ -42,6 +51,7 @@ interface QuickCaptureInputProps {
   onClose?: () => void;
   onOpen?: () => void;
   defaultBoxId?: string | null;
+  initialTimeOfDay?: TimeOfDay | null;
 }
 
 type CaptureTab = 'task' | 'note';
@@ -53,6 +63,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   onClose,
   onOpen,
   defaultBoxId,
+  initialTimeOfDay,
 }) => {
   const [activeTab, _setActiveTab] = useState<CaptureTab>('task');
   void _setActiveTab;
@@ -65,6 +76,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const [recurrenceStartDate, setRecurrenceStartDate] = useState<string | null>(null);
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<string | null>(null);
   const [priority, setPriority] = useState<1 | 2 | 3 | undefined>(undefined);
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(initialTimeOfDay || 'anytime');
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
   const [boxes, setBoxes] = useState<Box[]>([]);
@@ -74,10 +86,12 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const [isClosing, setIsClosing] = useState(false);
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [timeOfDayPickerOpen, setTimeOfDayPickerOpen] = useState(false);
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
   const [priorityPickerOpen, setPriorityPickerOpen] = useState(false);
   const [reminder, setReminder] = useState<string | null>(null);
   const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
 
   // Slash commands and # tag autocomplete states
   const [tagSuggestQuery, setTagSuggestQuery] = useState<string | null>(null);
@@ -99,6 +113,12 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
   const todayKey = getTodayJalaliKey();
 
+  useEffect(() => {
+    if (isOpen) {
+      setTimeOfDay(initialTimeOfDay || 'anytime');
+    }
+  }, [isOpen, initialTimeOfDay]);
+
   // Parse title tokens in real time (for task mode)
   const parsedResult = useMemo(() => {
     if (activeTab !== 'task') {
@@ -115,7 +135,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       setTagsMap(m);
     });
     boxRepo.list().then(setBoxes);
-  }, [isOpen]);
+  }, [isOpen, tagPickerOpen]);
 
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -291,8 +311,16 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
             setPriorityPickerOpen(false);
             return;
           }
+          if (timeOfDayPickerOpen) {
+            setTimeOfDayPickerOpen(false);
+            return;
+          }
           if (reminderPickerOpen) {
             setReminderPickerOpen(false);
+            return;
+          }
+          if (tagPickerOpen) {
+            setTagPickerOpen(false);
             return;
           }
           e.preventDefault();
@@ -443,6 +471,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setRecurrenceRule(null);
     setRecurrenceStartDate(null);
     setRecurrenceEndDate(null);
+    setTimeOfDay(initialTimeOfDay || 'anytime');
+    setTimeOfDayPickerOpen(false);
     setTagSuggestQuery(null);
     setCommandPaletteQuery(null);
     hadDateTokenRef.current = false;
@@ -507,6 +537,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           tag_ids: finalTagIds,
           pinned: isPinned,
           reminder: reminder || undefined,
+          time_of_day: timeOfDay !== 'anytime' ? timeOfDay : (tokensResult.timeOfDay || 'anytime'),
         });
         createdId = createdTask?.id;
         toast.show(
@@ -646,7 +677,12 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   if (!isOpen && !isClosing) return null;
 
   const isNoteFullscreen = isFullscreen && activeTab === 'note';
-  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  const portalTarget =
+    typeof document !== 'undefined'
+      ? isNoteFullscreen
+        ? document.body
+        : (document.getElementById('app-main') || document.body)
+      : null;
   if (!portalTarget) return null;
 
   return createPortal(
@@ -654,7 +690,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       className={
         isNoteFullscreen
           ? 'fixed inset-0 z-[100] w-screen h-screen flex flex-col bg-black/65 sm:backdrop-blur-xs select-none'
-          : `fixed inset-0 z-[100] flex flex-col justify-end bg-black/60 sm:backdrop-blur-xs select-none ${
+          : `absolute inset-0 z-50 flex flex-col justify-end bg-black/60 sm:backdrop-blur-xs select-none ${
               isClosing ? 'animate-panel-backdrop-out' : 'animate-panel-backdrop-in'
             }`
       }
@@ -671,7 +707,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         className={`bg-card text-card-foreground font-sans text-right flex flex-col overflow-hidden will-change-transform ${
           isNoteFullscreen
             ? 'fixed inset-0 z-[101] w-screen h-screen pb-6 px-6 md:px-14 md:py-8 flex flex-col bg-card'
-            : `t-panel-slide relative w-full sm:max-w-[460px] sm:mx-auto rounded-t-[28px] shadow-2xl pb-4 px-5 pt-4 max-h-[92%] border-t border-border/80 dark:border-white/10 ${
+            : `t-panel-slide relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-4 max-h-[92%] border-t border-border/80 dark:border-white/10 ${
                 isClosing ? 'animate-panel-out' : 'animate-panel-in'
               }`
         }`}
@@ -884,7 +920,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* برچسب */}
                 <button
                   type="button"
-                  onClick={() => setTagSuggestQuery((prev) => (prev !== null ? null : ''))}
+                  onClick={() => setTagPickerOpen(true)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -1037,10 +1073,44 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   </span>
                 </button>
 
+                {/* بخش زمانی روز (صبح / ظهر / عصر و شب / هر زمان) */}
+                <button
+                  type="button"
+                  onClick={() => setTimeOfDayPickerOpen(true)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                    timeOfDay && timeOfDay !== 'anytime'
+                      ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
+                      : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <HugeiconsIcon
+                    icon={
+                      timeOfDay === 'morning'
+                        ? EggFriedIcon
+                        : timeOfDay === 'day'
+                        ? Sun01Icon
+                        : timeOfDay === 'evening'
+                        ? MoonStarIcon
+                        : Clock01Icon
+                    }
+                    size={14}
+                    className={timeOfDay !== 'anytime' ? 'text-foreground' : 'text-muted-foreground'}
+                  />
+                  <span>
+                    {timeOfDay === 'morning'
+                      ? 'صبح'
+                      : timeOfDay === 'day'
+                      ? 'ظهر'
+                      : timeOfDay === 'evening'
+                      ? 'عصر و شب'
+                      : 'هر زمان'}
+                  </span>
+                </button>
+
                 {/* برچسب */}
                 <button
                   type="button"
-                  onClick={() => setTagSuggestQuery((prev) => (prev !== null ? null : ''))}
+                  onClick={() => setTagPickerOpen(true)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -1189,6 +1259,14 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           }}
         />
 
+        {/* Time of Day Picker Sheet */}
+        <TimeOfDayPickerSheet
+          isOpen={timeOfDayPickerOpen}
+          onClose={() => setTimeOfDayPickerOpen(false)}
+          value={timeOfDay}
+          onChange={(tod) => setTimeOfDay(tod)}
+        />
+
         {/* Box Picker Sheet */}
         <BoxPickerSheet
           isOpen={boxPickerOpen}
@@ -1204,6 +1282,18 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           onClose={() => setReminderPickerOpen(false)}
           value={reminder}
           onChange={(r) => setReminder(r)}
+        />
+
+        {/* Tag Picker Sheet */}
+        <TagPickerSheet
+          isOpen={tagPickerOpen}
+          onClose={() => setTagPickerOpen(false)}
+          selectedTagIds={tagIds}
+          onToggleTag={(tId) => {
+            setTagIds((prev) =>
+              prev.includes(tId) ? prev.filter((id) => id !== tId) : [...prev, tId]
+            );
+          }}
         />
       </div>
     </div>,

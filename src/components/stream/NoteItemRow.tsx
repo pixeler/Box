@@ -9,6 +9,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { NoteEditModal } from '@/components/notebook/NoteEditModal';
+import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
 import { stripMarkdownForPreview } from '@/lib/markdown';
 import { useIsMobile } from '@/lib/device';
 import {
@@ -47,6 +48,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = React.memo(({
   const isMobile = useIsMobile();
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const isPinned = !!note.pinned;
 
   const noteTitle = note.title?.trim() || '';
@@ -69,7 +71,11 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = React.memo(({
   const displayDescription =
     displayTitle === note.body?.trim() && !note.description ? '' : noteDescription;
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     await noteRepo.softDelete(note.id);
     onStatusChanged();
   };
@@ -234,6 +240,17 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = React.memo(({
           onSaved={onStatusChanged}
         />
       )}
+
+      {/* Delete Confirm Sheet */}
+      <DeleteConfirmSheet
+        isOpen={deleteConfirmOpen}
+        title="حذف یادداشت"
+        itemTitle={displayTitle}
+        description="آیا از حذف این یادداشت اطمینان دارید؟ این عملیات قابل بازگشت نیست."
+        confirmLabel="حذف یادداشت"
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteConfirmOpen(false)}
+      />
     </>
   );
 });

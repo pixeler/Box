@@ -7,6 +7,7 @@ export interface TaskRepository {
   list(filter?: TaskFilter): Promise<Task[]>;
   toggleDone(id: string, dateKey?: string): Promise<Task>;
   softDelete(id: string): Promise<void>; // status -> 'dropped'
+  skipDate(id: string, dateKey: string): Promise<Task>;
   migrate(id: string, newDueDate: string): Promise<Task>;
   getOverdueOpen(beforeDate: string): Promise<Task[]>;
   getFutureOpen(afterDate: string): Promise<Task[]>;

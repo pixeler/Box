@@ -28,14 +28,17 @@ import {
   getFullPersianWeekdayName,
   extractDateOnly,
   addJalaliDays,
+  formatJalaliDisplay,
+  toPersianDigits,
 } from './lib/jalali';
 import { isOfficialHoliday } from './lib/holidays';
 import { isTaskOccurringOnDate } from './lib/recurrence';
 import { checkAndSeedDesignDemoData } from './lib/seed';
 import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
-import type { Task, EventItem, Note, Tag } from './types/models';
+import type { Task, EventItem, Note, Tag, TimeOfDay } from './types/models';
 import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
-import { getDailyQuote } from './lib/quotes';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PartyIcon } from '@hugeicons/core-free-icons';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('day');
@@ -67,6 +70,7 @@ export function App() {
   const [_syncState, setSyncState] = useState<SyncState>('idle');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
+  const [quickCaptureTimeOfDay, setQuickCaptureTimeOfDay] = useState<TimeOfDay | undefined>(undefined);
   const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
 
   // Daily 5 Tasks Target state
@@ -336,6 +340,13 @@ export function App() {
     fetchDayData(selectedDateKey);
   }, [selectedDateKey, fetchDayData]);
 
+  // Auto-refresh when cloud sync updates local database in background or via Realtime
+  useEffect(() => {
+    return syncManager.onDataChange(() => {
+      fetchDayData(selectedDateKey);
+    });
+  }, [fetchDayData, selectedDateKey]);
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -393,11 +404,11 @@ export function App() {
               className="w-full shrink-0 select-none pb-0 pt-3 overflow-hidden"
             >
               {/* Top Greeting Header */}
-              <div className="w-full pb-2 px-6">
-                <div className="flex items-center justify-between min-h-[36px]">
-                  {/* Right side: Weekday Name + Teal/Red Dot */}
+              <div className="w-full pb-2 px-6 flex items-center justify-between min-h-[44px]">
+                {/* Right side: Weekday Name + Dot, and Date beneath it (Right Aligned) */}
+                <div className="flex flex-col text-right items-start select-none">
                   <div className="flex items-center gap-1.5">
-                    <h1 className="text-[21px] font-bold text-foreground tracking-tight">
+                    <h1 className="text-[21px] font-bold text-foreground tracking-tight leading-snug">
                       {currentWeekdayName}
                     </h1>
                     <span
@@ -408,10 +419,23 @@ export function App() {
                       }`}
                     />
                   </div>
+                  <span className="text-[12.5px] text-muted-foreground font-normal mt-0.5">
+                    {formatJalaliDisplay(parseJalaliKey(selectedDateKey))}
+                  </span>
                 </div>
-                <p className="text-[13px] text-muted-foreground font-normal mt-1 text-right truncate" title={getDailyQuote(selectedDateKey)}>
-                  {getDailyQuote(selectedDateKey)}
-                </p>
+
+                {/* Left side: Karma / Celebration Badge */}
+                <div
+                  ref={goalPillRef}
+                  dir="ltr"
+                  className="h-[28px] inline-flex items-center justify-center gap-1 px-2.5 rounded-full bg-card text-card-foreground border border-border/50 dark:border-white/10 shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none shrink-0"
+                  title={`هدف روزانه: ${toPersianDigits(tasks.length > 0 ? tasks.length : 5)} تسک (${toPersianDigits(todayDoneCount)} از ${toPersianDigits(tasks.length > 0 ? tasks.length : 5)} انجام شد)`}
+                >
+                  <HugeiconsIcon icon={PartyIcon} size={14} strokeWidth={1.8} className="shrink-0 text-muted-foreground/80" />
+                  <span className="font-semibold text-[11.5px] leading-none pt-0.5 text-foreground/80 tabular-nums">
+                    {toPersianDigits(todayDoneCount)}/{toPersianDigits(tasks.length > 0 ? tasks.length : 5)}
+                  </span>
+                </div>
               </div>
 
               {/* Weekly ribbon calendar */}
@@ -450,7 +474,10 @@ export function App() {
                 onStatusChanged={loadDayData}
                 onMigrateTask={handleMigrateTask}
                 onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
-                onOpenAdd={() => setQuickCaptureOpen(true)}
+                onOpenAdd={(tod) => {
+                  setQuickCaptureTimeOfDay(tod || 'anytime');
+                  setQuickCaptureOpen(true);
+                }}
                 newlyAddedTaskId={newlyAddedTaskId}
                 isLoading={isInitialLoading}
                 todayDoneCount={todayDoneCount}
@@ -529,9 +556,11 @@ export function App() {
         onClose={() => {
           setQuickCaptureOpen(false);
           setDefaultBoxForAdd(null);
+          setQuickCaptureTimeOfDay(undefined);
         }}
         onOpen={() => setQuickCaptureOpen(true)}
         defaultBoxId={defaultBoxForAdd}
+        initialTimeOfDay={quickCaptureTimeOfDay}
       />
 
       {/* Search Modal */}

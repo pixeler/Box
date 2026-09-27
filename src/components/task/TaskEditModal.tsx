@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import type { Task, Tag, Box } from '@/types/models';
+import type { Task, Tag, Box, TimeOfDay } from '@/types/models';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Clock01Icon, Sun01Icon } from '@hugeicons/core-free-icons';
+import { MorningSunriseIcon, EveningMoonIcon } from '../stream/timeOfDayConfig';
 import { taskRepo, tagRepo, boxRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { JalaliDatePicker } from '@/components/calendar/JalaliDatePicker';
-import { TagPickerPopover } from '../tags/TagPickerPopover';
+import { TagPickerSheet } from '../pickers/TagPickerSheet';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
+import { RecurringDeleteSheet } from './RecurringDeleteSheet';
+import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
 import { playTaskDoneSound } from '@/lib/sound';
 import {
   RiCloseLine,
@@ -62,6 +67,9 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
   const [priorityPickerOpen, setPriorityPickerOpen] = useState(false);
   const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
+  const [recurringDeleteOpen, setRecurringDeleteOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(task?.time_of_day || 'anytime');
 
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,7 +104,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       setTagsMap(m);
     });
     boxRepo.list().then(setBoxes);
-  }, []);
+  }, [isOpen, tagPickerOpen]);
 
   // Sync only on opening or task ID change
   useEffect(() => {
@@ -118,6 +126,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       setIsDone(task.status === 'done');
       setIsPinned(task.pinned || false);
       setReminder(task.reminder || null);
+      setTimeOfDay(task.time_of_day || 'anytime');
       setIsClosing(false);
       setMoreMenuOpen(false);
 
@@ -218,6 +227,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       tagIds?: string[];
       boxId?: string | null;
       reminder?: string | null;
+      timeOfDay?: TimeOfDay;
     }) => {
       if (!task) return;
 
@@ -233,6 +243,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
       const newTagIds = updates.tagIds !== undefined ? updates.tagIds : tagIds;
       const newBoxId = updates.boxId !== undefined ? updates.boxId : selectedBox;
       const newReminder = updates.reminder !== undefined ? updates.reminder : reminder;
+      const newTimeOfDay = updates.timeOfDay !== undefined ? updates.timeOfDay : timeOfDay;
 
       if (!newTitle) return;
 
@@ -243,7 +254,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
         newPriority !== lastSavedRef.current.priority ||
         JSON.stringify(newTagIds) !== JSON.stringify(lastSavedRef.current.tagIds) ||
         newBoxId !== (lastSavedRef.current.boxId || '') ||
-        newReminder !== lastSavedRef.current.reminder;
+        newReminder !== lastSavedRef.current.reminder ||
+        newTimeOfDay !== task.time_of_day;
 
       if (!changed) return;
 
@@ -261,6 +273,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           tag_ids: newTagIds,
           box_id: newBoxId || null,
           reminder: newReminder || undefined,
+          time_of_day: newTimeOfDay,
         });
 
         lastSavedRef.current = {
@@ -334,13 +347,36 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
     onSaved();
   };
 
-  const handleDelete = async () => {
+  const isRecurring = Boolean(task?.recurrence_rule && task.recurrence_rule !== 'none');
+
+  const handleDelete = () => {
     if (!task) return;
-    if (window.confirm('آیا از حذف این تسک اطمینان دارید؟')) {
-      await taskRepo.softDelete(task.id);
-      onSaved();
-      handleClose();
+    if (isRecurring) {
+      setRecurringDeleteOpen(true);
+      return;
     }
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmNormalDelete = async () => {
+    if (!task) return;
+    await taskRepo.softDelete(task.id);
+    onSaved();
+    handleClose();
+  };
+
+  const handleDeleteSingleOccurrence = async () => {
+    if (!task) return;
+    await taskRepo.skipDate(task.id, dueDate || todayKey);
+    onSaved();
+    handleClose();
+  };
+
+  const handleDeleteAllOccurrences = async () => {
+    if (!task) return;
+    await taskRepo.softDelete(task.id);
+    onSaved();
+    handleClose();
   };
 
   if (!isOpen && !isClosing) return null;
@@ -584,7 +620,43 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <span className="text-xs text-muted-foreground">انتخاب</span>
           </button>
 
-          {/* Row 6: Labels / Tags */}
+          {/* Row 6: Time of Day (بخش روز) */}
+          <div className="flex flex-col gap-2 p-3.5 sm:p-4 bg-muted/20 dark:bg-white/2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">بخش روز</span>
+              <span>دسته‌بندی زمانی</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 p-1 bg-secondary/60 dark:bg-white/5 rounded-xl border border-border/50">
+              {[
+                { id: 'anytime' as const, label: 'هر زمان', icon: Clock01Icon, activeClass: 'bg-card text-foreground shadow-xs font-semibold' },
+                { id: 'morning' as const, label: 'صبح', icon: MorningSunriseIcon, activeClass: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 font-semibold shadow-xs' },
+                { id: 'day' as const, label: 'ظهر', icon: Sun01Icon, activeClass: 'bg-sky-500/20 text-sky-600 dark:text-sky-400 font-semibold shadow-xs' },
+                { id: 'evening' as const, label: 'عصر و شب', icon: EveningMoonIcon, activeClass: 'bg-purple-500/20 text-purple-600 dark:text-purple-400 font-semibold shadow-xs' },
+              ].map((item) => {
+                const isSelected = (timeOfDay || 'anytime') === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setTimeOfDay(item.id);
+                      performSave({ timeOfDay: item.id });
+                    }}
+                    className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs transition-all cursor-pointer ${
+                      isSelected
+                        ? item.activeClass
+                        : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <HugeiconsIcon icon={item.icon} size={18} className="mb-1" />
+                    <span className="text-[11px] leading-tight truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Row 7: Labels / Tags */}
           <button
             type="button"
             onClick={() => setTagPickerOpen(true)}
@@ -716,21 +788,13 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           />
         )}
 
-        {/* Tag Picker Modal */}
-        {tagPickerOpen && (
-          <div
-            className="absolute inset-0 z-60 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs"
-            onClick={() => setTagPickerOpen(false)}
-          >
-            <div onClick={(e) => e.stopPropagation()}>
-              <TagPickerPopover
-                selectedTagIds={tagIds}
-                onToggleTag={handleToggleTag}
-                onClose={() => setTagPickerOpen(false)}
-              />
-            </div>
-          </div>
-        )}
+        {/* Tag Picker Sheet */}
+        <TagPickerSheet
+          isOpen={tagPickerOpen}
+          onClose={() => setTagPickerOpen(false)}
+          selectedTagIds={tagIds}
+          onToggleTag={handleToggleTag}
+        />
 
         {/* Priority Picker Sheet */}
         <PriorityPickerSheet
@@ -764,6 +828,26 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             setReminder(r);
             performSave({ reminder: r });
           }}
+        />
+
+        {/* Recurring Delete Sheet */}
+        <RecurringDeleteSheet
+          isOpen={recurringDeleteOpen}
+          taskTitle={title || task.title}
+          onDeleteSingle={handleDeleteSingleOccurrence}
+          onDeleteAll={handleDeleteAllOccurrences}
+          onClose={() => setRecurringDeleteOpen(false)}
+        />
+
+        {/* Normal Delete Confirm Sheet */}
+        <DeleteConfirmSheet
+          isOpen={deleteConfirmOpen}
+          title="حذف تسک"
+          itemTitle={title || task.title}
+          description="آیا از حذف این تسک اطمینان دارید؟ این عملیات قابل بازگشت نیست."
+          confirmLabel="حذف تسک"
+          onConfirm={handleConfirmNormalDelete}
+          onClose={() => setDeleteConfirmOpen(false)}
         />
       </div>
     </div>,

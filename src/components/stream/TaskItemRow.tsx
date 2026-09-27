@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Task, Tag } from '@/types/models';
+import type { Task, Tag, TimeOfDay } from '@/types/models';
 import { taskRepo } from '@/repositories';
 import {
   getTodayJalaliKey,
@@ -20,10 +20,17 @@ import {
   MenuSectionLabel,
 } from '@/components/ui/context-menu';
 import { TaskEditModal } from '@/components/task/TaskEditModal';
+import { RecurringDeleteSheet } from '@/components/task/RecurringDeleteSheet';
+import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
 import { JalaliDatePicker } from '@/components/calendar/JalaliDatePicker';
 import { useIsMobile } from '@/lib/device';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CalendarUpload02Icon } from '@hugeicons/core-free-icons';
+import {
+  CalendarUpload02Icon,
+  Clock01Icon,
+  Sun01Icon,
+} from '@hugeicons/core-free-icons';
+import { MorningSunriseIcon, EveningMoonIcon } from './timeOfDayConfig';
 import {
   RiCheckLine,
   RiMoreLine,
@@ -78,6 +85,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [recurringDeleteOpen, setRecurringDeleteOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const isDone = task.status === 'done' || isCompleting;
   const isPinned = !!task.pinned;
@@ -121,8 +130,29 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
   };
 
   const handleSoftDelete = async () => {
+    if (isRecurring) {
+      setRecurringDeleteOpen(true);
+      return;
+    }
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmNormalDelete = async () => {
     await taskRepo.softDelete(task.id);
     onStatusChanged();
+    toast.show('تسک حذف شد');
+  };
+
+  const handleDeleteSingleOccurrence = async () => {
+    await taskRepo.skipDate(task.id, currentDateKey || todayKey);
+    onStatusChanged();
+    toast.show('تسک برای امروز حذف شد');
+  };
+
+  const handleDeleteAllOccurrences = async () => {
+    await taskRepo.softDelete(task.id);
+    onStatusChanged();
+    toast.show('تسک تکرارشونده حذف شد');
   };
 
   const handleDuplicate = async () => {
@@ -137,6 +167,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
 
   const handleSetPriority = async (newPriority: 1 | 2 | 3 | undefined) => {
     await taskRepo.update(task.id, { priority: newPriority });
+    onStatusChanged();
+  };
+
+  const handleSetTimeOfDay = async (newTimeOfDay: TimeOfDay) => {
+    await taskRepo.update(task.id, { time_of_day: newTimeOfDay });
     onStatusChanged();
   };
 
@@ -519,6 +554,40 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
 
           <ContextMenuSeparator />
 
+          {/* Time of Day Section */}
+          <div className="px-2 py-1.5">
+            <MenuSectionLabel>بخش روز</MenuSectionLabel>
+            <div className="flex items-center gap-1 mt-1 justify-between">
+              {[
+                { id: 'anytime' as const, label: 'هر زمان', icon: Clock01Icon },
+                { id: 'morning' as const, label: 'صبح', icon: MorningSunriseIcon },
+                { id: 'day' as const, label: 'ظهر', icon: Sun01Icon },
+                { id: 'evening' as const, label: 'عصر و شب', icon: EveningMoonIcon },
+              ].map((item) => {
+                const isSelected = (task.time_of_day || 'anytime') === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    title={item.label}
+                    onClick={() => {
+                      handleSetTimeOfDay(item.id);
+                      setContextMenuOpen(false);
+                    }}
+                    className={cn(
+                      'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
+                      isSelected && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                    )}
+                  >
+                    <HugeiconsIcon icon={item.icon} size={16} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <ContextMenuSeparator />
+
           {/* Duplicate */}
           <ContextMenuItem
             className="gap-2 cursor-pointer"
@@ -587,6 +656,26 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
           onClose={() => setDatePickerOpen(false)}
         />
       )}
+
+      {/* Recurring Delete Sheet */}
+      <RecurringDeleteSheet
+        isOpen={recurringDeleteOpen}
+        taskTitle={task.title}
+        onDeleteSingle={handleDeleteSingleOccurrence}
+        onDeleteAll={handleDeleteAllOccurrences}
+        onClose={() => setRecurringDeleteOpen(false)}
+      />
+
+      {/* Normal Task Delete Confirm Sheet */}
+      <DeleteConfirmSheet
+        isOpen={deleteConfirmOpen}
+        title="حذف تسک"
+        itemTitle={task.title}
+        description="آیا از حذف این تسک اطمینان دارید؟ این عملیات قابل بازگشت نیست."
+        confirmLabel="حذف تسک"
+        onConfirm={handleConfirmNormalDelete}
+        onClose={() => setDeleteConfirmOpen(false)}
+      />
     </>
   );
 });

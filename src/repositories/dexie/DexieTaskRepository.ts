@@ -142,25 +142,30 @@ export class DexieTaskRepository implements TaskRepository {
     markIdAsDeleted(id);
   }
 
+  async skipDate(id: string, dateKey: string): Promise<Task> {
+    const existing = await db.tasks.get(id);
+    if (!existing) throw new Error(`Task with id ${id} not found`);
+    const normDate = extractDateOnly(dateKey);
+    const currentDeleted = existing.deleted_dates || [];
+    if (!currentDeleted.includes(normDate)) {
+      return this.update(id, {
+        deleted_dates: [...currentDeleted, normDate],
+      });
+    }
+    return existing;
+  }
+
   async migrate(id: string, newDueDate: string): Promise<Task> {
     const existing = await db.tasks.get(id);
     if (!existing) throw new Error(`Task with id ${id} not found`);
 
-    // Mark current as migrated
-    await this.update(id, { status: 'migrated' });
+    // Recurring tasks occur automatically on each date
+    if (existing.recurrence_rule && existing.recurrence_rule !== 'none') {
+      return existing;
+    }
 
-    // Create new task linked to original
-    return this.create({
-      entry_id: existing.entry_id,
-      title: existing.title,
-      description: existing.description,
-      status: 'open',
-      due_date: newDueDate,
-      priority: existing.priority,
-      tag_ids: existing.tag_ids,
-      recurrence_rule: existing.recurrence_rule,
-      migrated_from_id: existing.id,
-    });
+    // Move task to new due date directly without duplicating
+    return this.update(id, { due_date: newDueDate });
   }
 
   async getOverdueOpen(beforeDate: string): Promise<Task[]> {

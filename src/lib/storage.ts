@@ -78,6 +78,25 @@ export function isIdDeleted(id: string): boolean {
   }
 }
 
+export function markMultipleIdsAsDeleted(ids: string[]): void {
+  if (!ids || ids.length === 0) return;
+  try {
+    const raw = localStorage.getItem(DELETED_IDS_KEY) || '[]';
+    const list: string[] = JSON.parse(raw);
+    let changed = false;
+    for (const id of ids) {
+      if (!list.includes(id)) {
+        list.push(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      if (list.length > 5000) list.splice(0, list.length - 5000);
+      localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(list));
+    }
+  } catch {}
+}
+
 export function getDeletedIds(): Set<string> {
   try {
     const raw = localStorage.getItem(DELETED_IDS_KEY) || '[]';

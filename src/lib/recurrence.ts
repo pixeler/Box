@@ -30,6 +30,11 @@ export function isTaskOccurringOnDate(task: Task, targetDateStr: string): boolea
   const targetDateKey = extractDateOnly(targetDateStr);
   if (!targetDateKey) return false;
 
+  // If this specific date was deleted/skipped for this recurring task
+  if (task.deleted_dates && task.deleted_dates.includes(targetDateKey)) {
+    return false;
+  }
+
   const rule = task.recurrence_rule?.trim();
 
   // If no recurrence rule or 'none', exact date match only

@@ -357,7 +357,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
 
   return createPortal(
     <div
-      className={`absolute inset-0 z-[70] flex flex-col justify-end bg-black/70 backdrop-blur-xs select-none ${
+      className={`absolute inset-0 z-[80] flex flex-col justify-end bg-black/70 backdrop-blur-xs select-none ${
         isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
       }`}
       onClick={handleClose}

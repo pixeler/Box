@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import type { Task, EventItem, Note, Tag } from '@/types/models';
-import { DayHeader } from './DayHeader';
+import type { Task, EventItem, Note, Tag, TimeOfDay } from '@/types/models';
 import { TaskItemRow } from './TaskItemRow';
 import { NoteItemRow } from './NoteItemRow';
 import { EventItemRow } from './EventItemRow';
 import { ResurfacingSection } from './ResurfacingSection';
 import { setupDragCardGhost } from '@/lib/drag';
 import { CardDropPreview } from './CardDropPreview';
-import { getTodayJalaliKey } from '@/lib/jalali';
+import { toPersianDigits } from '@/lib/jalali';
 import { triggerHaptic } from '@/lib/capacitor';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { RiArrowDownSLine, RiArrowUpSLine, RiAddLine } from '@remixicon/react';
+import { taskRepo } from '@/repositories';
 
 export type UnifiedStreamItem =
   | { id: string; type: 'task'; data: Task }
@@ -27,7 +29,7 @@ interface DayStreamProps {
   onStatusChanged: () => void;
   onMigrateTask: (taskId: string, targetDate?: string) => void;
   onGoToToday?: () => void;
-  onOpenAdd?: () => void;
+  onOpenAdd?: (initialTimeOfDay?: TimeOfDay) => void;
   newlyAddedTaskId?: string | null;
   isLoading?: boolean;
   todayDoneCount?: number;
@@ -107,6 +109,39 @@ function sortStreamItems(
   });
 }
 
+export function getItemTimeOfDay(item: UnifiedStreamItem): TimeOfDay {
+  if (item.type === 'task') {
+    if (item.data.time_of_day) {
+      return item.data.time_of_day;
+    }
+    if (item.data.due_time) {
+      const timeMatch = item.data.due_time.match(/(\d{1,2}):(\d{2})/);
+      if (timeMatch) {
+        const h = parseInt(timeMatch[1], 10);
+        if (h >= 5 && h < 12) return 'morning';
+        if (h >= 12 && h < 17) return 'day';
+        if (h >= 17 && h < 24) return 'evening';
+      }
+    }
+    return 'anytime';
+  }
+  if (item.type === 'event' && item.data.start_at) {
+    const timeMatch = item.data.start_at.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const h = parseInt(timeMatch[1], 10);
+      if (h >= 5 && h < 12) return 'morning';
+      if (h >= 12 && h < 17) return 'day';
+      if (h >= 17 && h < 24) return 'evening';
+    }
+  }
+  return 'anytime';
+}
+
+import { TIME_OF_DAY_SECTIONS } from './timeOfDayConfig';
+import type { TimeOfDaySectionConfig } from './timeOfDayConfig';
+export type { TimeOfDaySectionConfig };
+export { TIME_OF_DAY_SECTIONS };
+
 export const DayStream: React.FC<DayStreamProps> = ({
   selectedDateKey,
   tasks,
@@ -118,18 +153,14 @@ export const DayStream: React.FC<DayStreamProps> = ({
   tagsMap,
   onStatusChanged,
   onMigrateTask,
-  onGoToToday,
   onOpenAdd,
   newlyAddedTaskId,
   isLoading,
 }) => {
-  const [filterType, setFilterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
-  const [sortBy, setSortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
+  const [filterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
+  const [sortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
   const [isDragOverEmpty, setIsDragOverEmpty] = useState(false);
   const dragEnterCountRef = useRef(0);
-
-  const todayKey = getTodayJalaliKey();
-  const isToday = selectedDateKey === todayKey;
 
   // Unified items list
   const rawItems: UnifiedStreamItem[] = useMemo(() => {
@@ -158,6 +189,98 @@ export const DayStream: React.FC<DayStreamProps> = ({
   useEffect(() => {
     setStreamItems(sortStreamItems(rawItems, sortBy));
   }, [rawItems, sortBy]);
+
+  // Time of Day sections state (open/close)
+  const [openSections, setOpenSections] = useState<Record<TimeOfDay, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('second_brain_time_of_day_sections');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {}
+    return {
+      anytime: true,
+      morning: true,
+      day: true,
+      evening: true,
+    };
+  });
+
+  const toggleSection = (key: TimeOfDay) => {
+    setOpenSections((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('second_brain_time_of_day_sections', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const [dragOverSection, setDragOverSection] = useState<TimeOfDay | null>(null);
+
+  const handleSectionDragOver = (e: React.DragEvent, sectionKey: TimeOfDay) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverSection !== sectionKey) {
+      setDragOverSection(sectionKey);
+    }
+  };
+
+  const handleSectionDragLeave = (e: React.DragEvent, sectionKey: TimeOfDay) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (dragOverSection === sectionKey) {
+      setDragOverSection(null);
+    }
+  };
+
+  const handleDropOnSection = async (e: React.DragEvent, sectionKey: TimeOfDay) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverSection(null);
+
+    const textData = e.dataTransfer.getData('text/plain');
+    const isMigrate = textData && textData.startsWith('migrate:');
+    const migrateTaskId = isMigrate ? textData.replace('migrate:', '') : null;
+
+    if (migrateTaskId) {
+      await taskRepo.update(migrateTaskId, { time_of_day: sectionKey, due_date: selectedDateKey });
+      onStatusChanged();
+      triggerHaptic('heavy');
+      handleDragEnd();
+      return;
+    }
+
+    const xTaskId = e.dataTransfer.getData('application/x-task-id');
+    const dragIdx = draggedIndex;
+    let targetTaskId: string | null = null;
+    if (dragIdx !== null && streamItems[dragIdx]?.type === 'task') {
+      targetTaskId = (streamItems[dragIdx].data as Task).id;
+    } else if (xTaskId) {
+      targetTaskId = xTaskId;
+    }
+
+    if (targetTaskId) {
+      await taskRepo.update(targetTaskId, { time_of_day: sectionKey });
+      onStatusChanged();
+      triggerHaptic('medium');
+    }
+    handleDragEnd();
+  };
+
+  const itemsBySection = useMemo(() => {
+    const map: Record<TimeOfDay, UnifiedStreamItem[]> = {
+      anytime: [],
+      morning: [],
+      day: [],
+      evening: [],
+    };
+    streamItems.forEach((item) => {
+      const tod = getItemTimeOfDay(item);
+      map[tod].push(item);
+    });
+    return map;
+  }, [streamItems]);
 
   // Drag and Drop state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -364,6 +487,16 @@ export const DayStream: React.FC<DayStreamProps> = ({
           const toSlot = targetSlotRef.current;
 
           if (fromIdx !== null && toSlot !== null) {
+            const sourceItem = streamItems[fromIdx];
+            const targetItem = streamItems[Math.min(toSlot, streamItems.length - 1)];
+            if (sourceItem && sourceItem.type === 'task' && targetItem) {
+              const targetTod = getItemTimeOfDay(targetItem);
+              if (sourceItem.data.time_of_day !== targetTod) {
+                taskRepo.update(sourceItem.data.id, { time_of_day: targetTod }).then(() => {
+                  onStatusChanged();
+                });
+              }
+            }
             reorderItems(fromIdx, toSlot);
           }
         }
@@ -372,6 +505,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
         setTouchDragIndex(null);
         setTouchDeltaY(0);
         setDropSlotIndex(null);
+        setDragOverSection(null);
         targetSlotRef.current = null;
         touchStartPosRef.current = null;
       };
@@ -599,6 +733,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
   const handleDragEnd = () => {
     setDraggedIndex(null);
     setDropSlotIndex(null);
+    setDragOverSection(null);
     setIsDragOverEmpty(false);
     dragEnterCountRef.current = 0;
   };
@@ -609,24 +744,32 @@ export const DayStream: React.FC<DayStreamProps> = ({
       setIsDragOverEmpty(false);
       setDraggedIndex(null);
       setDropSlotIndex(null);
+      setDragOverSection(null);
     };
     window.addEventListener('dragend', handleGlobalDragEnd);
     return () => window.removeEventListener('dragend', handleGlobalDragEnd);
   }, []);
 
-  const handleDropAtSlot = (e: React.DragEvent, slot: number) => {
+  const handleDropAtSlot = async (
+    e: React.DragEvent,
+    slot: number,
+    targetSection?: TimeOfDay
+  ) => {
     e.preventDefault();
     e.stopPropagation();
+    setDragOverSection(null);
 
     // انتقال تسک از بخش روزهای قبل یا بعد به این روز
     const textData = e.dataTransfer.getData('text/plain');
-    const xTaskId = e.dataTransfer.getData('application/x-task-id');
-    const migrateTaskId = (textData && textData.startsWith('migrate:'))
-      ? textData.replace('migrate:', '')
-      : (xTaskId || null);
+    const isMigrate = textData && textData.startsWith('migrate:');
+    const migrateTaskId = isMigrate ? textData.replace('migrate:', '') : null;
 
     if (migrateTaskId) {
-      onMigrateTask(migrateTaskId, selectedDateKey);
+      await taskRepo.update(migrateTaskId, {
+        due_date: selectedDateKey,
+        ...(targetSection ? { time_of_day: targetSection } : {}),
+      });
+      onStatusChanged();
       handleDragEnd();
       return;
     }
@@ -636,26 +779,19 @@ export const DayStream: React.FC<DayStreamProps> = ({
       return;
     }
 
+    const item = streamItems[draggedIndex];
+    if (item && item.type === 'task' && targetSection && item.data.time_of_day !== targetSection) {
+      await taskRepo.update(item.data.id, { time_of_day: targetSection });
+      onStatusChanged();
+    }
+
     reorderItems(draggedIndex, slot);
     handleDragEnd();
   };
 
-  const hasAnyItems = streamItems.length > 0;
-
   return (
     <div className="w-full flex-1 flex flex-col justify-between">
       <div>
-        {/* Header (Date on right, celebration goal badge on left) */}
-        <DayHeader
-          selectedDateKey={selectedDateKey}
-          filterType={filterType}
-          onFilterTypeChange={setFilterType}
-          sortBy={sortBy}
-          onSortByChange={setSortBy}
-          onGoToToday={onGoToToday}
-          todayDoneCount={tasks.filter((t) => t.status === 'done').length}
-          todayTotalCount={tasks.length > 0 ? tasks.length : 5}
-        />
 
         {/* Skeleton loading state on initial load */}
         {isLoading ? (
@@ -685,210 +821,180 @@ export const DayStream: React.FC<DayStreamProps> = ({
             ))}
           </div>
         ) : (
-          /* Unified List of stream items with drag-and-drop */
+          /* 4 Time-of-Day Sections matching Tiimo & TodoView styles */
           <div
             ref={streamContainerRef}
-            className="w-full min-h-[70px]"
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            if (dropSlotIndex === null) {
-              setDropSlotIndex(streamItems.length);
-            }
-          }}
-          onDragLeave={(e) => {
-            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-            setDropSlotIndex(null);
-          }}
-          onDrop={(e) => {
-            const targetSlot = dropSlotIndex !== null ? dropSlotIndex : streamItems.length;
-            handleDropAtSlot(e, targetSlot);
-          }}
-        >
-          {/* Active drag index across HTML5 or touch */}
-          {(() => {
-            const activeDragIndex = draggedIndex !== null ? draggedIndex : touchDragIndex;
-            const isExternalDragging = externalTouchDragInfo !== null;
-            return (
-              <>
-                {/* نمایش اسلات در ابتدای لیست اگر اسلات ۰ انتخاب شده باشد */}
-                {hasAnyItems &&
-                  dropSlotIndex === 0 &&
-                  (activeDragIndex === null || activeDragIndex > 0 || isExternalDragging) && (
-                    <CardDropPreview />
-                  )}
+            className="w-full min-h-[70px] space-y-4"
+          >
+            {TIME_OF_DAY_SECTIONS.map((sec) => {
+              const secItems = itemsBySection[sec.key];
+              const isOpen = openSections[sec.key];
+              const activeDragIndex = draggedIndex !== null ? draggedIndex : touchDragIndex;
+              const isExternalDragging = externalTouchDragInfo !== null;
+              const isDraggingActive = activeDragIndex !== null || isExternalDragging;
+              const isSectionDragOver = isDraggingActive && dragOverSection === sec.key;
 
-                {streamItems.map((item, idx) => {
-                  const isHtml5Dragging = draggedIndex === idx;
-                  const isTouchDragging = touchDragIndex === idx;
-
-                  return (
-                    <React.Fragment key={item.id}>
-                      <div
-                        ref={(el) => {
-                          if (el) {
-                            itemElementsRef.current.set(item.id, el);
-                          } else {
-                            itemElementsRef.current.delete(item.id);
-                          }
-                        }}
-                        onTouchStart={(e) => handleTouchStart(e, idx)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                        onTouchCancel={handleTouchEnd}
-                        onClickCapture={(e) => {
-                          if (justFinishedTouchDragRef.current) {
-                            e.stopPropagation();
-                            e.preventDefault();
-                          }
-                        }}
-                        onDragOver={(e) => handleItemDragOver(e, idx)}
-                        onDrop={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          const isLowerHalf = e.clientY - rect.top > rect.height / 2;
-                          const targetSlot = isLowerHalf ? idx + 1 : idx;
-                          handleDropAtSlot(e, targetSlot);
-                        }}
-                        style={
-                          isTouchDragging
-                            ? {
-                                transform: `translate3d(0, ${touchDeltaY}px, 0) scale(1.03)`,
-                                zIndex: 60,
-                                boxShadow:
-                                  '0 20px 35px -8px rgba(0, 0, 0, 0.22), 0 10px 18px -4px rgba(0, 0, 0, 0.12), 0 0 0 1.5px rgba(99, 102, 241, 0.35)',
-                                pointerEvents: 'none',
-                              }
-                            : undefined
-                        }
-                        className={`relative will-change-transform ${
-                          isTouchDragging
-                            ? 'transition-none select-none ring-2 ring-primary/30 rounded-lg'
-                            : isHtml5Dragging
-                            ? 'opacity-30'
-                            : 'opacity-100 transition-opacity duration-150'
-                        }`}
-                      >
-                        {item.type === 'task' && (
-                          <TaskItemRow
-                            task={item.data}
-                            tagsMap={tagsMap}
-                            currentDateKey={selectedDateKey}
-                            onStatusChanged={onStatusChanged}
-                            onMigrate={(id) => onMigrateTask(id)}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, idx)}
-                            onDragEnd={handleDragEnd}
-                            isNewlyAdded={item.data.id === newlyAddedTaskId}
-                            isLast={idx === streamItems.length - 1}
-                          />
-                        )}
-
-                        {item.type === 'note' && (
-                          <NoteItemRow
-                            note={item.data}
-                            tagsMap={tagsMap}
-                            onStatusChanged={onStatusChanged}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, idx)}
-                            onDragEnd={handleDragEnd}
-                            isLast={idx === streamItems.length - 1}
-                          />
-                        )}
-
-                        {item.type === 'event' && (
-                          <EventItemRow
-                            event={item.data}
-                            onStatusChanged={onStatusChanged}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, idx)}
-                            onDragEnd={handleDragEnd}
-                            isLast={idx === streamItems.length - 1}
-                          />
-                        )}
-                      </div>
-
-                      {/* پیش‌نمایش خاکستری کارت پس از این ردیف در صورتی که اسلات هدف باشد */}
-                      {dropSlotIndex === idx + 1 &&
-                        (isExternalDragging ||
-                          activeDragIndex === null ||
-                          (activeDragIndex !== idx && activeDragIndex !== idx + 1)) && (
-                          <CardDropPreview />
-                        )}
-                    </React.Fragment>
-                  );
-                })}
-              </>
-            );
-          })()}
-
-          {/* پیش‌نمایش در حالت خالی بودن لیست فقط اگر آیتم درگی غیر از روی کامپوننت خالی هست */}
-          {/* Empty state when no items */}
-          {!hasAnyItems && (
-            <div
-              onDragEnter={(e) => {
-                e.preventDefault();
-                dragEnterCountRef.current += 1;
-                setIsDragOverEmpty(true);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                if (!isDragOverEmpty) setIsDragOverEmpty(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                dragEnterCountRef.current -= 1;
-                if (dragEnterCountRef.current <= 0) {
-                  dragEnterCountRef.current = 0;
-                  setIsDragOverEmpty(false);
-                }
-              }}
-              onDrop={(e) => {
-                dragEnterCountRef.current = 0;
-                setIsDragOverEmpty(false);
-                handleDropAtSlot(e, 0);
-              }}
-              className={`w-full py-6 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
-                isDragOverEmpty ? 'bg-gray-50/70 dark:bg-white/5 scale-[1.01]' : 'bg-transparent'
-              }`}
-            >
-              <img
-                src="/empty-today.png"
-                alt={isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده'}
-                className="w-36 h-36 sm:w-40 sm:h-40 object-contain -mb-1 select-none pointer-events-none drop-shadow-sm transition-transform duration-200"
-                draggable={false}
-              />
-
-              {isDragOverEmpty ? (
-                <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
-                  {isToday
-                    ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
-                    : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
-                </p>
-              ) : (
-                <div className="flex flex-col items-center select-none">
-                  <p className="text-[13px] font-medium text-muted-foreground leading-relaxed">
-                    {isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده است'}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/60 font-normal leading-relaxed mt-0.5 max-w-[340px] mx-auto">
+              return (
+                <div
+                  key={sec.key}
+                  onDragOver={(e) => handleSectionDragOver(e, sec.key)}
+                  onDragLeave={(e) => handleSectionDragLeave(e, sec.key)}
+                  onDrop={(e) => handleDropOnSection(e, sec.key)}
+                  className={`w-full transition-colors duration-150 ${
+                    isSectionDragOver ? 'bg-primary/5' : ''
+                  }`}
+                >
+                  {/* Section Header: Pill badge matching TodoView / Tiimo */}
+                  <div className="flex items-center justify-between px-6 pt-2 pb-1.5 select-none">
                     <button
                       type="button"
-                      onClick={onOpenAdd}
-                      className="underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-foreground hover:text-foreground transition-colors cursor-pointer inline font-medium"
+                      onClick={() => toggleSection(sec.key)}
+                      className={`inline-flex items-center gap-1.5 px-1 py-1 pr-1.5 rounded-full text-xs font-medium cursor-pointer active:scale-95 select-none ${sec.pillClasses}`}
                     >
-                      کاری اضافه کنید
+                      <HugeiconsIcon icon={sec.icon} size={18} className="text-current opacity-60 shrink-0" />
+                      <span className="tracking-tight">{sec.label}</span>
+                      <span className="opacity-75 font-normal">({toPersianDigits(secItems.length)})</span>
+                      {isOpen ? (
+                        <RiArrowDownSLine className="w-3.5 h-3.5 opacity-60" />
+                      ) : (
+                        <RiArrowUpSLine className="w-3.5 h-3.5 opacity-60" />
+                      )}
                     </button>
-                    <span>
-                      {isToday
-                        ? ' یا کارهای قبلی را درگ کنید روی امروز!'
-                        : ' یا کارهای دیگر را درگ کنید روی این روز!'}
-                    </span>
-                  </p>
+
+                    {secItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenAdd?.(sec.key)}
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground/25 hover:text-foreground hover:bg-secondary/50 transition-colors cursor-pointer active:scale-95"
+                        title={`افزودن کار به ${sec.label}`}
+                      >
+                        <RiAddLine className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Section Content */}
+                  {isOpen && (
+                    <div className="w-full flex flex-col">
+                      {secItems.length === 0 ? (
+                        <div className="px-6 py-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenAdd?.(sec.key)}
+                            className="w-full py-2.5 px-3.5 rounded-xl border border-dashed border-border/50 hover:border-primary/40 bg-secondary/15 hover:bg-secondary/30 flex items-center justify-between text-xs text-muted-foreground/65 hover:text-foreground/85 transition-all cursor-pointer group select-none"
+                          >
+                            <span>{sec.emptyHint}</span>
+                            <RiAddLine className="w-4 h-4 text-muted-foreground/25 group-hover:text-primary transition-colors" />
+                          </button>
+                        </div>
+                      ) : (
+                        secItems.map((item) => {
+                          const idx = streamItems.indexOf(item);
+                          const isHtml5Dragging = draggedIndex === idx;
+                          const isTouchDragging = touchDragIndex === idx;
+
+                          return (
+                            <React.Fragment key={item.id}>
+                              <div
+                                ref={(el) => {
+                                  if (el) {
+                                    itemElementsRef.current.set(item.id, el);
+                                  } else {
+                                    itemElementsRef.current.delete(item.id);
+                                  }
+                                }}
+                                onTouchStart={(e) => handleTouchStart(e, idx)}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={handleTouchEnd}
+                                onTouchCancel={handleTouchEnd}
+                                onClickCapture={(e) => {
+                                  if (justFinishedTouchDragRef.current) {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                  }
+                                }}
+                                onDragOver={(e) => handleItemDragOver(e, idx)}
+                                onDrop={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const isLowerHalf = e.clientY - rect.top > rect.height / 2;
+                                  const targetSlot = isLowerHalf ? idx + 1 : idx;
+                                  handleDropAtSlot(e, targetSlot, sec.key);
+                                }}
+                                style={
+                                  isTouchDragging
+                                    ? {
+                                        transform: `translate3d(0, ${touchDeltaY}px, 0) scale(1.03)`,
+                                        zIndex: 60,
+                                        boxShadow:
+                                          '0 20px 35px -8px rgba(0, 0, 0, 0.22), 0 10px 18px -4px rgba(0, 0, 0, 0.12), 0 0 0 1.5px rgba(99, 102, 241, 0.35)',
+                                        pointerEvents: 'none',
+                                      }
+                                    : undefined
+                                }
+                                className={`relative will-change-transform ${
+                                  isTouchDragging
+                                    ? 'transition-none select-none ring-2 ring-primary/30 rounded-lg'
+                                    : isHtml5Dragging
+                                    ? 'opacity-30'
+                                    : 'opacity-100 transition-opacity duration-150'
+                                }`}
+                              >
+                                {item.type === 'task' && (
+                                  <TaskItemRow
+                                    task={item.data}
+                                    tagsMap={tagsMap}
+                                    currentDateKey={selectedDateKey}
+                                    onStatusChanged={onStatusChanged}
+                                    onMigrate={(id) => onMigrateTask(id)}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, idx)}
+                                    onDragEnd={handleDragEnd}
+                                    isNewlyAdded={item.data.id === newlyAddedTaskId}
+                                    isLast={false}
+                                  />
+                                )}
+
+                                {item.type === 'note' && (
+                                  <NoteItemRow
+                                    note={item.data}
+                                    tagsMap={tagsMap}
+                                    onStatusChanged={onStatusChanged}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, idx)}
+                                    onDragEnd={handleDragEnd}
+                                    isLast={false}
+                                  />
+                                )}
+
+                                {item.type === 'event' && (
+                                  <EventItemRow
+                                    event={item.data}
+                                    onStatusChanged={onStatusChanged}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, idx)}
+                                    onDragEnd={handleDragEnd}
+                                    isLast={false}
+                                  />
+                                )}
+                              </div>
+
+                              {/* پیش‌نمایش خاکستری کارت پس از این ردیف در صورتی که اسلات هدف باشد */}
+                              {dropSlotIndex === idx + 1 &&
+                                (isExternalDragging ||
+                                  activeDragIndex === null ||
+                                  (activeDragIndex !== idx && activeDragIndex !== idx + 1)) && (
+                                  <CardDropPreview />
+                                )}
+                            </React.Fragment>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+              );
+            })}
+          </div>
         )}
 
         {/* Resurfacing sections: smoothly placed under today's tasks */}

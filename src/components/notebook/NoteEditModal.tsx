@@ -5,6 +5,7 @@ import { noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { TagPickerPopover } from '../tags/TagPickerPopover';
 const BlockNoteEditor = React.lazy(() => import('@/components/editor/BlockNoteEditor').then(m => ({ default: m.BlockNoteEditor })));
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
+import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
 import {
   RiCloseLine,
   RiPushpinLine,
@@ -66,6 +67,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
 
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [boxPickerOpen, setBoxPickerOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -261,13 +263,16 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
     performSave({ isPinned: nextPinned });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!note) return;
-    if (window.confirm('آیا از حذف این یادداشت اطمینان دارید؟')) {
-      await noteRepo.softDelete(note.id);
-      onSaved();
-      handleClose();
-    }
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!note) return;
+    await noteRepo.softDelete(note.id);
+    onSaved();
+    handleClose();
   };
 
   if (!isOpen && !isClosing) return null;
@@ -486,6 +491,17 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
             setSelectedBox(bId || '');
             performSave({ boxId: bId || null });
           }}
+        />
+
+        {/* Delete Confirm Sheet */}
+        <DeleteConfirmSheet
+          isOpen={deleteConfirmOpen}
+          title="حذف یادداشت"
+          itemTitle={title || note?.title || ''}
+          description="آیا از حذف این یادداشت اطمینان دارید؟ این عملیات قابل بازگشت نیست."
+          confirmLabel="حذف یادداشت"
+          onConfirm={handleConfirmDelete}
+          onClose={() => setDeleteConfirmOpen(false)}
         />
       </div>
     </div>,

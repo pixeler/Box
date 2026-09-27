@@ -10,6 +10,7 @@ import {
 } from '@remixicon/react';
 import type { Task, Tag } from '@/types/models';
 import { taskRepo, tagRepo } from '@/repositories';
+import { syncManager } from '@/lib/sync';
 import { getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { TaskItemRow } from '@/components/stream/TaskItemRow';
 
@@ -58,6 +59,12 @@ export const TodoView: React.FC<TodoViewProps> = () => {
 
   useEffect(() => {
     loadTasks();
+  }, [loadTasks]);
+
+  useEffect(() => {
+    return syncManager.onDataChange(() => {
+      loadTasks();
+    });
   }, [loadTasks]);
 
   // Separate open tasks into priority groups and completed

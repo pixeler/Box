@@ -9,6 +9,7 @@ export interface Entry {
 }
 
 export type ItemStatus = "open" | "done" | "dropped" | "migrated";
+export type TimeOfDay = "anytime" | "morning" | "day" | "evening";
 
 export interface Task {
   id: string;
@@ -17,6 +18,7 @@ export interface Task {
   title: string;
   description?: string;
   status: ItemStatus;
+  time_of_day?: TimeOfDay; // دسته‌بندی زمانی روز: هر زمان / صبح / طول روز / عصر و شب
   due_date?: string; // تاریخ شمسی YYYY/MM/DD یا ISO YYYY-MM-DD
   due_time?: string; // زمان مثلا 10:30 یا 10:30-11:30
   duration_minutes?: number; // مدت زمان به دقیقه
@@ -26,6 +28,7 @@ export interface Task {
   recurrence_start_date?: string; // تاریخ شروع تکرار (YYYY/MM/DD)
   recurrence_end_date?: string | null; // تاریخ پایان تکرار (YYYY/MM/DD) یا null
   done_dates?: string[]; // تاریخ‌هایی که این تسک تکرارشونده در آن‌ها انجام شده است
+  deleted_dates?: string[]; // تاریخ‌هایی که این تسک تکرارشونده در آن‌ها حذف/لغو شده است
   migrated_from_id?: string; // زنجیره‌ی تاریخچه‌ی migrate
   pinned?: boolean;
   reminder?: string | null;

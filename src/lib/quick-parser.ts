@@ -7,6 +7,8 @@ import {
   getIranianDayOfWeek,
 } from './jalali';
 
+import type { TimeOfDay } from '@/types/models';
+
 export interface ParsedQuickEntry {
   rawText: string;
   cleanTitle: string;
@@ -14,6 +16,7 @@ export interface ParsedQuickEntry {
   priority?: 1 | 2 | 3;
   dueDate?: string; // YYYY/MM/DD
   time?: string; // HH:MM
+  timeOfDay?: TimeOfDay;
   recurrenceRule?: string;
   tags: string[];
   mentions: string[];
@@ -22,7 +25,7 @@ export interface ParsedQuickEntry {
 export interface HighlightSpan {
   start: number;
   end: number;
-  type: 'date' | 'priority' | 'tag' | 'time';
+  type: 'date' | 'priority' | 'tag' | 'time' | 'timeOfDay';
   text: string;
   label?: string;
   value?: any;
@@ -36,6 +39,7 @@ export interface QuickTokensResult {
   priority?: 1 | 2 | 3;
   tags: string[];
   time?: string;
+  timeOfDay?: TimeOfDay;
 }
 
 const ACTION_VERBS_REGEX =
@@ -213,9 +217,42 @@ export function extractQuickTokens(
       }
 
       detectedDueDate = d;
+      detectedDueDate = d;
       return { value: d, label };
     }
   );
+
+  // 5. Time of Day: صبح / بامداد / طول روز / ظهر / بعدازظهر / عصر / غروب / شب
+  let detectedTimeOfDay: TimeOfDay | undefined = undefined;
+  scanPattern(
+    /(?:^|[\s،,])(صبح|بامداد|اول\s*وقت|طول\s*روز|وسط\s*روز|ظهر|بعدازظهر|بعد\s*از\s*ظهر|عصر|غروب|شب|سر\s*شب)(?=$|[\s،,])/giu,
+    'timeOfDay',
+    (m) => {
+      const word = (m[1] || m[0]).trim();
+      if (/^(صبح|بامداد|اول\s*وقت)$/.test(word)) {
+        detectedTimeOfDay = 'morning';
+        return { value: 'morning', label: 'صبح' };
+      } else if (/^(ظهر|طول\s*روز|وسط\s*روز)$/.test(word)) {
+        detectedTimeOfDay = 'day';
+        return { value: 'day', label: 'ظهر' };
+      } else if (/^(بعدازظهر|بعد\s*از\s*ظهر|عصر|غروب|شب|سر\s*شب)$/.test(word)) {
+        detectedTimeOfDay = 'evening';
+        return { value: 'evening', label: 'عصر و شب' };
+      }
+      return null;
+    }
+  );
+
+  // If timeOfDay was not explicitly stated in text but a time was parsed (e.g. 08:30)
+  const foundTime = foundSpans.find((s) => s.type === 'time');
+  if (!detectedTimeOfDay && foundTime && typeof foundTime.value === 'string') {
+    const hourNum = parseInt(foundTime.value.split(':')[0], 10);
+    if (!isNaN(hourNum)) {
+      if (hourNum >= 5 && hourNum < 12) detectedTimeOfDay = 'morning';
+      else if (hourNum >= 12 && hourNum < 17) detectedTimeOfDay = 'day';
+      else detectedTimeOfDay = 'evening';
+    }
+  }
 
   // Sort spans by startIndex and eliminate any overlaps
   foundSpans.sort((a, b) => a.start - b.start);
@@ -251,6 +288,7 @@ export function extractQuickTokens(
     priority: detectedPriority,
     tags: detectedTags,
     time: detectedTime,
+    timeOfDay: detectedTimeOfDay || 'anytime',
   };
 }
 
@@ -316,6 +354,7 @@ export function parseQuickInput(
     priority: tokenized.priority,
     dueDate: tokenized.dueDate,
     time: tokenized.time,
+    timeOfDay: tokenized.timeOfDay,
     recurrenceRule,
     tags: tokenized.tags,
     mentions,
