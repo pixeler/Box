@@ -5,7 +5,7 @@ import type { TagRepository } from '../interfaces';
 export class DexieTagRepository implements TagRepository {
   async getOrCreate(name: string, source: 'manual' | 'ai' = 'manual'): Promise<Tag> {
     const cleanName = name.trim().replace(/^#/, '');
-    const existing = await db.tags.where('name').equals(cleanName).first();
+    const existing = await db.tags.where('name').equalsIgnoreCase(cleanName).first();
     if (existing) {
       return existing;
     }

@@ -59,7 +59,7 @@ export const NotebookView: React.FC = () => {
     : notes;
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-between select-none">
+    <div className="w-full flex-1 flex flex-col justify-between select-none px-4 pt-3 pb-28">
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">

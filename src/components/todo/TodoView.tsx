@@ -16,11 +16,12 @@ import { TaskItemRow } from '@/components/stream/TaskItemRow';
 
 interface TodoViewProps {
   onBackToToday?: () => void;
+  onTaskChanged?: () => void;
 }
 
 type PriorityCategory = 'urgent' | 'medium' | 'low' | 'none';
 
-export const TodoView: React.FC<TodoViewProps> = () => {
+export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToday, onTaskChanged }) => {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
 
@@ -52,10 +53,11 @@ export const TodoView: React.FC<TodoViewProps> = () => {
         tMap[tag.id] = tag;
       });
       setTagsMap(tMap);
+      onTaskChanged?.();
     } catch (err) {
       console.error('Failed to load tasks in TodoView:', err);
     }
-  }, []);
+  }, [onTaskChanged]);
 
   useEffect(() => {
     loadTasks();

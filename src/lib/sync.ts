@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { db } from './db/dexie';
-import { toPersianDigits, formatJalaliKey, getJalaliDate } from './jalali';
+import { toPersianDigits, formatJalaliKey, getJalaliDate, extractDateOnly } from './jalali';
 import { markIdAsDeleted, markMultipleIdsAsDeleted, getDeletedIds } from './storage';
 import type { Task, Note, EventItem, Tag, Box } from '@/types/models';
 
@@ -8,6 +8,315 @@ export type SyncState = 'idle' | 'syncing' | 'synced' | 'up_to_date' | 'table_mi
 
 type SyncListener = (state: SyncState, message?: string) => void;
 type DataChangeListener = () => void;
+
+/**
+ * Deduplicate tasks:
+ * - Drops invalid tasks and tasks with empty titles.
+ * - Merges demo tasks by title so different copies created across devices/seed always reconcile.
+ * - Merges regular tasks by title + recurrence + due_date.
+ * - Merges all progress (done_dates, deleted_dates, tags, highest priority, status).
+ */
+export function deduplicateTasks(taskList: Task[]): { uniqueTasks: Task[]; removedIds: string[] } {
+  const removedIds: string[] = [];
+  const taskMap = new Map<string, Task>();
+
+  for (const t of taskList) {
+    if (!t || !t.id || t.status === 'dropped') {
+      if (t?.id) removedIds.push(t.id);
+      continue;
+    }
+
+    const cleanTitle = (t.title || '').trim().toLowerCase();
+    if (!cleanTitle) {
+      removedIds.push(t.id);
+      continue;
+    }
+
+    const datePart = extractDateOnly(t.due_date);
+    const recurrence = (t.recurrence_rule || 'none').trim();
+
+    // Demo tasks seeded on initial app launch
+    const isDemo =
+      cleanTitle.includes('تکمیل دیزاین تسک') ||
+      cleanTitle.includes('بررسی فیدبک') ||
+      cleanTitle.includes('آماده‌سازی خروجی');
+
+    const key = isDemo
+      ? `demo_${cleanTitle}`
+      : `${cleanTitle}|${recurrence}|${recurrence !== 'none' ? '' : datePart}`;
+
+    if (taskMap.has(key)) {
+      const existing = taskMap.get(key)!;
+      removedIds.push(t.id);
+
+      const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
+      const tTime = new Date(t.updated_at || t.created_at || 0).getTime();
+
+      const mergedDoneDates = Array.from(
+        new Set([
+          ...(existing.done_dates || []).map(extractDateOnly),
+          ...(t.done_dates || []).map(extractDateOnly),
+        ])
+      ).filter(Boolean);
+      const mergedDeletedDates = Array.from(
+        new Set([
+          ...(existing.deleted_dates || []).map(extractDateOnly),
+          ...(t.deleted_dates || []).map(extractDateOnly),
+        ])
+      ).filter(Boolean);
+      const mergedTagIds = Array.from(
+        new Set([...(existing.tag_ids || []), ...(t.tag_ids || [])])
+      );
+
+      const isRecurring =
+        (existing.recurrence_rule && existing.recurrence_rule !== 'none') ||
+        (t.recurrence_rule && t.recurrence_rule !== 'none');
+
+      const newerTask = existingTime >= tTime ? existing : t;
+      let finalDoneDates: string[] = [];
+      if (isRecurring) {
+        finalDoneDates = mergedDoneDates;
+      } else if (newerTask.status === 'done') {
+        const taskDate = extractDateOnly(newerTask.due_date);
+        finalDoneDates = taskDate ? [taskDate] : mergedDoneDates;
+      } else {
+        finalDoneDates = [];
+      }
+
+      const mergedTask: Task = {
+        ...existing,
+        ...newerTask,
+        status: isRecurring ? 'open' : newerTask.status,
+        done_dates: finalDoneDates,
+        deleted_dates: mergedDeletedDates,
+        tag_ids: mergedTagIds,
+        description: existing.description?.trim() ? existing.description : (t.description || ''),
+        priority: (Math.max(existing.priority || 0, t.priority || 0) || undefined) as 1 | 2 | 3 | undefined,
+        box_id: existing.box_id || t.box_id || null,
+        time_of_day: existing.time_of_day || t.time_of_day,
+        due_date: existing.due_date || t.due_date,
+        due_time: existing.due_time || t.due_time,
+        duration_minutes: existing.duration_minutes || t.duration_minutes,
+        pinned: existing.pinned || t.pinned,
+        recurrence_rule:
+          existing.recurrence_rule && existing.recurrence_rule !== 'none'
+            ? existing.recurrence_rule
+            : t.recurrence_rule,
+        recurrence_start_date: existing.recurrence_start_date || t.recurrence_start_date,
+        recurrence_end_date: existing.recurrence_end_date || t.recurrence_end_date,
+        updated_at: new Date(Math.max(existingTime, tTime)).toISOString(),
+      };
+
+      taskMap.set(key, mergedTask);
+    } else {
+      const normDones = (t.done_dates || []).map(extractDateOnly).filter(Boolean);
+      const normDeleted = (t.deleted_dates || []).map(extractDateOnly).filter(Boolean);
+      const taskDate = extractDateOnly(t.due_date);
+      if (t.status === 'done' && taskDate && !normDones.includes(taskDate)) {
+        normDones.push(taskDate);
+      }
+      taskMap.set(key, {
+        ...t,
+        done_dates: normDones,
+        deleted_dates: normDeleted,
+      });
+    }
+  }
+
+  return {
+    uniqueTasks: Array.from(taskMap.values()),
+    removedIds,
+  };
+}
+
+export function deduplicateNotes(noteList: Note[]): { uniqueNotes: Note[]; removedIds: string[] } {
+  const removedIds: string[] = [];
+  const noteMap = new Map<string, Note>();
+
+  for (const n of noteList) {
+    if (!n || !n.id) continue;
+    const cleanTitle = (n.title || '').trim().toLowerCase();
+    const cleanBody = (n.body || '').trim().toLowerCase();
+    const key = cleanTitle || cleanBody.slice(0, 100);
+
+    if (!key) {
+      noteMap.set(n.id, n);
+      continue;
+    }
+
+    if (noteMap.has(key)) {
+      const existing = noteMap.get(key)!;
+      removedIds.push(n.id);
+      const nTime = new Date(n.updated_at || n.created_at || 0).getTime();
+      const existingTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
+      if (nTime > existingTime) {
+        noteMap.set(key, { ...existing, ...n, id: existing.id });
+      }
+    } else {
+      noteMap.set(key, n);
+    }
+  }
+
+  return {
+    uniqueNotes: Array.from(noteMap.values()),
+    removedIds,
+  };
+}
+
+export function deduplicateEvents(eventList: EventItem[]): { uniqueEvents: EventItem[]; removedIds: string[] } {
+  const removedIds: string[] = [];
+  const eventMap = new Map<string, EventItem>();
+
+  for (const e of eventList) {
+    if (!e || !e.id || e.title?.includes('مصرف دارو')) {
+      if (e?.id) removedIds.push(e.id);
+      continue;
+    }
+    const cleanTitle = (e.title || '').trim().toLowerCase();
+    const datePart = extractDateOnly(e.start_at);
+    const key = `${cleanTitle}|${datePart}`;
+
+    if (eventMap.has(key)) {
+      removedIds.push(e.id);
+    } else {
+      eventMap.set(key, e);
+    }
+  }
+
+  return {
+    uniqueEvents: Array.from(eventMap.values()),
+    removedIds,
+  };
+}
+
+export function deduplicateBoxes(boxList: Box[]): { uniqueBoxes: Box[]; boxIdRemap: Map<string, string>; removedIds: string[] } {
+  const removedIds: string[] = [];
+  const boxIdRemap = new Map<string, string>();
+  const boxMap = new Map<string, Box>();
+
+  for (const b of boxList) {
+    if (!b || !b.id) continue;
+    const cleanTitle = (b.title || '').trim().toLowerCase();
+    if (!cleanTitle) continue;
+
+    if (boxMap.has(cleanTitle)) {
+      const existing = boxMap.get(cleanTitle)!;
+      boxIdRemap.set(b.id, existing.id);
+      removedIds.push(b.id);
+    } else {
+      boxMap.set(cleanTitle, b);
+    }
+  }
+
+  return {
+    uniqueBoxes: Array.from(boxMap.values()),
+    boxIdRemap,
+    removedIds,
+  };
+}
+
+export async function deduplicateLocalDatabase(): Promise<{
+  tasksCleaned: number;
+  notesCleaned: number;
+  eventsCleaned: number;
+  boxesCleaned: number;
+}> {
+  const [allTasks, allNotes, allEvents, allBoxes] = await Promise.all([
+    db.tasks.toArray(),
+    db.notes.toArray(),
+    db.events.toArray(),
+    db.boxes.toArray(),
+  ]);
+
+  const { uniqueTasks, removedIds: removedTaskIds } = deduplicateTasks(allTasks);
+  const { uniqueNotes, removedIds: removedNoteIds } = deduplicateNotes(allNotes);
+  const { uniqueEvents, removedIds: removedEventIds } = deduplicateEvents(allEvents);
+  const { uniqueBoxes, boxIdRemap, removedIds: removedBoxIds } = deduplicateBoxes(allBoxes);
+
+  const allRemovedIds = [
+    ...removedTaskIds,
+    ...removedNoteIds,
+    ...removedEventIds,
+    ...removedBoxIds,
+  ];
+
+  if (allRemovedIds.length > 0) {
+    markMultipleIdsAsDeleted(allRemovedIds);
+
+    for (const id of removedTaskIds) {
+      await db.tasks.delete(id);
+    }
+    for (const t of uniqueTasks) {
+      await db.tasks.put(t);
+    }
+
+    for (const id of removedNoteIds) {
+      await db.notes.delete(id);
+    }
+    for (const n of uniqueNotes) {
+      await db.notes.put(n);
+    }
+
+    for (const id of removedEventIds) {
+      await db.events.delete(id);
+    }
+    for (const e of uniqueEvents) {
+      await db.events.put(e);
+    }
+
+    for (const id of removedBoxIds) {
+      await db.boxes.delete(id);
+    }
+    for (const b of uniqueBoxes) {
+      await db.boxes.put(b);
+    }
+
+    if (boxIdRemap.size > 0) {
+      const currentTasks = await db.tasks.toArray();
+      for (const t of currentTasks) {
+        if (t.box_id && boxIdRemap.has(t.box_id)) {
+          await db.tasks.update(t.id, { box_id: boxIdRemap.get(t.box_id)! });
+        }
+      }
+      const currentNotes = await db.notes.toArray();
+      for (const n of currentNotes) {
+        if (n.box_id && boxIdRemap.has(n.box_id)) {
+          await db.notes.update(n.id, { box_id: boxIdRemap.get(n.box_id)! });
+        }
+      }
+    }
+  }
+
+  // Healing pass for all tasks: ensure done_dates and status consistency
+  for (const t of uniqueTasks) {
+    let changed = false;
+    const normDones = (t.done_dates || []).map(extractDateOnly).filter(Boolean);
+    const isRecurring = Boolean(t.recurrence_rule && t.recurrence_rule !== 'none');
+    const taskDate = extractDateOnly(t.due_date);
+
+    if (t.status === 'done' && taskDate && !normDones.includes(taskDate)) {
+      normDones.push(taskDate);
+      changed = true;
+    }
+
+    if (!isRecurring && t.status === 'open' && normDones.length > 0) {
+      normDones.length = 0;
+      changed = true;
+    }
+
+    if (changed || JSON.stringify(t.done_dates || []) !== JSON.stringify(normDones)) {
+      t.done_dates = Array.from(new Set(normDones));
+      await db.tasks.put(t);
+    }
+  }
+
+  return {
+    tasksCleaned: removedTaskIds.length,
+    notesCleaned: removedNoteIds.length,
+    eventsCleaned: removedEventIds.length,
+    boxesCleaned: removedBoxIds.length,
+  };
+}
 
 export const SUPABASE_SYNC_SQL = `-- 1. ایجاد جدول ذخیره ابری اطلاعات کاربری
 create table if not exists public.user_sync (
@@ -58,6 +367,10 @@ class SyncManager {
       this.hasPendingChanges = true;
       // Debounce: wait 1.2s of idle time after user actions before syncing to cloud
       this.requestDebouncedSync(1200);
+      // Immediately notify local UI listeners on next microtask so all components (DayStream, TodoView, etc.) stay in sync
+      queueMicrotask(() => {
+        this.notifyDataChanged();
+      });
     };
 
     const tables = [db.tasks, db.notes, db.events, db.tags, db.boxes];
@@ -70,6 +383,11 @@ class SyncManager {
         }
         onLocalMutation();
       });
+    });
+
+    // Run local deduplication on init
+    deduplicateLocalDatabase().catch((err) => {
+      console.warn('Initial deduplication warning:', err);
     });
 
     // 2. Reconnection listener: push changes when back online
@@ -199,13 +517,20 @@ class SyncManager {
     };
   }
 
+  private notifyScheduled: boolean = false;
+
   public notifyDataChanged() {
-    this.dataChangeListeners.forEach((l) => {
-      try {
-        l();
-      } catch (e) {
-        console.error('Data change listener failed:', e);
-      }
+    if (this.notifyScheduled) return;
+    this.notifyScheduled = true;
+    queueMicrotask(() => {
+      this.notifyScheduled = false;
+      this.dataChangeListeners.forEach((l) => {
+        try {
+          l();
+        } catch (e) {
+          console.error('Data change listener failed:', e);
+        }
+      });
     });
   }
 
@@ -290,6 +615,34 @@ class SyncManager {
       const remoteDeletedList: string[] = remoteRow?.data?.deleted_ids || [];
       const allDeletedIds = new Set<string>([...localDeletedIds, ...remoteDeletedList]);
 
+      // Pre-deduplicate remote items in case server contains duplicate records
+      let remoteTasks: Task[] = [];
+      let remoteNotes: Note[] = [];
+      let remoteEvents: EventItem[] = [];
+      let remoteBoxes: Box[] = [];
+
+      if (remoteRow?.data) {
+        const rawTasks: Task[] = Array.isArray(remoteRow.data.tasks) ? remoteRow.data.tasks : [];
+        const rawNotes: Note[] = Array.isArray(remoteRow.data.notes) ? remoteRow.data.notes : [];
+        const rawEvents: EventItem[] = Array.isArray(remoteRow.data.events) ? remoteRow.data.events : [];
+        const rawBoxes: Box[] = Array.isArray(remoteRow.data.boxes) ? remoteRow.data.boxes : [];
+
+        const tDedup = deduplicateTasks(rawTasks);
+        const nDedup = deduplicateNotes(rawNotes);
+        const eDedup = deduplicateEvents(rawEvents);
+        const bDedup = deduplicateBoxes(rawBoxes);
+
+        remoteTasks = tDedup.uniqueTasks;
+        remoteNotes = nDedup.uniqueNotes;
+        remoteEvents = eDedup.uniqueEvents;
+        remoteBoxes = bDedup.uniqueBoxes;
+
+        // Any duplicate IDs found on remote are added to tombstones so they get deleted everywhere
+        [...tDedup.removedIds, ...nDedup.removedIds, ...eDedup.removedIds, ...bDedup.removedIds].forEach(
+          (id) => allDeletedIds.add(id)
+        );
+      }
+
       markMultipleIdsAsDeleted(Array.from(allDeletedIds));
 
       try {
@@ -317,122 +670,248 @@ class SyncManager {
           }
         }
 
-        // 4. Merge Remote Tasks into Local (Last-Write-Wins)
-        if (remoteRow?.data && Array.isArray(remoteRow.data.tasks)) {
-          for (const rt of remoteRow.data.tasks as Task[]) {
-            if (allDeletedIds.has(rt.id) || rt.status === 'dropped') {
-              allDeletedIds.add(rt.id);
-              await db.tasks.delete(rt.id);
-              continue;
+        // 3.2. If remote server already has tasks/data, remove unlinked local demo seed tasks
+        if (remoteTasks.length > 0) {
+          const remoteTaskIds = new Set(remoteTasks.map((t) => t.id));
+          const currentLocalTasks = await db.tasks.toArray();
+          for (const lt of currentLocalTasks) {
+            const cleanTitle = (lt.title || '').trim().toLowerCase();
+            const isDemo =
+              cleanTitle.includes('تکمیل دیزاین تسک') ||
+              cleanTitle.includes('بررسی فیدبک') ||
+              cleanTitle.includes('آماده‌سازی خروجی');
+            if (isDemo && !remoteTaskIds.has(lt.id)) {
+              await db.tasks.delete(lt.id);
+              localDataMutated = true;
+            }
+          }
+        }
+
+        // 3.5. Deduplicate and reconcile Tags (handles duplicate names between devices without ConstraintError)
+        const tagIdRemap = new Map<string, string>(); // oldId -> canonicalId
+
+        // A. Deduplicate existing local tags by normalized name
+        const initialLocalTags = await db.tags.toArray();
+        const localTagsByName = new Map<string, Tag>();
+        for (const lt of initialLocalTags) {
+          const normName = (lt.name || '').trim().toLowerCase().replace(/^#/, '');
+          if (!normName) continue;
+          if (!localTagsByName.has(normName)) {
+            localTagsByName.set(normName, lt);
+          } else {
+            const canonical = localTagsByName.get(normName)!;
+            tagIdRemap.set(lt.id, canonical.id);
+            await db.tags.delete(lt.id);
+            localDataMutated = true;
+          }
+        }
+
+        // B. Reconcile remote tags safely
+        if (remoteRow?.data && Array.isArray(remoteRow.data.tags)) {
+          for (const rt of remoteRow.data.tags as Tag[]) {
+            const cleanName = (rt.name || '').trim().replace(/^#/, '');
+            const normName = cleanName.toLowerCase();
+            if (!normName) continue;
+
+            const existingByNorm = localTagsByName.get(normName);
+            if (existingByNorm) {
+              if (existingByNorm.id !== rt.id) {
+                tagIdRemap.set(rt.id, existingByNorm.id);
+              }
+            } else {
+              const existingById = await db.tags.get(rt.id);
+              if (existingById) {
+                localTagsByName.set(normName, existingById);
+              } else {
+                const newTag: Tag = { ...rt, name: cleanName };
+                await db.tags.put(newTag);
+                localTagsByName.set(normName, newTag);
+                localDataMutated = true;
+              }
+            }
+          }
+        }
+
+        // C. If any tag IDs were remapped, update existing local tasks and notes
+        if (tagIdRemap.size > 0) {
+          const currentLocalTasks = await db.tasks.toArray();
+          for (const t of currentLocalTasks) {
+            if (t.tag_ids?.some((id) => tagIdRemap.has(id))) {
+              const fixedIds = Array.from(new Set(t.tag_ids.map((id) => tagIdRemap.get(id) || id)));
+              await db.tasks.update(t.id, { tag_ids: fixedIds });
+              localDataMutated = true;
+            }
+          }
+          const currentLocalNotes = await db.notes.toArray();
+          for (const n of currentLocalNotes) {
+            if (n.tag_ids?.some((id) => tagIdRemap.has(id))) {
+              const fixedIds = Array.from(new Set(n.tag_ids.map((id) => tagIdRemap.get(id) || id)));
+              await db.notes.update(n.id, { tag_ids: fixedIds });
+              localDataMutated = true;
+            }
+          }
+        }
+
+        // 4. Merge Remote Tasks into Local (Last-Write-Wins with CRDT progress preservation)
+        for (const rt of remoteTasks) {
+          if (allDeletedIds.has(rt.id) || rt.status === 'dropped') {
+            allDeletedIds.add(rt.id);
+            await db.tasks.delete(rt.id);
+            continue;
+          }
+
+          if (rt.tag_ids && tagIdRemap.size > 0) {
+            rt.tag_ids = Array.from(new Set(rt.tag_ids.map((id) => tagIdRemap.get(id) || id)));
+          }
+
+          const localTask = await db.tasks.get(rt.id);
+          if (!localTask) {
+            const normDones = (rt.done_dates || []).map(extractDateOnly).filter(Boolean);
+            const taskDate = extractDateOnly(rt.due_date);
+            if (rt.status === 'done' && taskDate && !normDones.includes(taskDate)) {
+              normDones.push(taskDate);
+            }
+            await db.tasks.put({
+              ...rt,
+              done_dates: normDones,
+            });
+            localDataMutated = true;
+          } else {
+            const remoteTime = new Date(rt.updated_at || rt.created_at || 0).getTime();
+            const localTime = new Date(localTask.updated_at || localTask.created_at || 0).getTime();
+
+            // CRUCIAL: ALWAYS take UNION of completion dates and skipped dates
+            const mergedDoneDates = Array.from(
+              new Set([
+                ...(localTask.done_dates || []).map(extractDateOnly),
+                ...(rt.done_dates || []).map(extractDateOnly),
+              ])
+            ).filter(Boolean);
+
+            const mergedDeletedDates = Array.from(
+              new Set([
+                ...(localTask.deleted_dates || []).map(extractDateOnly),
+                ...(rt.deleted_dates || []).map(extractDateOnly),
+              ])
+            ).filter(Boolean);
+
+            const mergedTagIds = Array.from(
+              new Set([...(localTask.tag_ids || []), ...(rt.tag_ids || [])])
+            );
+
+            const isRecurring = Boolean(
+              (localTask.recurrence_rule && localTask.recurrence_rule !== 'none') ||
+              (rt.recurrence_rule && rt.recurrence_rule !== 'none')
+            );
+
+            // Last-Write-Wins: newer timestamp dictates non-recurring task status
+            const baseTask = remoteTime > localTime ? rt : localTask;
+
+            let finalDoneDates: string[] = [];
+            if (isRecurring) {
+              finalDoneDates = mergedDoneDates;
+            } else if (baseTask.status === 'done') {
+              const taskDate = extractDateOnly(baseTask.due_date);
+              finalDoneDates = taskDate ? [taskDate] : mergedDoneDates;
+            } else {
+              // Open non-recurring task: clear done_dates so it won't be resurrected as done
+              finalDoneDates = [];
             }
 
-            const localTask = await db.tasks.get(rt.id);
-            if (!localTask) {
-              await db.tasks.put(rt);
-              localDataMutated = true;
-            } else {
-              const remoteTime = new Date(rt.updated_at || rt.created_at || 0).getTime();
-              const localTime = new Date(localTask.updated_at || localTask.created_at || 0).getTime();
+            const mergedTask: Task = {
+              ...baseTask,
+              status: isRecurring ? 'open' : baseTask.status,
+              done_dates: finalDoneDates,
+              deleted_dates: mergedDeletedDates,
+              tag_ids: mergedTagIds,
+              updated_at: new Date(Math.max(remoteTime, localTime)).toISOString(),
+            };
 
-              if (remoteTime > localTime) {
-                await db.tasks.put(rt);
-                localDataMutated = true;
-              } else if (remoteTime === localTime) {
-                // If timestamps match but status or properties differ, reconcile
-                if (
-                  rt.status !== localTask.status ||
-                  rt.title !== localTask.title ||
-                  JSON.stringify(rt.done_dates || []) !== JSON.stringify(localTask.done_dates || []) ||
-                  JSON.stringify(rt.deleted_dates || []) !== JSON.stringify(localTask.deleted_dates || [])
-                ) {
-                  // Merge done_dates and deleted_dates
-                  const mergedDoneDates = Array.from(
-                    new Set([...(rt.done_dates || []), ...(localTask.done_dates || [])])
-                  );
-                  const mergedDeletedDates = Array.from(
-                    new Set([...(rt.deleted_dates || []), ...(localTask.deleted_dates || [])])
-                  );
-                  await db.tasks.put({
-                    ...localTask,
-                    ...rt,
-                    done_dates: mergedDoneDates,
-                    deleted_dates: mergedDeletedDates,
-                  });
-                  localDataMutated = true;
-                }
-              }
+            if (
+              localTask.status !== mergedTask.status ||
+              JSON.stringify(localTask.done_dates || []) !== JSON.stringify(mergedTask.done_dates) ||
+              JSON.stringify(localTask.deleted_dates || []) !== JSON.stringify(mergedTask.deleted_dates) ||
+              remoteTime > localTime
+            ) {
+              await db.tasks.put(mergedTask);
+              localDataMutated = true;
             }
           }
         }
 
         // 5. Merge Remote Notes (Last-Write-Wins)
-        if (remoteRow?.data && Array.isArray(remoteRow.data.notes)) {
-          for (const rn of remoteRow.data.notes as Note[]) {
-            if (allDeletedIds.has(rn.id)) {
-              await db.notes.delete(rn.id);
-              continue;
-            }
-            const localNote = await db.notes.get(rn.id);
-            if (!localNote) {
+        for (const rn of remoteNotes) {
+          if (allDeletedIds.has(rn.id)) {
+            await db.notes.delete(rn.id);
+            continue;
+          }
+
+          if (rn.tag_ids && tagIdRemap.size > 0) {
+            rn.tag_ids = Array.from(new Set(rn.tag_ids.map((id) => tagIdRemap.get(id) || id)));
+          }
+
+          const localNote = await db.notes.get(rn.id);
+          if (!localNote) {
+            await db.notes.put(rn);
+            localDataMutated = true;
+          } else {
+            const remoteTime = new Date(rn.updated_at || rn.created_at || 0).getTime();
+            const localTime = new Date(localNote.updated_at || localNote.created_at || 0).getTime();
+            if (remoteTime > localTime) {
               await db.notes.put(rn);
               localDataMutated = true;
-            } else {
-              const remoteTime = new Date(rn.updated_at || rn.created_at || 0).getTime();
-              const localTime = new Date(localNote.updated_at || localNote.created_at || 0).getTime();
-              if (remoteTime > localTime) {
-                await db.notes.put(rn);
-                localDataMutated = true;
-              }
             }
           }
         }
 
         // 6. Merge Remote Events
-        if (remoteRow?.data && Array.isArray(remoteRow.data.events)) {
-          for (const re of remoteRow.data.events as EventItem[]) {
-            if (allDeletedIds.has(re.id) || re.title?.includes('مصرف دارو')) {
-              allDeletedIds.add(re.id);
-              await db.events.delete(re.id);
-              continue;
-            }
-            const localEvent = await db.events.get(re.id);
-            if (!localEvent) {
+        for (const re of remoteEvents) {
+          if (allDeletedIds.has(re.id) || re.title?.includes('مصرف دارو')) {
+            allDeletedIds.add(re.id);
+            await db.events.delete(re.id);
+            continue;
+          }
+
+          if (re.tag_ids && tagIdRemap.size > 0) {
+            re.tag_ids = Array.from(new Set(re.tag_ids.map((id) => tagIdRemap.get(id) || id)));
+          }
+
+          const localEvent = await db.events.get(re.id);
+          if (!localEvent) {
+            await db.events.put(re);
+            localDataMutated = true;
+          } else {
+            const remoteTime = new Date(re.updated_at || re.created_at || 0).getTime();
+            const localTime = new Date(localEvent.updated_at || localEvent.created_at || 0).getTime();
+            if (remoteTime > localTime) {
               await db.events.put(re);
               localDataMutated = true;
-            } else {
-              const remoteTime = new Date(re.updated_at || re.created_at || 0).getTime();
-              const localTime = new Date(localEvent.updated_at || localEvent.created_at || 0).getTime();
-              if (remoteTime > localTime) {
-                await db.events.put(re);
-                localDataMutated = true;
-              }
             }
           }
         }
 
-        // 7. Merge Remote Tags and Boxes
-        if (remoteRow?.data && Array.isArray(remoteRow.data.tags)) {
-          for (const tg of remoteRow.data.tags as Tag[]) {
-            const localTag = await db.tags.get(tg.id);
-            if (!localTag) {
-              await db.tags.put(tg);
-              localDataMutated = true;
-            }
+        // 7. Merge Remote Boxes
+        for (const bx of remoteBoxes) {
+          if (allDeletedIds.has(bx.id)) {
+            await db.boxes.delete(bx.id);
+            continue;
+          }
+          const localBox = await db.boxes.get(bx.id);
+          if (!localBox) {
+            await db.boxes.put(bx);
+            localDataMutated = true;
           }
         }
 
-        if (remoteRow?.data && Array.isArray(remoteRow.data.boxes)) {
-          for (const bx of remoteRow.data.boxes as Box[]) {
-            if (allDeletedIds.has(bx.id)) {
-              await db.boxes.delete(bx.id);
-              continue;
-            }
-            const localBox = await db.boxes.get(bx.id);
-            if (!localBox) {
-              await db.boxes.put(bx);
-              localDataMutated = true;
-            }
-          }
+        // 7.5. Run full deduplication pass on local database to clean any duplicate tasks/notes/events
+        const dedupRes = await deduplicateLocalDatabase();
+        if (
+          dedupRes.tasksCleaned > 0 ||
+          dedupRes.notesCleaned > 0 ||
+          dedupRes.eventsCleaned > 0 ||
+          dedupRes.boxesCleaned > 0
+        ) {
+          localDataMutated = true;
         }
       } finally {
         this.isApplyingRemote = false;
@@ -447,10 +926,22 @@ class SyncManager {
         db.boxes.toArray(),
       ]);
 
-      const cleanTasks = finalTasks.filter((t) => !allDeletedIds.has(t.id) && t.status !== 'dropped');
-      const cleanNotes = finalNotes.filter((n) => !allDeletedIds.has(n.id));
-      const cleanEvents = finalEvents.filter((e) => !allDeletedIds.has(e.id) && !e.title?.includes('مصرف دارو'));
-      const cleanBoxes = finalBoxes.filter((b) => !allDeletedIds.has(b.id));
+      const { uniqueTasks: cleanTasks, removedIds: extraTaskIds } = deduplicateTasks(
+        finalTasks.filter((t) => !allDeletedIds.has(t.id) && t.status !== 'dropped')
+      );
+      const { uniqueNotes: cleanNotes, removedIds: extraNoteIds } = deduplicateNotes(
+        finalNotes.filter((n) => !allDeletedIds.has(n.id))
+      );
+      const { uniqueEvents: cleanEvents, removedIds: extraEventIds } = deduplicateEvents(
+        finalEvents.filter((e) => !allDeletedIds.has(e.id) && !e.title?.includes('مصرف دارو'))
+      );
+      const { uniqueBoxes: cleanBoxes, removedIds: extraBoxIds } = deduplicateBoxes(
+        finalBoxes.filter((b) => !allDeletedIds.has(b.id))
+      );
+
+      [...extraTaskIds, ...extraNoteIds, ...extraEventIds, ...extraBoxIds].forEach((id) =>
+        allDeletedIds.add(id)
+      );
 
       const cleanPayload = {
         tasks: cleanTasks,

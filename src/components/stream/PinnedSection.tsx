@@ -11,7 +11,7 @@ interface PinnedSectionProps {
   onStatusChanged: () => void;
 }
 
-export const PinnedSection: React.FC<PinnedSectionProps> = ({
+export const PinnedSection: React.FC<PinnedSectionProps> = React.memo(({
   pinnedTasks,
   pinnedNotes,
   tagsMap,
@@ -57,4 +57,4 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
       </div>
     </div>
   );
-};
+});

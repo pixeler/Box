@@ -28,8 +28,6 @@ import {
   getFullPersianWeekdayName,
   extractDateOnly,
   addJalaliDays,
-  formatJalaliDisplay,
-  toPersianDigits,
 } from './lib/jalali';
 import { isOfficialHoliday } from './lib/holidays';
 import { isTaskOccurringOnDate } from './lib/recurrence';
@@ -37,8 +35,6 @@ import { checkAndSeedDesignDemoData } from './lib/seed';
 import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
 import type { Task, EventItem, Note, Tag, TimeOfDay } from './types/models';
 import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PartyIcon } from '@hugeicons/core-free-icons';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('day');
@@ -52,6 +48,23 @@ export function App() {
   const [glassBackground, setGlassBackground] = useState<boolean>(() => {
     return localStorage.getItem('second_brain_glass_background') === 'true';
   });
+  const [glassOpacity, setGlassOpacity] = useState<number>(() => {
+    const saved = localStorage.getItem('second_brain_glass_opacity');
+    return saved !== null ? Number(saved) : 0.18;
+  });
+
+  const handleGlassOpacityChange = (opacity: number) => {
+    setGlassOpacity(opacity);
+    localStorage.setItem('second_brain_glass_opacity', String(opacity));
+  };
+  const [enableDaySections, setEnableDaySections] = useState<boolean>(() => {
+    return localStorage.getItem('second_brain_enable_day_sections') === 'true';
+  });
+
+  const handleEnableDaySectionsChange = (enabled: boolean) => {
+    setEnableDaySections(enabled);
+    localStorage.setItem('second_brain_enable_day_sections', String(enabled));
+  };
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -68,12 +81,26 @@ export function App() {
   const { user } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [_syncState, setSyncState] = useState<SyncState>('idle');
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
   const [quickCaptureTimeOfDay, setQuickCaptureTimeOfDay] = useState<TimeOfDay | undefined>(undefined);
   const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
 
-  // Daily 5 Tasks Target state
+  // Daily Tasks Target state (Karma / Goal celebration)
+  const [dailyTaskGoal, setDailyTaskGoal] = useState<number>(() => {
+    const saved = localStorage.getItem('second_brain_daily_task_goal');
+    return saved !== null ? Math.max(1, parseInt(saved, 10) || 5) : 5;
+  });
+  const dailyTaskGoalRef = useRef(dailyTaskGoal);
+  useEffect(() => {
+    dailyTaskGoalRef.current = dailyTaskGoal;
+  }, [dailyTaskGoal]);
+
+  const handleDailyTaskGoalChange = (newGoal: number) => {
+    const validGoal = Math.max(1, newGoal);
+    setDailyTaskGoal(validGoal);
+    localStorage.setItem('second_brain_daily_task_goal', String(validGoal));
+  };
+
   const [todayDoneCount, setTodayDoneCount] = useState<number>(0);
   const [celebrationCoords, setCelebrationCoords] = useState<{ x: number; y: number } | null>(null);
   const goalPillRef = useRef<HTMLDivElement | null>(null);
@@ -107,7 +134,7 @@ export function App() {
   // Wallpaper change with persistence
   const handleWallpaperChange = (wpId: string) => {
     setWallpaper(wpId);
-    localStorage.setItem('second_brain_wallpaper', wpId);
+    localStorage.setItem('second_brain_wallpaper', wpId.startsWith('custom-image') ? 'custom-image' : wpId);
   };
 
   // Glass background toggle with persistence
@@ -158,7 +185,7 @@ export function App() {
         !e.altKey &&
         (e.key === 'n' || e.key === 'N' || e.key === 'د' || e.code === 'KeyN')
       ) {
-        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
+        if (!quickCaptureOpen && !searchOpen) {
           e.preventDefault();
           setQuickCaptureOpen(true);
         }
@@ -171,7 +198,7 @@ export function App() {
         !e.altKey &&
         (e.key === '/' || e.key === 'م' || e.code === 'Slash')
       ) {
-        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
+        if (!quickCaptureOpen && !searchOpen) {
           e.preventDefault();
           setSearchOpen(true);
         }
@@ -184,7 +211,7 @@ export function App() {
         !e.altKey &&
         (e.key === 't' || e.key === 'T' || e.key === 'ف' || e.code === 'KeyT')
       ) {
-        if (!quickCaptureOpen && !searchOpen && !settingsOpen) {
+        if (!quickCaptureOpen && !searchOpen) {
           e.preventDefault();
           setActiveTab((prev) => (prev === 'todo' ? 'day' : 'todo'));
         }
@@ -193,27 +220,60 @@ export function App() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [quickCaptureOpen, searchOpen, settingsOpen]);
+  }, [quickCaptureOpen, searchOpen]);
 
 
-  // Parallelized fetch for day data
+  // High-performance parallelized fetch for day data (only 4 consolidated IndexedDB queries)
   const fetchDayData = useCallback(async (targetDateKey: string) => {
     try {
-      const [allTags, allTasksList, allEventsList, dayEvents, allNotes, overdue, futureT] =
+      const [allTags, allTasksList, allEventsList, allNotes] =
         await Promise.all([
           tagRepo.listAll(),
           taskRepo.list(),
           eventRepo.list(),
-          eventRepo.list({ dateStr: targetDateKey }),
           noteRepo.list(),
-          taskRepo.getOverdueOpen(targetDateKey),
-          taskRepo.getFutureOpen(targetDateKey),
         ]);
 
       const tMap: Record<string, Tag> = {};
       allTags.forEach((t) => (tMap[t.id] = t));
 
-      const pinnedT = allTasksList.filter((t) => t.pinned && t.status !== 'dropped');
+      const normTarget = extractDateOnly(targetDateKey);
+
+      // In-memory filtering instead of hitting IndexedDB multiple times
+      const dayEvents = allEventsList.filter((e) => extractDateOnly(e.start_at) === normTarget);
+
+      const overdue: Task[] = [];
+      const futureT: Task[] = [];
+      const pinnedT: Task[] = [];
+
+      allTasksList.forEach((t) => {
+        if (t.status === 'dropped') return;
+        if (t.pinned) pinnedT.push(t);
+
+        const isRecurring = Boolean(t.recurrence_rule && t.recurrence_rule !== 'none');
+        if (!isRecurring && t.due_date) {
+          const taskDate = extractDateOnly(t.due_date);
+          const isDone = t.status === 'done';
+
+          if (taskDate && !isDone) {
+            if (taskDate < normTarget) overdue.push(t);
+            else if (taskDate > normTarget) futureT.push(t);
+          }
+        }
+      });
+
+      overdue.sort((a, b) => {
+        const pA = a.priority || 0;
+        const pB = b.priority || 0;
+        if (pA !== pB) return pB - pA;
+        const dateA = extractDateOnly(a.due_date || '');
+        const dateB = extractDateOnly(b.due_date || '');
+        const dateCmp = dateB.localeCompare(dateA);
+        if (dateCmp !== 0) return dateCmp;
+        return (new Date(b.created_at || 0).getTime() || 0) - (new Date(a.created_at || 0).getTime() || 0);
+      });
+      futureT.sort((a, b) => extractDateOnly(a.due_date).localeCompare(extractDateOnly(b.due_date)));
+
       const pinnedN = allNotes.filter((n) => n.pinned);
 
       const dayTasks = allTasksList
@@ -222,7 +282,7 @@ export function App() {
         )
         .map((t) => {
           if (t.recurrence_rule && t.recurrence_rule !== 'none') {
-            const isDoneOnDate = (t.done_dates || []).includes(targetDateKey);
+            const isDoneOnDate = (t.done_dates || []).map(extractDateOnly).includes(normTarget);
             return {
               ...t,
               status: isDoneOnDate ? ('done' as const) : ('open' as const),
@@ -247,20 +307,30 @@ export function App() {
         return false;
       });
 
+      // Pre-compute window date strings ONCE instead of re-computing inside every task iteration
+      const recurringTasks = allTasksList.filter(
+        (t) => t.status !== 'dropped' && t.recurrence_rule && t.recurrence_rule !== 'none'
+      );
       const dSet = new Set<string>();
-      allTasksList.forEach((t) => {
-        if (t.status === 'dropped') return;
-        if (t.recurrence_rule && t.recurrence_rule !== 'none') {
-          for (let offset = -35; offset <= 65; offset++) {
-            const dateStr = addJalaliDays(targetDateKey, offset);
+
+      if (recurringTasks.length > 0) {
+        const offsetDates: string[] = [];
+        for (let offset = -30; offset <= 45; offset++) {
+          offsetDates.push(addJalaliDays(targetDateKey, offset));
+        }
+        for (const t of recurringTasks) {
+          for (const dateStr of offsetDates) {
             if (isTaskOccurringOnDate(t, dateStr)) {
               dSet.add(dateStr);
             }
           }
-        } else {
-          const dp = extractDateOnly(t.due_date);
-          if (dp) dSet.add(dp);
         }
+      }
+
+      allTasksList.forEach((t) => {
+        if (t.status === 'dropped' || (t.recurrence_rule && t.recurrence_rule !== 'none')) return;
+        const dp = extractDateOnly(t.due_date);
+        if (dp) dSet.add(dp);
       });
       allNotes.forEach((n) => {
         if (n.date_key) dSet.add(extractDateOnly(n.date_key));
@@ -285,8 +355,9 @@ export function App() {
       const alreadyCelebratedToday = localStorage.getItem(celebrationStorageKey) === 'true';
 
       setTodayDoneCount((prev) => {
-        // Only trigger celebratory burst if this is NOT initial mount AND user crossed the 5-task threshold AND hasn't celebrated today yet
-        if (!isInitialLoadRef.current && prev < 5 && doneToday >= 5 && !alreadyCelebratedToday) {
+        // Only trigger celebratory burst if this is NOT initial mount AND user crossed the daily task threshold AND hasn't celebrated today yet
+        const targetGoal = dailyTaskGoalRef.current;
+        if (!isInitialLoadRef.current && prev < targetGoal && doneToday >= targetGoal && !alreadyCelebratedToday) {
           localStorage.setItem(celebrationStorageKey, 'true');
           if (goalPillRef.current) {
             const rect = goalPillRef.current.getBoundingClientRect();
@@ -337,8 +408,10 @@ export function App() {
   }, [fetchDayData, selectedDateKey]);
 
   useEffect(() => {
-    fetchDayData(selectedDateKey);
-  }, [selectedDateKey, fetchDayData]);
+    if (activeTab === 'day') {
+      fetchDayData(selectedDateKey);
+    }
+  }, [activeTab, selectedDateKey, fetchDayData]);
 
   // Auto-refresh when cloud sync updates local database in background or via Realtime
   useEffect(() => {
@@ -386,7 +459,16 @@ export function App() {
     <AppContainer
       wallpaper={wallpaper}
       glassBackground={glassBackground}
+      glassOpacity={glassOpacity}
       desktopPosition={desktopPosition}
+      bottomDock={
+        <BottomDock
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
+          onOpenAdd={() => setQuickCaptureOpen(true)}
+          glassOpacity={glassOpacity}
+        />
+      }
     >
       {/* Floating dynamic toast notification */}
       <ToastContainer />
@@ -404,38 +486,23 @@ export function App() {
               className="w-full shrink-0 select-none pb-0 pt-3 overflow-hidden"
             >
               {/* Top Greeting Header */}
-              <div className="w-full pb-2 px-6 flex items-center justify-between min-h-[44px]">
-                {/* Right side: Weekday Name + Dot, and Date beneath it (Right Aligned) */}
-                <div className="flex flex-col text-right items-start select-none">
-                  <div className="flex items-center gap-1.5">
-                    <h1 className="text-[21px] font-bold text-foreground tracking-tight leading-snug">
-                      {currentWeekdayName}
-                    </h1>
-                    <span
-                      className={`w-2 h-2 rounded-full inline-block shrink-0 transition-colors duration-200 ${
-                        isSelectedHoliday
-                          ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]'
-                          : 'bg-foreground'
-                      }`}
-                    />
-                  </div>
-                  <span className="text-[12.5px] text-muted-foreground font-normal mt-0.5">
-                    {formatJalaliDisplay(parseJalaliKey(selectedDateKey))}
-                  </span>
+              <div className="w-full pb-2 px-6 flex flex-col items-start justify-center min-h-[44px]">
+                {/* Weekday Name + Dot (Right Aligned) */}
+                <div className="flex items-center gap-1.5 select-none">
+                  <h1 className="text-[21px] font-bold text-foreground tracking-tight leading-snug">
+                    {currentWeekdayName}
+                  </h1>
+                  <span
+                    className={`w-2 h-2 rounded-full inline-block shrink-0 transition-colors duration-200 ${
+                      isSelectedHoliday
+                        ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]'
+                        : 'bg-foreground'
+                    }`}
+                  />
                 </div>
-
-                {/* Left side: Karma / Celebration Badge */}
-                <div
-                  ref={goalPillRef}
-                  dir="ltr"
-                  className="h-[28px] inline-flex items-center justify-center gap-1 px-2.5 rounded-full bg-card text-card-foreground border border-border/50 dark:border-white/10 shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none shrink-0"
-                  title={`هدف روزانه: ${toPersianDigits(tasks.length > 0 ? tasks.length : 5)} تسک (${toPersianDigits(todayDoneCount)} از ${toPersianDigits(tasks.length > 0 ? tasks.length : 5)} انجام شد)`}
-                >
-                  <HugeiconsIcon icon={PartyIcon} size={14} strokeWidth={1.8} className="shrink-0 text-muted-foreground/80" />
-                  <span className="font-semibold text-[11.5px] leading-none pt-0.5 text-foreground/80 tabular-nums">
-                    {toPersianDigits(todayDoneCount)}/{toPersianDigits(tasks.length > 0 ? tasks.length : 5)}
-                  </span>
-                </div>
+                <p className="text-[12px] text-muted-foreground font-normal mt-0.5 select-none">
+                  هر روزی که شروع میشه یک فرصت تازه است!
+                </p>
               </div>
 
               {/* Weekly ribbon calendar */}
@@ -481,36 +548,45 @@ export function App() {
                 newlyAddedTaskId={newlyAddedTaskId}
                 isLoading={isInitialLoading}
                 todayDoneCount={todayDoneCount}
+                dailyTaskGoal={dailyTaskGoal}
+                enableDaySections={enableDaySections}
+                goalPillRef={goalPillRef}
               />
             </div>
           </>
         )}
 
         {activeTab === 'notebook' && <NotebookView />}
-        {activeTab === 'todo' && <TodoView onBackToToday={() => setActiveTab('day')} />}
+        {activeTab === 'todo' && (
+          <TodoView
+            onBackToToday={() => setActiveTab('day')}
+            onTaskChanged={loadDayData}
+          />
+        )}
         {activeTab === 'focus' && <FocusView />}
+        {activeTab === 'profile' && (
+          <ProfileView
+            currentWallpaper={wallpaper}
+            onWallpaperChange={handleWallpaperChange}
+            currentTheme={theme}
+            onThemeChange={handleThemeChange}
+            glassBackground={glassBackground}
+            onGlassBackgroundChange={handleGlassBackgroundChange}
+            glassOpacity={glassOpacity}
+            onGlassOpacityChange={handleGlassOpacityChange}
+            desktopPosition={desktopPosition}
+            onDesktopPositionChange={handleDesktopPositionChange}
+            enableDaySections={enableDaySections}
+            onEnableDaySectionsChange={handleEnableDaySectionsChange}
+            dailyTaskGoal={dailyTaskGoal}
+            onDailyTaskGoalChange={handleDailyTaskGoalChange}
+            onOpenAuthModal={() => setAuthModalOpen(true)}
+            onOpenSearch={() => setSearchOpen(true)}
+            onBackToToday={() => setActiveTab('day')}
+          />
+        )}
       </MobileScrollArea>
 
-      {/* Floating Bottom Navigation Dock */}
-      <div
-        className="absolute bottom-5 inset-x-0 z-20 flex justify-center pointer-events-none px-4"
-        style={{
-          bottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
-        }}
-      >
-        <BottomDock
-          activeTab={settingsOpen ? 'profile' : activeTab}
-          onTabChange={(tab) => {
-            if (tab === 'profile') {
-              setSettingsOpen((prev) => !prev);
-            } else {
-              setSettingsOpen(false);
-              setActiveTab(tab);
-            }
-          }}
-          onOpenAdd={() => setQuickCaptureOpen(true)}
-        />
-      </div>
 
       {/* Archived: Boxes Modal Sheet */}
       {/* <BoxesModal
@@ -522,25 +598,6 @@ export function App() {
         }}
         tagsMap={tagsMap}
       /> */}
-
-      {/* Settings / Profile Modal Sheet over bottom navigation */}
-      <ProfileView
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        currentWallpaper={wallpaper}
-        onWallpaperChange={handleWallpaperChange}
-        currentTheme={theme}
-        onThemeChange={handleThemeChange}
-        glassBackground={glassBackground}
-        onGlassBackgroundChange={handleGlassBackgroundChange}
-        desktopPosition={desktopPosition}
-        onDesktopPositionChange={handleDesktopPositionChange}
-        onOpenAuthModal={() => setAuthModalOpen(true)}
-        onOpenSearch={() => {
-          setSettingsOpen(false);
-          setSearchOpen(true);
-        }}
-      />
 
       {/* Supabase Login / Auth Modal */}
       <LoginModal

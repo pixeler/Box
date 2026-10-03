@@ -40,6 +40,10 @@ export class SecondBrainDatabase extends Dexie {
     this.version(3).stores({
       focus_sessions: 'id, task_id, date_key, start_at, created_at',
     });
+
+    this.version(4).stores({
+      tags: 'id, name, source',
+    });
   }
 }
 

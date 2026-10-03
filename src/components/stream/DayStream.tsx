@@ -6,9 +6,10 @@ import { EventItemRow } from './EventItemRow';
 import { ResurfacingSection } from './ResurfacingSection';
 import { setupDragCardGhost } from '@/lib/drag';
 import { CardDropPreview } from './CardDropPreview';
-import { toPersianDigits } from '@/lib/jalali';
+import { toPersianDigits, getTodayJalaliKey, formatJalaliDisplay, parseJalaliKey, getDescriptiveDayLabel } from '@/lib/jalali';
 import { triggerHaptic } from '@/lib/capacitor';
 import { HugeiconsIcon } from '@hugeicons/react';
+import { PartyIcon } from '@hugeicons/core-free-icons';
 import { RiArrowDownSLine, RiArrowUpSLine, RiAddLine } from '@remixicon/react';
 import { taskRepo } from '@/repositories';
 
@@ -33,6 +34,9 @@ interface DayStreamProps {
   newlyAddedTaskId?: string | null;
   isLoading?: boolean;
   todayDoneCount?: number;
+  dailyTaskGoal?: number;
+  enableDaySections?: boolean;
+  goalPillRef?: React.Ref<HTMLDivElement>;
 }
 
 function getPriorityScore(item: UnifiedStreamItem): number {
@@ -142,7 +146,7 @@ import type { TimeOfDaySectionConfig } from './timeOfDayConfig';
 export type { TimeOfDaySectionConfig };
 export { TIME_OF_DAY_SECTIONS };
 
-export const DayStream: React.FC<DayStreamProps> = ({
+export const DayStream: React.FC<DayStreamProps> = React.memo(({
   selectedDateKey,
   tasks,
   notes,
@@ -156,11 +160,19 @@ export const DayStream: React.FC<DayStreamProps> = ({
   onOpenAdd,
   newlyAddedTaskId,
   isLoading,
+  todayDoneCount = 0,
+  dailyTaskGoal = 5,
+  enableDaySections = false,
+  goalPillRef,
 }) => {
   const [filterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
   const [sortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
   const [isDragOverEmpty, setIsDragOverEmpty] = useState(false);
   const dragEnterCountRef = useRef(0);
+
+  const todayKey = getTodayJalaliKey();
+  const isToday = selectedDateKey === todayKey;
+  const dayTitle = getDescriptiveDayLabel(selectedDateKey, todayKey);
 
   // Unified items list
   const rawItems: UnifiedStreamItem[] = useMemo(() => {
@@ -185,6 +197,8 @@ export const DayStream: React.FC<DayStreamProps> = ({
   const [streamItems, setStreamItems] = useState<UnifiedStreamItem[]>(() =>
     sortStreamItems(rawItems, sortBy)
   );
+
+  const hasAnyItems = streamItems.length > 0;
 
   useEffect(() => {
     setStreamItems(sortStreamItems(rawItems, sortBy));
@@ -487,14 +501,16 @@ export const DayStream: React.FC<DayStreamProps> = ({
           const toSlot = targetSlotRef.current;
 
           if (fromIdx !== null && toSlot !== null) {
-            const sourceItem = streamItems[fromIdx];
-            const targetItem = streamItems[Math.min(toSlot, streamItems.length - 1)];
-            if (sourceItem && sourceItem.type === 'task' && targetItem) {
-              const targetTod = getItemTimeOfDay(targetItem);
-              if (sourceItem.data.time_of_day !== targetTod) {
-                taskRepo.update(sourceItem.data.id, { time_of_day: targetTod }).then(() => {
-                  onStatusChanged();
-                });
+            if (enableDaySections) {
+              const sourceItem = streamItems[fromIdx];
+              const targetItem = streamItems[Math.min(toSlot, streamItems.length - 1)];
+              if (sourceItem && sourceItem.type === 'task' && targetItem) {
+                const targetTod = getItemTimeOfDay(targetItem);
+                if (sourceItem.data.time_of_day !== targetTod) {
+                  taskRepo.update(sourceItem.data.id, { time_of_day: targetTod }).then(() => {
+                    onStatusChanged();
+                  });
+                }
               }
             }
             reorderItems(fromIdx, toSlot);
@@ -792,6 +808,31 @@ export const DayStream: React.FC<DayStreamProps> = ({
   return (
     <div className="w-full flex-1 flex flex-col justify-between">
       <div>
+        {/* هدر بخش امروز */}
+        <div className="w-full flex items-center justify-between py-2.5 px-6 text-right select-none">
+          {/* سمت راست: عنوان توصیفی روز و تاریخ */}
+          <div className="flex flex-col items-start gap-0.5 text-right">
+            <h2 className="text-[17px] font-semibold text-foreground tracking-tight leading-snug">
+              {dayTitle}
+            </h2>
+            <span className="text-[12.5px] text-muted-foreground font-normal">
+              {formatJalaliDisplay(parseJalaliKey(selectedDateKey))}
+            </span>
+          </div>
+
+          {/* سمت چپ (روبروی بخش امروز): کپسول سلبریشن تسک */}
+          <div
+            ref={goalPillRef}
+            dir="ltr"
+            className="h-[28px] inline-flex items-center justify-center gap-1 px-2.5 rounded-full bg-card text-card-foreground border border-border/50 dark:border-white/10 shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none shrink-0"
+            title={`هدف روزانه: ${toPersianDigits(dailyTaskGoal)} تسک (${toPersianDigits(todayDoneCount)} از ${toPersianDigits(dailyTaskGoal)} انجام شد)`}
+          >
+            <HugeiconsIcon icon={PartyIcon} size={14} strokeWidth={1.8} className="shrink-0 text-muted-foreground/80" />
+            <span className="font-semibold text-[11.5px] leading-none pt-0.5 text-foreground/80 tabular-nums">
+              {toPersianDigits(todayDoneCount)}/{toPersianDigits(dailyTaskGoal)}
+            </span>
+          </div>
+        </div>
 
         {/* Skeleton loading state on initial load */}
         {isLoading ? (
@@ -820,7 +861,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
               </div>
             ))}
           </div>
-        ) : (
+        ) : enableDaySections ? (
           /* 4 Time-of-Day Sections matching Tiimo & TodoView styles */
           <div
             ref={streamContainerRef}
@@ -888,7 +929,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                           </button>
                         </div>
                       ) : (
-                        secItems.map((item) => {
+                        secItems.map((item, itemIdx) => {
                           const idx = streamItems.indexOf(item);
                           const isHtml5Dragging = draggedIndex === idx;
                           const isTouchDragging = touchDragIndex === idx;
@@ -950,7 +991,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                                     onDragStart={(e) => handleDragStart(e, idx)}
                                     onDragEnd={handleDragEnd}
                                     isNewlyAdded={item.data.id === newlyAddedTaskId}
-                                    isLast={false}
+                                    isLast={itemIdx === secItems.length - 1}
                                   />
                                 )}
 
@@ -962,7 +1003,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                                     draggable
                                     onDragStart={(e) => handleDragStart(e, idx)}
                                     onDragEnd={handleDragEnd}
-                                    isLast={false}
+                                    isLast={itemIdx === secItems.length - 1}
                                   />
                                 )}
 
@@ -973,7 +1014,7 @@ export const DayStream: React.FC<DayStreamProps> = ({
                                     draggable
                                     onDragStart={(e) => handleDragStart(e, idx)}
                                     onDragEnd={handleDragEnd}
-                                    isLast={false}
+                                    isLast={itemIdx === secItems.length - 1}
                                   />
                                 )}
                               </div>
@@ -994,6 +1035,210 @@ export const DayStream: React.FC<DayStreamProps> = ({
                 </div>
               );
             })}
+          </div>
+        ) : (
+          /* Flat Unified Stream (when day sectioning is disabled in settings) */
+          <div
+            ref={streamContainerRef}
+            className="w-full min-h-[70px]"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              if (dropSlotIndex === null) {
+                setDropSlotIndex(streamItems.length);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setDropSlotIndex(null);
+            }}
+            onDrop={(e) => {
+              const targetSlot = dropSlotIndex !== null ? dropSlotIndex : streamItems.length;
+              handleDropAtSlot(e, targetSlot);
+            }}
+          >
+            {(() => {
+              const activeDragIndex = draggedIndex !== null ? draggedIndex : touchDragIndex;
+              const isExternalDragging = externalTouchDragInfo !== null;
+              return (
+                <>
+                  {/* نمایش اسلات در ابتدای لیست اگر اسلات ۰ انتخاب شده باشد */}
+                  {hasAnyItems &&
+                    dropSlotIndex === 0 &&
+                    (activeDragIndex === null || activeDragIndex > 0 || isExternalDragging) && (
+                      <CardDropPreview />
+                    )}
+
+                  {streamItems.map((item, idx) => {
+                    const isHtml5Dragging = draggedIndex === idx;
+                    const isTouchDragging = touchDragIndex === idx;
+
+                    return (
+                      <React.Fragment key={item.id}>
+                        <div
+                          ref={(el) => {
+                            if (el) {
+                              itemElementsRef.current.set(item.id, el);
+                            } else {
+                              itemElementsRef.current.delete(item.id);
+                            }
+                          }}
+                          onTouchStart={(e) => handleTouchStart(e, idx)}
+                          onTouchMove={handleTouchMove}
+                          onTouchEnd={handleTouchEnd}
+                          onTouchCancel={handleTouchEnd}
+                          onClickCapture={(e) => {
+                            if (justFinishedTouchDragRef.current) {
+                              e.stopPropagation();
+                              e.preventDefault();
+                            }
+                          }}
+                          onDragOver={(e) => handleItemDragOver(e, idx)}
+                          onDrop={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const isLowerHalf = e.clientY - rect.top > rect.height / 2;
+                            const targetSlot = isLowerHalf ? idx + 1 : idx;
+                            handleDropAtSlot(e, targetSlot);
+                          }}
+                          style={
+                            isTouchDragging
+                              ? {
+                                  transform: `translate3d(0, ${touchDeltaY}px, 0) scale(1.03)`,
+                                  zIndex: 60,
+                                  boxShadow:
+                                    '0 20px 35px -8px rgba(0, 0, 0, 0.22), 0 10px 18px -4px rgba(0, 0, 0, 0.12), 0 0 0 1.5px rgba(99, 102, 241, 0.35)',
+                                  pointerEvents: 'none',
+                                }
+                              : undefined
+                          }
+                          className={`relative will-change-transform ${
+                            isTouchDragging
+                              ? 'transition-none select-none ring-2 ring-primary/30 rounded-lg'
+                              : isHtml5Dragging
+                              ? 'opacity-30'
+                              : 'opacity-100 transition-opacity duration-150'
+                          }`}
+                        >
+                          {item.type === 'task' && (
+                            <TaskItemRow
+                              task={item.data}
+                              tagsMap={tagsMap}
+                              currentDateKey={selectedDateKey}
+                              onStatusChanged={onStatusChanged}
+                              onMigrate={(id) => onMigrateTask(id)}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, idx)}
+                              onDragEnd={handleDragEnd}
+                              isNewlyAdded={item.data.id === newlyAddedTaskId}
+                              isLast={idx === streamItems.length - 1}
+                            />
+                          )}
+
+                          {item.type === 'note' && (
+                            <NoteItemRow
+                              note={item.data}
+                              tagsMap={tagsMap}
+                              onStatusChanged={onStatusChanged}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, idx)}
+                              onDragEnd={handleDragEnd}
+                              isLast={idx === streamItems.length - 1}
+                            />
+                          )}
+
+                          {item.type === 'event' && (
+                            <EventItemRow
+                              event={item.data}
+                              onStatusChanged={onStatusChanged}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, idx)}
+                              onDragEnd={handleDragEnd}
+                              isLast={idx === streamItems.length - 1}
+                            />
+                          )}
+                        </div>
+
+                        {/* پیش‌نمایش خاکستری کارت پس از این ردیف در صورتی که اسلات هدف باشد */}
+                        {dropSlotIndex === idx + 1 &&
+                          (isExternalDragging ||
+                            activeDragIndex === null ||
+                            (activeDragIndex !== idx && activeDragIndex !== idx + 1)) && (
+                            <CardDropPreview />
+                          )}
+                      </React.Fragment>
+                    );
+                  })}
+                </>
+              );
+            })()}
+
+            {/* پیش‌نمایش در حالت خالی بودن لیست فقط اگر آیتم درگی غیر از روی کامپوننت خالی هست */}
+            {/* Empty state when no items */}
+            {!hasAnyItems && (
+              <div
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  dragEnterCountRef.current += 1;
+                  setIsDragOverEmpty(true);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (!isDragOverEmpty) setIsDragOverEmpty(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  dragEnterCountRef.current -= 1;
+                  if (dragEnterCountRef.current <= 0) {
+                    dragEnterCountRef.current = 0;
+                    setIsDragOverEmpty(false);
+                  }
+                }}
+                onDrop={(e) => {
+                  dragEnterCountRef.current = 0;
+                  setIsDragOverEmpty(false);
+                  handleDropAtSlot(e, 0);
+                }}
+                className={`w-full py-6 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
+                  isDragOverEmpty ? 'bg-gray-50/70 dark:bg-white/5 scale-[1.01]' : 'bg-transparent'
+                }`}
+              >
+                <img
+                  src="/empty-today.png"
+                  alt={isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده'}
+                  className="w-36 h-36 sm:w-40 sm:h-40 object-contain -mb-1 select-none pointer-events-none drop-shadow-sm transition-transform duration-200"
+                  draggable={false}
+                />
+
+                {isDragOverEmpty ? (
+                  <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
+                    {isToday
+                      ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
+                      : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
+                  </p>
+                ) : (
+                  <div className="flex flex-col items-center select-none">
+                    <p className="text-[13px] font-medium text-muted-foreground leading-relaxed">
+                      {isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده است'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60 font-normal leading-relaxed mt-0.5 max-w-[340px] mx-auto">
+                      <button
+                        type="button"
+                        onClick={() => onOpenAdd?.()}
+                        className="underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-foreground hover:text-foreground transition-colors cursor-pointer inline font-medium"
+                      >
+                        کاری اضافه کنید
+                      </button>
+                      <span>
+                        {isToday
+                          ? ' یا کارهای قبلی را درگ کنید روی امروز!'
+                          : ' یا کارهای دیگر را درگ کنید روی این روز!'}
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1017,4 +1262,4 @@ export const DayStream: React.FC<DayStreamProps> = ({
       </div>
     </div>
   );
-};
+});

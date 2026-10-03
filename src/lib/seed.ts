@@ -58,6 +58,15 @@ export async function checkAndSeedDemoBoxes() {
 
 
 export async function checkAndSeedDesignDemoData() {
+  const { supabase } = await import('./supabase');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    // If user is logged into Supabase, their data comes from cloud server. Do not seed demo tasks!
+    const { deduplicateLocalDatabase } = await import('./sync');
+    await deduplicateLocalDatabase().catch(() => {});
+    return;
+  }
+
   await checkAndSeedDemoBoxes();
 
   const todayKey = getTodayJalaliKey();
@@ -136,13 +145,27 @@ export async function checkAndSeedDesignDemoData() {
       tag_ids: [],
     });
 
-    // 4. Overdue Task (از روزهای قبل)
+    // 4. Overdue Task (از روزهای قبل - تاخیر کم)
     await taskRepo.create({
       entry_id: null,
       title: 'بررسی فیدبک‌های کاربر',
       description: 'موارد یادداشت‌شده در جلسه دیروز',
       status: 'open',
       due_date: overdueKey,
+      tag_ids: [],
+    });
+
+    // 4b. Critical Overdue Task (خیلی عقب‌افتاده - بیش از ۷ روز)
+    const criticalDate = new Date(nowDate);
+    criticalDate.setDate(nowDate.getDate() - 10);
+    const criticalKey = formatJalaliKey(getJalaliDate(criticalDate));
+    await taskRepo.create({
+      entry_id: null,
+      title: 'تمدید اشتراک سرور و هاست',
+      description: 'نیاز به هماهنگی با بخش مالی',
+      status: 'open',
+      due_date: criticalKey,
+      priority: 3,
       tag_ids: [],
     });
 

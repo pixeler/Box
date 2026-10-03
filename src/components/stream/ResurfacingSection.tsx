@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Task, EventItem, Tag } from '@/types/models';
-import { toPersianDigits } from '@/lib/jalali';
+import { toPersianDigits, getTaskOverdueDays } from '@/lib/jalali';
 import { TaskItemRow } from './TaskItemRow';
 import { EventItemRow } from './EventItemRow';
 import { RiArrowDownSLine, RiArrowUpSLine } from '@remixicon/react';
@@ -47,6 +47,21 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
   useEffect(() => {
     setLocalOverdueTasks(overdueTasks);
   }, [overdueTasks]);
+
+  // تفکیک کارهای خیلی عقب‌افتاده (بیش از ۷ روز) و معمولی
+  const criticalTasks = localOverdueTasks.filter(
+    (t) => getTaskOverdueDays(t.due_date, selectedDateKey) > 7
+  );
+  const regularTasks = localOverdueTasks.filter(
+    (t) => getTaskOverdueDays(t.due_date, selectedDateKey) <= 7
+  );
+
+  // باز بودن پیش‌فرض بخش از روزهای قبل در صورت داشتن تسک
+  useEffect(() => {
+    if (localOverdueTasks.length > 0) {
+      setOpenPrevious(true);
+    }
+  }, [localOverdueTasks.length]);
 
   // پاک‌سازی وضعیت درگ
   useEffect(() => {
@@ -121,14 +136,6 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
     setDropSlotOverdueIndex(null);
   };
 
-  // بخش از روزهای قبل در صورت وجود تسک، به صورت پیش‌فرض باز است
-  useEffect(() => {
-    if (overdueTasks.length > 0) {
-      setOpenPrevious(true);
-    }
-  }, [overdueTasks.length]);
-
-  const overdueCount = localOverdueTasks.length;
   const futureTaskCount = futureTasks.length;
   const futureEventCount = futureEvents.length;
 
@@ -140,13 +147,18 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
           onClick={() => setOpenPrevious(!openPrevious)}
           className="w-full flex items-center justify-between py-2 px-6 transition-colors cursor-pointer text-right"
         >
-          {/* 1. Text and count on FAR RIGHT (First child in RTL) */}
-          <div className="flex items-center gap-2">
-            <span className="text-foreground font-normal text-[12px]">
-              از روزهای قبل
-            </span>
-            <span className="text-muted-foreground font-normal text-[12px]">
-              {toPersianDigits(overdueCount)}
+          {/* 1. Text, count and subtitle on FAR RIGHT (First child in RTL) */}
+          <div className="flex flex-col items-start gap-0.5 text-right">
+            <div className="flex items-center gap-2">
+              <span className="text-foreground font-normal text-[12px]">
+                از روزهای قبل
+              </span>
+              <span className="text-muted-foreground font-normal text-[12px]">
+                {toPersianDigits(localOverdueTasks.length)}
+              </span>
+            </div>
+            <span className="text-[11px] text-muted-foreground/80 font-normal">
+              تسک‌ها را می‌توانید به امروز درگ کنید
             </span>
           </div>
 
@@ -161,35 +173,78 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
         </button>
 
         {openPrevious && (
-          <div
-            className="pt-1 w-full"
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
-              if (dropSlotOverdueIndex === null) {
-                setDropSlotOverdueIndex(localOverdueTasks.length);
-              }
-            }}
-            onDragLeave={(e) => {
-              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-              setDropSlotOverdueIndex(null);
-            }}
-            onDrop={(e) => {
-              const targetSlot =
-                dropSlotOverdueIndex !== null ? dropSlotOverdueIndex : localOverdueTasks.length;
-              handleDropAtSlot(e, targetSlot);
-            }}
-          >
-            {localOverdueTasks.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2 px-6">موردی برای نمایش وجود ندارد.</p>
-            ) : (
-              <>
+          <div className="pt-1 w-full space-y-2">
+            {/* زیرمجموعه: باکس خیلی عقب‌افتاده (> 7 روز عقب‌افتاده) */}
+            {criticalTasks.length > 0 && (
+              <div className="mx-4 my-1.5 rounded-2xl border border-rose-500/25 bg-rose-500/[0.05] dark:bg-rose-500/[0.09] backdrop-blur-xs overflow-hidden transition-all duration-200 shadow-2xs">
+                {/* هدر باکس خیلی عقب‌افتاده بدون فلش، بدون نقطه قرمز و بدون شمارشگر */}
+                <div className="py-2.5 px-4 text-right">
+                  <span className="text-rose-600 dark:text-rose-400 font-bold text-[13px] tracking-tight block">
+                    خیلی عقب‌افتاده
+                  </span>
+                  <span className="text-[11px] text-rose-500/80 dark:text-rose-400/80 font-normal mt-0.5 block">
+                    یا انجام بده یا حذفشان کن.
+                  </span>
+                </div>
+
+                {/* لیست تسک‌های خیلی عقب‌افتاده */}
+                <div className="pt-0.5 pb-1 w-full">
+                  {criticalTasks.map((task, idx) => (
+                    <div
+                      key={task.id}
+                      onTouchStart={(e) => onExternalTouchStart?.(e, task, 'overdue')}
+                      onTouchMove={onExternalTouchMove}
+                      onTouchEnd={onExternalTouchEnd}
+                      onTouchCancel={onExternalTouchEnd}
+                      className="transition-opacity duration-150 relative w-full"
+                    >
+                      <TaskItemRow
+                        task={task}
+                        tagsMap={tagsMap}
+                        currentDateKey={selectedDateKey}
+                        onStatusChanged={onStatusChanged}
+                        onMigrate={onMigrateToCurrentDate}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, idx, task)}
+                        onDragEnd={() => {
+                          setDraggedOverdueIndex(null);
+                          setDropSlotOverdueIndex(null);
+                        }}
+                        isLast={idx === criticalTasks.length - 1}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* لیست تسک‌های معمولی از روزهای قبل (تاخیر کمتر یا مساوی ۷ روز) */}
+            {regularTasks.length > 0 && (
+              <div
+                className="w-full"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dropSlotOverdueIndex === null) {
+                    setDropSlotOverdueIndex(regularTasks.length);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setDropSlotOverdueIndex(null);
+                }}
+                onDrop={(e) => {
+                  const targetSlot =
+                    dropSlotOverdueIndex !== null ? dropSlotOverdueIndex : regularTasks.length;
+                  handleDropAtSlot(e, targetSlot);
+                }}
+              >
                 {dropSlotOverdueIndex === 0 &&
                   (draggedOverdueIndex === null || draggedOverdueIndex > 0) && (
                     <CardDropPreview />
                   )}
 
-                {localOverdueTasks.map((task, idx) => {
+                {regularTasks.map((task, idx) => {
                   const isDragging = draggedOverdueIndex === idx;
 
                   return (
@@ -237,7 +292,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                             setDraggedOverdueIndex(null);
                             setDropSlotOverdueIndex(null);
                           }}
-                          isLast={idx === localOverdueTasks.length - 1}
+                          isLast={idx === regularTasks.length - 1}
                         />
                       </div>
 
@@ -249,7 +304,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
                     </React.Fragment>
                   );
                 })}
-              </>
+              </div>
             )}
           </div>
         )}

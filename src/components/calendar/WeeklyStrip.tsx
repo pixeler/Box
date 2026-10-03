@@ -76,7 +76,7 @@ function getNextMonthYear(jy: number, jm: number) {
   return { jy, jm: jm + 1 };
 }
 
-export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
+export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
   selectedDateKey,
   onSelectDate,
   datesWithItems,
@@ -787,13 +787,13 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
         }}
         className="group relative flex flex-col items-center justify-center flex-1 h-[44px] outline-none focus:outline-none ring-0 border-none select-none cursor-pointer overflow-visible"
       >
-        {/* Circle container: Selected day is slightly larger (38x38px) than other days (32x32px) */}
+        {/* Circle container: Selected day is slightly larger (40x40px) than other days (32x32px) */}
         <div
           className={`relative rounded-full flex items-center justify-center shrink-0 overflow-hidden ${
             isSelected
-              ? `w-[38px] h-[38px] ${
+              ? `w-[40px] h-[40px] ${
                   cell.isHoliday
-                    ? 'text-white font-bold bg-rose-500 shadow-xs'
+                    ? 'theme-holiday-btn text-white font-bold shadow-xs'
                     : 'theme-add-btn text-white font-bold shadow-xs'
                 }`
               : `w-[32px] h-[32px] ${
@@ -1213,4 +1213,4 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = ({
       </div>
     </div>
   );
-};
+});

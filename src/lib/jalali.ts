@@ -322,11 +322,15 @@ export function formatTaskDateDisplay(
   if (diffDays === 0) {
     dateLabel = 'امروز';
   } else if (diffDays === -1) {
-    dateLabel = 'دیروز';
-  } else if (diffDays === -2) {
-    dateLabel = '۲ روز قبل';
-  } else if (diffDays < -2 && diffDays >= -7) {
-    dateLabel = `${toPersianDigits(Math.abs(diffDays))} روز قبل`;
+    dateLabel = `دیروز (${toPersianDigits(1)} روز عقب‌افتاده)`;
+  } else if (diffDays < -1) {
+    const overdueDays = Math.abs(diffDays);
+    const monthName = PERSIAN_MONTH_NAMES[taskJalali.jm - 1] || '';
+    let baseDate = `${toPersianDigits(taskJalali.jd)} ${monthName}`;
+    if (taskJalali.jy !== todayJ.jy) {
+      baseDate += ` ${toPersianDigits(taskJalali.jy)}`;
+    }
+    dateLabel = `${baseDate} (${toPersianDigits(overdueDays)} روز عقب‌افتاده)`;
   } else if (diffDays === 1) {
     dateLabel = 'فردا';
   } else if (diffDays === 2) {
@@ -345,6 +349,30 @@ export function formatTaskDateDisplay(
     return `${dateLabel} • ${effectiveTimeStr}`;
   }
   return dateLabel;
+}
+
+/**
+ * محاسبه تعداد روزهای عقب‌افتاده یک تسک نسبت به یک تاریخ مبنا (پیش‌فرض: امروز)
+ */
+export function getTaskOverdueDays(dueDate: string | undefined | null, refDateKey?: string): number {
+  if (!dueDate) return 0;
+  const dStr = extractDateOnly(dueDate);
+  if (!dStr) return 0;
+  const refKey = extractDateOnly(refDateKey || getTodayJalaliKey());
+  if (dStr >= refKey) return 0;
+
+  try {
+    const taskJ = parseJalaliKey(dStr);
+    const refJ = parseJalaliKey(refKey);
+    const taskD = jalaliToDate(taskJ.jy, taskJ.jm, taskJ.jd);
+    const refD = jalaliToDate(refJ.jy, refJ.jm, refJ.jd);
+    const utcTask = Date.UTC(taskD.getFullYear(), taskD.getMonth(), taskD.getDate());
+    const utcRef = Date.UTC(refD.getFullYear(), refD.getMonth(), refD.getDate());
+    const diff = Math.round((utcRef - utcTask) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**
@@ -393,4 +421,31 @@ export function getJalaliDaysDiff(fromKey: string, toKey: string): number {
   } catch {
     return 0;
   }
+}
+
+/**
+ * برچسب توصیفی برای روزهای نزدیک (امروز، فردا، پس‌فردا، دیروز، ۲ روز پیش، ...)
+ * اگر فاصله روزها زیاد باشد، برچسب "روز" بازگردانده می‌شود.
+ */
+export function getDescriptiveDayLabel(targetDateKey: string, todayKey: string): string {
+  if (targetDateKey === todayKey) return 'امروز';
+  const diffDays = getJalaliDaysDiff(todayKey, targetDateKey);
+
+  if (diffDays === 0) return 'امروز';
+  if (diffDays === 1) return 'فردا';
+  if (diffDays === 2) return 'پس‌فردا';
+  if (diffDays === -1) return 'دیروز';
+  if (diffDays === -2) return '۲ روز پیش';
+  if (diffDays === -3) return '۳ روز پیش';
+  if (diffDays === -4) return '۴ روز پیش';
+  if (diffDays === -5) return '۵ روز پیش';
+  if (diffDays === -6) return '۶ روز پیش';
+  if (diffDays === -7) return '۷ روز پیش';
+  if (diffDays === 3) return '۳ روز بعد';
+  if (diffDays === 4) return '۴ روز بعد';
+  if (diffDays === 5) return '۵ روز بعد';
+  if (diffDays === 6) return '۶ روز بعد';
+  if (diffDays === 7) return '۷ روز بعد';
+
+  return 'روز';
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useId } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   UserIcon,
@@ -12,6 +12,7 @@ import { toPersianDigits } from '@/lib/jalali';
 import { useIsMobile } from '@/lib/device';
 import { syncManager, type SyncState } from '@/lib/sync';
 import { RiRefreshLine } from '@remixicon/react';
+import { generatePillDisplacementMap } from '@/lib/glass';
 
 export type ActiveTab = 'day' | 'todo' | 'focus' | 'notebook' | 'profile' | 'boxes';
 
@@ -19,83 +20,14 @@ interface BottomDockProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd: () => void;
-}
-
-/**
- * Generates an accurate normal displacement map for a pill glass shape
- * based on Figma parameters: Refraction (68), Depth (27), Splay (47).
- */
-function generatePillDisplacementMap(width: number, height: number, depth: number = 27, splay: number = 47): string {
-  if (typeof document === 'undefined') return '';
-  const canvas = document.createElement('canvas');
-  const w = Math.max(Math.round(width), 160);
-  const h = Math.max(Math.round(height), 48);
-  canvas.width = w;
-  canvas.height = h;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
-
-  const imgData = ctx.createImageData(w, h);
-  const data = imgData.data;
-  const radius = h / 2;
-  const rimThickness = Math.max(8, Math.min(radius, (depth / 100) * radius + (splay / 100) * 12));
-
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const idx = (y * w + x) * 4;
-
-      let dx = 0;
-      const dy = y - h / 2;
-      if (x < radius) {
-        dx = x - radius;
-      } else if (x > w - radius) {
-        dx = x - (w - radius);
-      } else {
-        dx = 0;
-      }
-
-      const distFromCenter = Math.sqrt(dx * dx + dy * dy);
-      const distFromEdge = radius - distFromCenter;
-
-      if (distFromEdge <= 0) {
-        // Outside pill boundary
-        data[idx] = 128;
-        data[idx + 1] = 128;
-        data[idx + 2] = 255;
-        data[idx + 3] = 0;
-      } else if (distFromEdge < rimThickness) {
-        // Glass rim refraction zone
-        const t = distFromEdge / rimThickness; // 0 at outer edge, 1 at inner flat region
-        // Sine wave normal derivative for smooth optical curvature
-        const normalMagnitude = Math.sin((1 - t) * Math.PI * 0.5);
-
-        const len = distFromCenter > 0.001 ? distFromCenter : 1;
-        const nx = -(dx / len) * normalMagnitude;
-        const ny = -(dy / len) * normalMagnitude;
-
-        data[idx] = Math.max(0, Math.min(255, Math.round(128 + nx * 127)));
-        data[idx + 1] = Math.max(0, Math.min(255, Math.round(128 + ny * 127)));
-        data[idx + 2] = 255;
-        data[idx + 3] = 255;
-      } else {
-        // Crystal clear flat center
-        data[idx] = 128;
-        data[idx + 1] = 128;
-        data[idx + 2] = 255;
-        data[idx + 3] = 255;
-      }
-    }
-  }
-
-  ctx.putImageData(imgData, 0, 0);
-  return canvas.toDataURL();
+  glassOpacity?: number;
 }
 
 export const BottomDock: React.FC<BottomDockProps> = ({
   activeTab,
   onTabChange,
   onOpenAdd,
+  glassOpacity = 0.18,
 }) => {
   const isMobile = useIsMobile();
   const { timerState, remainingMinutes } = useFocusTimer();
@@ -107,16 +39,20 @@ export const BottomDock: React.FC<BottomDockProps> = ({
   }, []);
 
   const dockRef = useRef<HTMLElement>(null);
-  const rawId = useId();
-  const filterId = `figma-glass-${rawId.replace(/:/g, '')}`;
-  const [dispMapUrl, setDispMapUrl] = useState<string>('');
+  const filterId = 'figma-glass-dock-filter';
+  const [dispMapUrl, setDispMapUrl] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return generatePillDisplacementMap(390, 68, 27, 47);
+    }
+    return '';
+  });
 
   useEffect(() => {
     // Skip SVG displacement canvas generation on mobile to boost performance and reduce CPU/GPU lag
     if (isMobile) return;
     if (!dockRef.current) return;
     const rect = dockRef.current.getBoundingClientRect();
-    const w = rect.width || 270;
+    const w = rect.width || 390;
     const h = rect.height || 68;
     const url = generatePillDisplacementMap(w, h, 27, 47);
     setDispMapUrl(url);
@@ -134,8 +70,8 @@ export const BottomDock: React.FC<BottomDockProps> = ({
     return () => observer.disconnect();
   }, [isMobile]);
 
-  const refractionScale = 48; // Scaled for CSS displacement coordinates
-  const dispersionOffset = 14; // Dispersion: 53 -> RGB chromatic split
+  const refractionScale = 54; // Scaled for CSS displacement coordinates
+  const dispersionOffset = 22; // Dispersion: RGB chromatic split
 
   return (
     <>
@@ -180,7 +116,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
                 result="RED_CHANNEL"
               />
 
-              {/* 2. Green Channel Displaced (Base Refraction: 68) */}
+              {/* 2. Green Channel Displaced (Base Refraction) */}
               <feDisplacementMap
                 in="SourceGraphic"
                 in2="DISPLACEMENT_MAP"
@@ -255,14 +191,8 @@ export const BottomDock: React.FC<BottomDockProps> = ({
           WebkitBackdropFilter: (!isMobile && dispMapUrl)
             ? `url(#${filterId}) blur(1.5px) saturate(180%)`
             : 'blur(20px) saturate(180%)',
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.1) 100%)',
-          boxShadow: `
-            inset 1px 1px 2px 0px rgba(255, 255, 255, 0.8),
-            inset -0.5px -0.5px 1.5px 0px rgba(255, 255, 255, 0.35),
-            0 8px 24px -4px rgba(0, 0, 0, 0.1),
-            0 2px 6px -1px rgba(0, 0, 0, 0.05)
-          `,
-          border: '1px solid rgba(255, 255, 255, 0.65)',
+          // @ts-ignore
+          '--glass-opacity': String(glassOpacity ?? 0.18),
         }}
         dir="rtl"
         aria-label="منوی ناوبری اصلی"

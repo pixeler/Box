@@ -587,37 +587,35 @@ button:active {
 }
 
 .dark .liquid-glass-dock,
+/* Glass Card and Dock - styled and controlled dynamically by --glass-opacity */
+.figma-glass-card,
+.figma-glass-dock {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, var(--glass-opacity, 0.18)) 0%,
+    rgba(255, 255, 255, calc(var(--glass-opacity, 0.18) * 0.22)) 50%,
+    rgba(255, 255, 255, calc(var(--glass-opacity, 0.18) * 0.55)) 100%
+  ) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 
+    inset 1px 1px 2px 0px rgba(255, 255, 255, 0.8),
+    inset -0.5px -0.5px 1.5px 0px rgba(255, 255, 255, 0.35),
+    0 8px 24px -4px rgba(0, 0, 0, 0.1),
+    0 2px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
 [data-theme*="-dark"] .liquid-glass-dock,
 .dark .figma-glass-dock,
-[data-theme*="-dark"] .figma-glass-dock {
-  background: rgba(14, 15, 20, 0.45) !important;
+[data-theme*="-dark"] .figma-glass-dock,
+.dark .figma-glass-card,
+[data-theme*="-dark"] .figma-glass-card {
+  background: rgba(14, 15, 20, calc(var(--glass-opacity, 0.18) * 2.5)) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 
     0 4px 20px -4px rgba(0, 0, 0, 0.5),
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Glass Card for Main App Container with 80% opacity (20% transparency) for ideal text contrast */
-.figma-glass-card {
-  position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.78) 50%, rgba(255, 255, 255, 0.80) 100%) !important;
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.7) !important;
-  box-shadow: 
-    inset 1px 1px 2px 0px rgba(255, 255, 255, 0.9),
-    inset -0.5px -0.5px 1.5px 0px rgba(255, 255, 255, 0.4),
-    0 16px 40px -8px rgba(0, 0, 0, 0.16),
-    0 4px 12px -2px rgba(0, 0, 0, 0.06) !important;
-}
-
-.dark .figma-glass-card,
-[data-theme*="-dark"] .figma-glass-card {
-  background: linear-gradient(135deg, rgba(16, 18, 24, 0.82) 0%, rgba(14, 15, 20, 0.78) 50%, rgba(18, 20, 28, 0.80) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 
-    0 8px 32px -4px rgba(0, 0, 0, 0.6),
-    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 /* Tone down bright specular sheen overlay in dark mode */
@@ -848,8 +846,30 @@ button:active {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.theme-holiday-btn {
+  color: #ffffff !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 50%, #be123c 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 
+    0 2px 10px -1px rgba(225, 29, 72, 0.45),
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -0.5px 1px 0 rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-holiday-btn:hover {
+  background: linear-gradient(135deg, #fb7185 0%, #f43f5e 50%, #e11d48 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 
+    0 4px 14px -1px rgba(225, 29, 72, 0.55),
+    inset 0 1px 2px 0 rgba(255, 255, 255, 0.6) !important;
+}
+
 .theme-glass-pill:active,
-.theme-add-btn:active {
+.theme-add-btn:active,
+.theme-holiday-btn:active {
   transform: scale(0.975);
 }
 

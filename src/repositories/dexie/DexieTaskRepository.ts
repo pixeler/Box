@@ -59,7 +59,7 @@ export class DexieTaskRepository implements TaskRepository {
       // For recurring tasks appearing on this date, reflect their completion status for THIS date
       items = items.map((item) => {
         if (item.recurrence_rule && item.recurrence_rule !== 'none') {
-          const isDoneOnDate = (item.done_dates || []).includes(targetDate);
+          const isDoneOnDate = (item.done_dates || []).map(extractDateOnly).includes(targetDate);
           return {
             ...item,
             status: isDoneOnDate ? 'done' : 'open',
@@ -104,11 +104,11 @@ export class DexieTaskRepository implements TaskRepository {
     // Handle recurring task completion per date
     if (existing.recurrence_rule && existing.recurrence_rule !== 'none') {
       const targetDate = dateKey ? extractDateOnly(dateKey) : getTodayJalaliKey();
-      const currentDones = existing.done_dates || [];
+      const currentDones = (existing.done_dates || []).map(extractDateOnly);
       const isAlreadyDone = currentDones.includes(targetDate);
       const nextDones = isAlreadyDone
         ? currentDones.filter((d) => d !== targetDate)
-        : [...currentDones, targetDate];
+        : Array.from(new Set([...currentDones, targetDate]));
 
       const updated = await this.update(id, {
         done_dates: nextDones,
@@ -122,8 +122,24 @@ export class DexieTaskRepository implements TaskRepository {
 
     const newStatus = existing.status === 'done' ? 'open' : 'done';
 
+    // When unchecking a non-recurring task, clear done_dates and set status to open
+    if (newStatus === 'open') {
+      return this.update(id, {
+        status: 'open',
+        done_dates: [],
+      });
+    }
+
+    const completionDate = dateKey
+      ? extractDateOnly(dateKey)
+      : existing.due_date
+      ? extractDateOnly(existing.due_date)
+      : getTodayJalaliKey();
+    const currentDones = (existing.done_dates || []).map(extractDateOnly);
+    const nextDones = Array.from(new Set([...currentDones, completionDate]));
+
     // اگر تسک سنجاق شده تیک خورد، سنجاقش برداشته می‌شود و در تاریخ همان روز قرار می‌گیرد
-    if (newStatus === 'done' && existing.pinned) {
+    if (existing.pinned) {
       const todayKey = getTodayJalaliKey();
       const timeMatch = existing.due_date?.match(/\d{1,2}:\d{2}/);
       const newDueDate = timeMatch ? `${todayKey} ${timeMatch[0]}` : todayKey;
@@ -131,10 +147,11 @@ export class DexieTaskRepository implements TaskRepository {
         status: 'done',
         pinned: false,
         due_date: newDueDate,
+        done_dates: nextDones,
       });
     }
 
-    return this.update(id, { status: newStatus });
+    return this.update(id, { status: 'done', done_dates: nextDones });
   }
 
   async softDelete(id: string): Promise<void> {
@@ -179,9 +196,14 @@ export class DexieTaskRepository implements TaskRepository {
         return taskDate !== '' && taskDate < normBefore;
       })
       .sort((a, b) => {
-        const dateCmp = extractDateOnly(a.due_date).localeCompare(extractDateOnly(b.due_date));
+        const pA = a.priority || 0;
+        const pB = b.priority || 0;
+        if (pA !== pB) return pB - pA;
+        const dateA = extractDateOnly(a.due_date || '');
+        const dateB = extractDateOnly(b.due_date || '');
+        const dateCmp = dateB.localeCompare(dateA);
         if (dateCmp !== 0) return dateCmp;
-        return (b.priority || 0) - (a.priority || 0);
+        return (new Date(b.created_at || 0).getTime() || 0) - (new Date(a.created_at || 0).getTime() || 0);
       });
   }
 

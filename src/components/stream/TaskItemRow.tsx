@@ -26,7 +26,6 @@ import { JalaliDatePicker } from '@/components/calendar/JalaliDatePicker';
 import { useIsMobile } from '@/lib/device';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
-  CalendarUpload02Icon,
   Clock01Icon,
   Sun01Icon,
 } from '@hugeicons/core-free-icons';
@@ -299,28 +298,6 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   </div>
                 )}
               </div>
-
-              {/* Overdue Transfer to Today Action Button (only for non-recurring tasks) - Equal side and bottom padding */}
-              {!isRecurring && onMigrate && task.due_date && task.due_date < todayKey && (
-                <div className="mt-3 flex items-center">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMigrate(task.id);
-                    }}
-                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-border/80 bg-card hover:bg-muted/50 text-foreground text-[12.5px] font-normal transition-colors cursor-pointer shadow-2xs active:scale-95"
-                  >
-                    <HugeiconsIcon
-                      icon={CalendarUpload02Icon}
-                      size={16}
-                      strokeWidth={1.8}
-                      className="shrink-0 text-foreground"
-                    />
-                    <span>انتقال به امروز</span>
-                  </button>
-                </div>
-              )}
             </div>
         </ContextMenuTrigger>
 
