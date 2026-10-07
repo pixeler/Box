@@ -110,28 +110,32 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs select-none"
+      className="fixed inset-0 z-50 flex items-start pt-[10vh] sm:pt-[14vh] justify-center p-4 bg-black/60 backdrop-blur-sm select-none animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-card text-card-foreground rounded-3xl shadow-2xl border border-border overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full max-w-xl bg-card text-card-foreground rounded-3xl shadow-2xl border border-border/80 overflow-hidden flex flex-col max-h-[75vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Search Input */}
-        <div className="p-4 border-b border-border flex items-center gap-3">
+        <div className="p-4 border-b border-border/70 flex items-center gap-3">
           <RiSearchLine className="w-5 h-5 text-muted-foreground shrink-0" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
-            placeholder="جستجوی آنی در تمام تسک‌ها، یادداشت‌ها و رویدادها..."
+            placeholder="جستجوی سراسری در تسک‌ها، یادداشت‌ها و رویدادها..."
             className="w-full text-sm outline-none text-foreground placeholder-muted-foreground font-sans bg-transparent"
             dir="rtl"
           />
+          <kbd className="hidden sm:inline-flex items-center text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md font-mono shrink-0">
+            Esc
+          </kbd>
           <button
             onClick={onClose}
             className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+            title="بستن"
           >
             <RiCloseLine className="w-5 h-5" />
           </button>

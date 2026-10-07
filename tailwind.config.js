@@ -10,6 +10,7 @@ export default {
       fontFamily: {
         sans: ["Dana", "system-ui", "sans-serif"],
         dana: ["Dana", "system-ui", "sans-serif"],
+        darvish: ["Darvish", "Dana", "system-ui", "sans-serif"],
         digikala: ["Dana", "system-ui", "sans-serif"],
         estedad: ["Dana", "system-ui", "sans-serif"],
       },

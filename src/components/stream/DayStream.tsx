@@ -9,7 +9,6 @@ import { CardDropPreview } from './CardDropPreview';
 import { toPersianDigits, getTodayJalaliKey, formatJalaliDisplay, parseJalaliKey, getDescriptiveDayLabel } from '@/lib/jalali';
 import { triggerHaptic } from '@/lib/capacitor';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { PartyIcon } from '@hugeicons/core-free-icons';
 import { RiArrowDownSLine, RiArrowUpSLine, RiAddLine } from '@remixicon/react';
 import { taskRepo } from '@/repositories';
 
@@ -160,10 +159,10 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
   onOpenAdd,
   newlyAddedTaskId,
   isLoading,
-  todayDoneCount = 0,
-  dailyTaskGoal = 5,
+  todayDoneCount: _todayDoneCount = 0,
+  dailyTaskGoal: _dailyTaskGoal = 5,
   enableDaySections = false,
-  goalPillRef,
+  goalPillRef: _goalPillRef,
 }) => {
   const [filterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
   const [sortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
@@ -808,30 +807,24 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
   return (
     <div className="w-full flex-1 flex flex-col justify-between">
       <div>
-        {/* هدر بخش امروز */}
-        <div className="w-full flex items-center justify-between py-2.5 px-6 text-right select-none">
+        {/* هدر بخش روز با دکمه مینیمال اضافه کردن کار */}
+        <div className="w-full flex items-center justify-between py-2 px-6 text-right select-none" dir="rtl">
           {/* سمت راست: عنوان توصیفی روز و تاریخ */}
-          <div className="flex flex-col items-start gap-0.5 text-right">
-            <h2 className="text-[17px] font-semibold text-foreground tracking-tight leading-snug">
-              {dayTitle}
-            </h2>
-            <span className="text-[12.5px] text-muted-foreground font-normal">
-              {formatJalaliDisplay(parseJalaliKey(selectedDateKey))}
-            </span>
-          </div>
+          <h2 className="text-sm font-medium text-muted-foreground tracking-tight select-none leading-none">
+            {dayTitle} {formatJalaliDisplay(parseJalaliKey(selectedDateKey))}
+          </h2>
 
-          {/* سمت چپ (روبروی بخش امروز): کپسول سلبریشن تسک */}
-          <div
-            ref={goalPillRef}
-            dir="ltr"
-            className="h-[28px] inline-flex items-center justify-center gap-1 px-2.5 rounded-full bg-card text-card-foreground border border-border/50 dark:border-white/10 shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none shrink-0"
-            title={`هدف روزانه: ${toPersianDigits(dailyTaskGoal)} تسک (${toPersianDigits(todayDoneCount)} از ${toPersianDigits(dailyTaskGoal)} انجام شد)`}
+          {/* سمت چپ: دکمه مینیمال و میوت اضافه کردن کار */}
+          <button
+            type="button"
+            onClick={() => onOpenAdd?.('anytime')}
+            className="border border-neutral-200 dark:border-neutral-800 text-muted-foreground hover:text-foreground hover:bg-secondary/40 text-xs px-3 py-1 rounded-full flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 select-none"
+            title="اضافه کردن کار (میانبر / یا N)"
           >
-            <HugeiconsIcon icon={PartyIcon} size={14} strokeWidth={1.8} className="shrink-0 text-muted-foreground/80" />
-            <span className="font-semibold text-[11.5px] leading-none pt-0.5 text-foreground/80 tabular-nums">
-              {toPersianDigits(todayDoneCount)}/{toPersianDigits(dailyTaskGoal)}
-            </span>
-          </div>
+            <span className="text-sm font-light leading-none">+</span>
+            <span className="font-normal text-[11px] sm:text-xs">اضافه کردن کار</span>
+            <span className="opacity-40 text-[11px] font-mono leading-none">/</span>
+          </button>
         </div>
 
         {/* Skeleton loading state on initial load */}
@@ -890,15 +883,15 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                     <button
                       type="button"
                       onClick={() => toggleSection(sec.key)}
-                      className={`inline-flex items-center gap-1.5 px-1 py-1 pr-1.5 rounded-full text-xs font-medium cursor-pointer active:scale-95 select-none ${sec.pillClasses}`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer active:scale-95 select-none transition-colors ${sec.pillClasses}`}
                     >
-                      <HugeiconsIcon icon={sec.icon} size={18} className="text-current opacity-60 shrink-0" />
+                      <HugeiconsIcon icon={sec.icon} size={16} className="text-current opacity-70 shrink-0" />
                       <span className="tracking-tight">{sec.label}</span>
-                      <span className="opacity-75 font-normal">({toPersianDigits(secItems.length)})</span>
+                      <span className="opacity-75 font-normal tabular-nums">({toPersianDigits(secItems.length)})</span>
                       {isOpen ? (
-                        <RiArrowDownSLine className="w-3.5 h-3.5 opacity-60" />
+                        <RiArrowDownSLine className="size-3.5 opacity-60" />
                       ) : (
-                        <RiArrowUpSLine className="w-3.5 h-3.5 opacity-60" />
+                        <RiArrowUpSLine className="size-3.5 opacity-60" />
                       )}
                     </button>
 
@@ -906,10 +899,10 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                       <button
                         type="button"
                         onClick={() => onOpenAdd?.(sec.key)}
-                        className="w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground/25 hover:text-foreground hover:bg-secondary/50 transition-colors cursor-pointer active:scale-95"
+                        className="size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer active:scale-95"
                         title={`افزودن کار به ${sec.label}`}
                       >
-                        <RiAddLine className="w-4 h-4" />
+                        <RiAddLine className="size-4" />
                       </button>
                     )}
                   </div>
@@ -922,10 +915,10 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                           <button
                             type="button"
                             onClick={() => onOpenAdd?.(sec.key)}
-                            className="w-full py-2.5 px-3.5 rounded-xl border border-dashed border-border/50 hover:border-primary/40 bg-secondary/15 hover:bg-secondary/30 flex items-center justify-between text-xs text-muted-foreground/65 hover:text-foreground/85 transition-all cursor-pointer group select-none"
+                            className="w-full py-2.5 px-3.5 rounded-xl border border-dashed border-border hover:border-primary/40 bg-secondary/20 hover:bg-secondary/40 flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer group select-none"
                           >
                             <span>{sec.emptyHint}</span>
-                            <RiAddLine className="w-4 h-4 text-muted-foreground/25 group-hover:text-primary transition-colors" />
+                            <RiAddLine className="size-4 text-muted-foreground/60 group-hover:text-primary transition-colors" />
                           </button>
                         </div>
                       ) : (
@@ -1211,17 +1204,17 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                 />
 
                 {isDragOverEmpty ? (
-                  <p className="text-[12px] text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
+                  <p className="text-xs text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
                     {isToday
                       ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
                       : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
                   </p>
                 ) : (
                   <div className="flex flex-col items-center select-none">
-                    <p className="text-[13px] font-medium text-muted-foreground leading-relaxed">
+                    <p className="text-sm font-medium text-muted-foreground leading-relaxed">
                       {isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده است'}
                     </p>
-                    <p className="text-[11px] text-muted-foreground/60 font-normal leading-relaxed mt-0.5 max-w-[340px] mx-auto">
+                    <p className="text-xs text-muted-foreground/70 font-normal leading-relaxed mt-1 max-w-[340px] mx-auto">
                       <button
                         type="button"
                         onClick={() => onOpenAdd?.()}

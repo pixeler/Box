@@ -48,6 +48,13 @@ export interface WallpaperItem {
 }
 
 export const WALLPAPER_LIST: WallpaperItem[] = [
+  // --- پس‌زمینه‌های ویژه و داینامیک ---
+  {
+    id: 'wafer-sky',
+    title: 'ابر و آسمان اسکی (Ascii Magic)',
+    url: '/wallpapers/wafer-sky.jpg',
+  },
+
   // --- پالت‌های روشن و لطیف (Light Tones & Gradients) ---
   {
     id: 'clean-snow',

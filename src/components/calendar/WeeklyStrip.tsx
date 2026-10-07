@@ -785,37 +785,37 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
           }
           onSelectDate(cell.dateKey);
         }}
-        className="group relative flex flex-col items-center justify-center flex-1 h-[44px] outline-none focus:outline-none ring-0 border-none select-none cursor-pointer overflow-visible"
+        className="group relative flex flex-col items-center justify-center flex-1 h-11 outline-none focus-visible:outline-none ring-0 border-none select-none cursor-pointer overflow-visible"
       >
-        {/* Circle container: Selected day is slightly larger (40x40px) than other days (32x32px) */}
+        {/* Circle container: Selected day is size-10 (40px), unselected is size-8 (32px) */}
         <div
           className={`relative rounded-full flex items-center justify-center shrink-0 overflow-hidden ${
             isSelected
-              ? `w-[40px] h-[40px] ${
+              ? `size-10 ${
                   cell.isHoliday
                     ? 'theme-holiday-btn text-white font-bold shadow-xs'
                     : 'theme-add-btn text-white font-bold shadow-xs'
                 }`
-              : `w-[32px] h-[32px] ${
+              : `size-8 ${
                   cell.isToday
                     ? cell.isHoliday
-                      ? 'text-rose-500 font-bold border border-rose-400 bg-rose-500/5'
-                      : 'text-foreground font-bold border border-foreground/30 bg-foreground/5'
+                      ? 'text-destructive font-bold border border-destructive/40 bg-destructive/5'
+                      : 'text-foreground font-bold border border-border bg-accent/40'
                     : !cell.isCurrentMonth
                     ? 'text-muted-foreground/35 font-normal hover:bg-muted/40'
                     : cell.isHoliday
-                    ? 'text-rose-500 font-semibold hover:bg-rose-500/10'
-                    : 'text-foreground/90 font-medium hover:bg-muted/60'
+                    ? 'text-destructive font-semibold hover:bg-destructive/10'
+                    : 'text-foreground/90 font-medium hover:bg-accent/60'
                 }`
           }`}
         >
-          <span className={`relative z-10 leading-none select-none ${isSelected ? 'text-[15.5px]' : 'text-[13.5px]'}`}>
+          <span className={`relative z-10 leading-none select-none tabular-nums ${isSelected ? 'text-sm font-bold' : 'text-xs font-semibold'}`}>
             {toPersianDigits(cell.dayNum)}
           </span>
 
           {/* Event dot indicator */}
           {!isSelected && cell.hasDot && (
-            <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-muted-foreground/80 pointer-events-none" />
+            <span className="absolute bottom-1 left-1/2 -translate-x-1/2 size-1 rounded-full bg-muted-foreground pointer-events-none" />
           )}
         </div>
 
@@ -830,9 +830,9 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
               transition: isVerticalDragging || expansionProgress === 0 ? 'none' : 'opacity 0.22s ease, transform 0.22s ease',
               display: expansionProgress > 0.65 ? 'none' : 'block',
             }}
-            className={`text-[12px] leading-tight select-none pointer-events-none whitespace-nowrap ${
+            className={`text-xs leading-tight select-none pointer-events-none whitespace-nowrap ${
               cell.isHoliday
-                ? 'text-rose-500 font-medium'
+                ? 'text-destructive font-medium'
                 : isSelected
                 ? 'text-foreground font-semibold'
                 : 'text-muted-foreground font-normal group-hover:text-foreground'
@@ -972,7 +972,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
         }}
         className="w-full flex items-center justify-between px-6 overflow-hidden shrink-0 select-none"
       >
-        <span className="text-sm font-bold text-foreground">
+        <span className="text-sm font-semibold text-foreground tracking-tight">
           {currentMonthData.monthName} {toPersianDigits(currentMonthData.jy)}
         </span>
 
@@ -984,10 +984,10 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
               e.stopPropagation();
               goToPrevMonth();
             }}
-            className="calendar-nav-chevron p-1 rounded-full hover:bg-muted/80 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            className="calendar-nav-chevron inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer transition-colors"
             title="ماه قبل"
           >
-            <HugeiconsIcon icon={ArrowRight01Icon} className="w-5 h-5 shrink-0" />
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0" />
           </button>
 
           {/* Left button navigates to next month */}
@@ -997,10 +997,10 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
               e.stopPropagation();
               goToNextMonth();
             }}
-            className="calendar-nav-chevron p-1 rounded-full hover:bg-muted/80 dark:hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            className="calendar-nav-chevron inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer transition-colors"
             title="ماه بعد"
           >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="w-5 h-5 shrink-0" />
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4 shrink-0" />
           </button>
         </div>
       </div>
@@ -1024,8 +1024,8 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
         {PERSIAN_WEEKDAY_NAMES.map((wd, i) => (
           <div
             key={i}
-            className={`text-[12px] font-semibold flex items-center justify-center tracking-tight ${
-              i === 6 ? 'text-rose-500' : 'text-muted-foreground/75'
+            className={`text-xs font-medium flex items-center justify-center tracking-tight ${
+              i === 6 ? 'text-destructive font-semibold' : 'text-muted-foreground'
             }`}
           >
             {wd}
@@ -1069,10 +1069,10 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
                 e.stopPropagation();
                 goToPrevWeek();
               }}
-              className="calendar-nav-chevron flex absolute right-0.5 top-1/2 -translate-y-1/2 z-30 p-1.5 items-center justify-center text-muted-foreground/60 hover:text-foreground hover:scale-125 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
+              className="calendar-nav-chevron flex absolute right-0.5 top-1/2 -translate-y-1/2 z-30 size-7 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
               title="هفته قبل"
             >
-              <HugeiconsIcon icon={ArrowRight01Icon} className="w-5 h-5 shrink-0" />
+              <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0" />
             </button>
 
             {/* Left Chevron: Next Week (هفته بعد) in RTL */}
@@ -1084,10 +1084,10 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
                 e.stopPropagation();
                 goToNextWeek();
               }}
-              className="calendar-nav-chevron flex absolute left-0.5 top-1/2 -translate-y-1/2 z-30 p-1.5 items-center justify-center text-muted-foreground/60 hover:text-foreground hover:scale-125 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
+              className="calendar-nav-chevron flex absolute left-0.5 top-1/2 -translate-y-1/2 z-30 size-7 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
               title="هفته بعد"
             >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="w-5 h-5 shrink-0" />
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4 shrink-0" />
             </button>
           </>
         )}
@@ -1186,11 +1186,11 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
             e.stopPropagation();
             onSelectDate(todayKey);
           }}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/80 hover:bg-secondary text-foreground text-[12px] font-medium border border-border/70 shadow-xs cursor-pointer transition-all duration-150 active:scale-95"
+          className="inline-flex items-center gap-1.5 px-2.5 h-7 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 text-xs font-medium border border-border shadow-xs cursor-pointer transition-colors active:scale-95"
           title="بازگشت به امروز"
         >
           <span>امروز</span>
-          <RiArrowGoBackLine className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <RiArrowGoBackLine className="size-3 text-muted-foreground shrink-0" />
         </button>
       </div>
 
@@ -1209,7 +1209,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
         className="w-full flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none group/dragger"
         title={isExpanded ? 'بستن نمای ماهانه' : 'نمایش تقویم ماهانه'}
       >
-        <div className="w-[48px] h-[3.5px] rounded-full bg-muted-foreground/30 dark:bg-muted-foreground/40 group-hover/dragger:bg-foreground/50 transition-colors" />
+        <div className="w-10 h-1 rounded-full bg-muted-foreground/30 group-hover/dragger:bg-foreground/50 transition-colors" />
       </div>
     </div>
   );

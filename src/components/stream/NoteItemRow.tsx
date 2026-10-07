@@ -120,7 +120,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = React.memo(({
               !isLast ? 'task-dashed-border' : ''
             } ${
               note.color ? note.color : isPinned ? 'bg-amber-100/40 dark:bg-amber-950/20' : ''
-            } py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
+            } py-3 px-6 select-none transition-colors duration-150 stream-row-hover ${
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
             }`}
           >
@@ -129,7 +129,7 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = React.memo(({
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* Sticky Note Icon on the far right */}
                 <div className="shrink-0 mt-0.5 flex items-center gap-1">
-                  <RiStickyNoteLine className="w-5 h-5 text-muted-foreground" />
+                  <RiStickyNoteLine className="size-5 text-muted-foreground" />
                 </div>
 
                 {/* Note Content: Title and Description */}
@@ -145,17 +145,17 @@ export const NoteItemRow: React.FC<NoteItemRowProps> = React.memo(({
                         title="برداشتن سنجاق"
                         className="shrink-0 flex items-center text-muted-foreground hover:text-foreground cursor-pointer p-0.5 mt-0.5"
                       >
-                        <RiPushpin2Fill className="w-3.5 h-3.5 text-primary" />
+                        <RiPushpin2Fill className="size-3.5 text-primary" />
                       </button>
                     )}
 
-                    <p className="text-[13.5px] font-medium text-foreground leading-snug break-words">
+                    <p className="text-sm font-medium text-foreground leading-snug break-words">
                       {stripMarkdownForPreview(displayTitle)}
                     </p>
                   </div>
 
                   {displayDescription && (
-                    <p className="text-[12px] text-muted-foreground font-normal leading-relaxed mt-2 select-none break-words line-clamp-2">
+                    <p className="text-xs text-muted-foreground font-normal leading-relaxed mt-1 select-none break-words line-clamp-2">
                       {stripMarkdownForPreview(displayDescription)}
                     </p>
                   )}

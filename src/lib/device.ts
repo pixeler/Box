@@ -25,3 +25,24 @@ export function useIsMobile(breakpoint = 640): boolean {
 
   return isMobile;
 }
+
+/**
+ * Hook to detect a desktop-class viewport (>= 1024px, not a native mobile app).
+ * Used to switch to the sidebar + floating-window desktop shell.
+ */
+export function useIsDesktop(breakpoint = 1024): boolean {
+  const check = () =>
+    typeof window !== 'undefined' && !isNative() && window.innerWidth >= breakpoint;
+
+  const [isDesktop, setIsDesktop] = useState<boolean>(check);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsDesktop(check());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [breakpoint]);
+
+  return isDesktop;
+}

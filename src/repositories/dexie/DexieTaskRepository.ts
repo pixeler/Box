@@ -15,6 +15,9 @@ export class DexieTaskRepository implements TaskRepository {
       updated_at: (taskData as any).updated_at || now,
     };
     await db.tasks.add(task);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('task-updated'));
+    }
     return task;
   }
 
@@ -29,6 +32,9 @@ export class DexieTaskRepository implements TaskRepository {
       updated_at: new Date().toISOString(),
     };
     await db.tasks.put(updated);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('task-updated'));
+    }
     return updated;
   }
 

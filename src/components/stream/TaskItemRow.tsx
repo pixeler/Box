@@ -8,7 +8,7 @@ import {
   formatTaskDateDisplay,
   formatTaskTimeRange,
 } from '@/lib/jalali';
-import { cn } from '@/lib/utils';
+import { cn, getTaskPencilPattern } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 import { stripMarkdownForPreview } from '@/lib/markdown';
 import {
@@ -63,6 +63,7 @@ interface TaskItemRowProps {
   onDrop?: (e: React.DragEvent) => void;
   isNewlyAdded?: boolean;
   isLast?: boolean;
+  className?: string;
 }
 
 export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
@@ -79,6 +80,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
   onDrop,
   isNewlyAdded = false,
   isLast = false,
+  className = '',
 }) => {
   const isMobile = useIsMobile();
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -200,15 +202,15 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
               }
             }}
             onClick={() => setEditModalOpen(true)}
-            className={`group relative w-full ${
-              !isLast ? 'task-dashed-border' : ''
-            } py-3.5 px-6 select-none transition-all duration-150 stream-row-hover ${
-              draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-            } ${
-              isDone ? 'opacity-60' : ''
-            } ${
-              isNewlyAdded ? 'animate-task-insert' : ''
-            }`}
+            className={cn(
+              'group relative w-full select-none transition-colors duration-150 stream-row-hover',
+              !isLast && 'task-dashed-border',
+              'py-3 px-6',
+              draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+              isDone && 'opacity-60',
+              isNewlyAdded && 'animate-task-insert',
+              className
+            )}
           >
             <div className="flex items-start justify-between w-full">
               {/* 1. RIGHT SIDE in RTL: Checkbox and Content (Title + Description + Date) */}
@@ -220,7 +222,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     e.stopPropagation();
                     handleToggle();
                   }}
-                  className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer rounded-full border ${
+                  className={`size-5 flex items-center justify-center shrink-0 mt-0.5 transition-colors cursor-pointer rounded-full border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
                     isRecurring
                       ? 'border-dashed'
                       : 'border-solid'
@@ -228,7 +230,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     isDone
                       ? 'bg-primary border-primary text-primary-foreground border-solid'
                       : task.priority === 3
-                      ? 'border-rose-500 hover:border-rose-600 bg-card'
+                      ? 'border-destructive hover:border-destructive/80 bg-card'
                       : task.priority === 2
                       ? 'border-amber-500 hover:border-amber-600 bg-card'
                       : task.priority === 1
@@ -237,7 +239,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   }`}
                   title={isDone ? 'بازگردانی' : 'انجام شد'}
                 >
-                  {isDone && <RiCheckLine className="w-3.5 h-3.5 stroke-[3]" />}
+                  {isDone && <RiCheckLine className="size-3.5 stroke-[2.5]" />}
                 </button>
 
                 {/* Content: Title + Description + Meta */}
@@ -246,59 +248,64 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     {/* Pin icon if pinned */}
                     {isPinned && (
                       <span title="سنجاق‌شده" className="shrink-0 flex items-center text-primary">
-                        <RiPushpin2Fill className="w-3.5 h-3.5 text-primary" />
+                        <RiPushpin2Fill className="size-3.5 text-primary" />
                       </span>
                     )}
 
-                    <h3
-                      className={`text-[14.5px] font-semibold dark:font-medium leading-snug transition-all break-words ${
-                        isDone
-                          ? 'pencil-strike text-muted-foreground font-normal line-through'
-                          : 'text-foreground'
-                      }`}
-                    >
-                      {stripMarkdownForPreview(task.title)}
+                    <h3 className="text-sm font-medium leading-snug transition-colors break-words line-clamp-2">
+                      <span
+                        className={cn(
+                          isDone
+                            ? ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground font-normal']
+                            : 'text-foreground'
+                        )}
+                      >
+                        {stripMarkdownForPreview(task.title)}
+                      </span>
                     </h3>
                   </div>
 
                   {/* Task Description if present */}
                   {task.description && task.description.trim() && (
-                    <p
-                      className={`text-[12px] font-normal leading-relaxed mt-1 select-none break-words line-clamp-2 ${
-                        isDone ? 'line-through text-muted-foreground/50' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {stripMarkdownForPreview(task.description)}
+                    <p className="text-xs font-normal leading-relaxed mt-1 select-none break-words line-clamp-2">
+                      <span
+                        className={cn(
+                          isDone
+                            ? ['pencil-strike', getTaskPencilPattern(task.id + '_desc'), 'text-muted-foreground/60']
+                            : 'text-muted-foreground'
+                        )}
+                      >
+                        {stripMarkdownForPreview(task.description)}
+                      </span>
                     </p>
                   )}
 
                   {/* Meta: Recurring tasks show only time and repeat icon. Non-recurring tasks show date/time */}
                   {isRecurring ? (
-                    <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/80 font-normal mt-1.5 select-none">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal mt-1.5 select-none">
                       {recurringTime && <span>{recurringTime}</span>}
-                      <RiRepeatLine className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                      <RiRepeatLine className="size-3.5 text-muted-foreground/80 shrink-0" />
                     </div>
                   ) : dateDisplay ? (
-                    <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground/80 font-normal mt-1.5 select-none">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal mt-1.5 select-none">
                       <span>{dateDisplay}</span>
                     </div>
                   ) : null}
-
-                  </div>
                 </div>
-
-                {/* 2. LEFT SIDE in RTL: Image/Illustration slot (e.g. runner or medicine icon) */}
-                {Boolean((task as any).image_url || (task as any).icon) && (
-                  <div className="shrink-0 w-12 h-12 flex items-center justify-center self-center mr-3 select-none pointer-events-none">
-                    <img
-                      src={(task as any).image_url || (task as any).icon}
-                      alt=""
-                      className="w-10 h-10 object-contain"
-                    />
-                  </div>
-                )}
               </div>
+
+              {/* 2. LEFT SIDE in RTL: Image/Illustration slot (e.g. runner or medicine icon) */}
+              {Boolean((task as any).image_url || (task as any).icon) && (
+                <div className="shrink-0 size-10 flex items-center justify-center self-center mr-3 select-none pointer-events-none">
+                  <img
+                    src={(task as any).image_url || (task as any).icon}
+                    alt=""
+                    className="size-9 object-contain"
+                  />
+                </div>
+              )}
             </div>
+          </div>
         </ContextMenuTrigger>
 
         {/* Right Click Context Menu matching reference project */}
@@ -369,8 +376,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  task.due_date === todayKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  task.due_date === todayKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
                 <RiSunLine className="size-4" />
@@ -385,8 +392,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  task.due_date === tomorrowKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  task.due_date === tomorrowKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
                 <RiCloudyLine className="size-4" />
@@ -401,8 +408,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  task.due_date === nextWeekKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  task.due_date === nextWeekKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
                 <RiCalendarLine className="size-4" />
@@ -417,8 +424,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  task.due_date === weekendKey && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  task.due_date === weekendKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
                 <RiUmbrellaLine className="size-4" />
@@ -433,8 +440,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  !task.due_date && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  !task.due_date && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
                 <RiForbid2Line className="size-4" />
@@ -448,7 +455,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                   setDatePickerOpen(true);
                 }}
-                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
               >
                 <RiMoreLine className="size-4" />
               </button>
@@ -472,11 +479,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  task.priority === 3 && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  task.priority === 3 && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
-                <RiFlagFill className="size-4" />
+                <RiFlagFill className="size-4 text-destructive" />
               </button>
 
               {/* اولویت متوسط (P2) */}
@@ -488,11 +495,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  task.priority === 2 && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  task.priority === 2 && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
-                <RiFlagFill className="size-4 opacity-75" />
+                <RiFlagFill className="size-4 text-amber-500" />
               </button>
 
               {/* اولویت کم (P1) */}
@@ -504,11 +511,11 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  task.priority === 1 && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  task.priority === 1 && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
-                <RiFlagLine className="size-4" />
+                <RiFlagLine className="size-4 text-blue-500" />
               </button>
 
               {/* بدون اولویت */}
@@ -520,8 +527,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   setContextMenuOpen(false);
                 }}
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                  !task.priority && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                  'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                  !task.priority && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                 )}
               >
                 <RiForbid2Line className="size-4" />
@@ -552,8 +559,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                       setContextMenuOpen(false);
                     }}
                     className={cn(
-                      'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer',
-                      isSelected && 'bg-primary/10 text-primary ring-1 ring-primary/30'
+                      'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
+                      isSelected && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
                     )}
                   >
                     <HugeiconsIcon icon={item.icon} size={16} />

@@ -1,7 +1,7 @@
 {
-  "name": "Space :: فضا",
-  "short_name": "Space",
-  "description": "دستیار و جعبه یادداشت و وظایف شخصی فضا",
+  "name": "Box :: جعبه",
+  "short_name": "Box",
+  "description": "دستیار و جعبه یادداشت و وظایف شخصی",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#090812",

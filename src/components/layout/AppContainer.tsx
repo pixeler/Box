@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { WALLPAPER_LIST } from '../profile/ProfileView';
-import { useIsMobile } from '@/lib/device';
+import { useIsMobile, useIsDesktop } from '@/lib/device';
 import { generatePillDisplacementMap } from '@/lib/glass';
+import { DynamicSkyBackground } from './DynamicSkyBackground';
 
 export type DesktopPosition = 'right' | 'center' | 'left';
 
@@ -10,7 +11,13 @@ interface AppContainerProps {
   glassBackground?: boolean;
   glassOpacity?: number;
   desktopPosition?: DesktopPosition;
+  isCalendarExpanded?: boolean;
   bottomDock?: React.ReactNode;
+  /** Desktop-only (>=1024px): sidebar rendered inside the dark frame. Replaces bottomDock. */
+  desktopSidebar?: React.ReactNode;
+  /** Desktop-only: floating element in the canvas' top corner (e.g. glass search pill). */
+  desktopCorner?: React.ReactNode;
+  isDark?: boolean;
   children: React.ReactNode;
 }
 
@@ -19,10 +26,16 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   glassBackground = false,
   glassOpacity = 0.18,
   desktopPosition = 'center',
+  isCalendarExpanded = false,
   bottomDock,
+  desktopSidebar,
+  desktopCorner,
+  isDark = false,
   children,
 }) => {
   const isMobile = useIsMobile();
+  const isDesktop = useIsDesktop();
+  const useDesktopShell = isDesktop && Boolean(desktopSidebar);
   const cardRef = useRef<HTMLElement>(null);
   const filterId = 'figma-glass-card-filter';
   const [dispMapUrl, setDispMapUrl] = useState<string>(() => {
@@ -98,21 +111,16 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     };
   };
 
-  return (
-    <div
-      style={getBackgroundStyle()}
-      className={`min-h-screen w-full flex items-center p-0 sm:p-4 md:px-10 font-sans ${
-        desktopPosition === 'right'
-          ? 'justify-center sm:justify-start'
-          : desktopPosition === 'left'
-          ? 'justify-center sm:justify-end'
-          : 'justify-center'
-      }`}
-      dir="rtl"
-    >
-      <div className="flex flex-col items-center w-full sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px] relative">
-        {/* SVG Chromatic Dispersion & Refraction Filter for Main Card (Desktop/Tablet) */}
-        {!isMobile && dispMapUrl && (
+  // Card sizing: the desktop shell sizes the window against the canvas (not the viewport)
+  const cardSizeClass = useDesktopShell
+    ? isCalendarExpanded
+      ? 'w-full h-full max-w-[1600px]'
+      : 'w-[460px] min-w-[460px] max-w-[460px] h-[750px] max-h-full'
+    : isCalendarExpanded
+    ? 'sm:w-full h-dvh sm:h-[890px] sm:min-h-[890px] sm:max-h-[94vh]'
+    : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px] h-dvh sm:h-[750px] sm:min-h-[750px] sm:max-h-[750px]';
+
+  const svgFilters = !isMobile && dispMapUrl && (
           <svg
             className="absolute w-0 h-0 pointer-events-none"
             aria-hidden="true"
@@ -296,13 +304,14 @@ export const AppContainer: React.FC<AppContainerProps> = ({
               </filter>
             </defs>
           </svg>
-        )}
+  );
 
-        {/* Central App Card: full height (h-dvh) and full width on mobile; strictly 460px width and 750px height on desktop */}
+  // Central App Card: full height/width on mobile; fixed 460×750 floating window on tablet/desktop
+  const card = (
         <main
           ref={cardRef}
           id="app-main"
-          className={`w-full sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px] h-dvh sm:h-[750px] sm:min-h-[750px] sm:max-h-[750px] text-card-foreground rounded-none sm:rounded-[16px] flex flex-col justify-between relative overflow-hidden transition-colors duration-200 ${
+          className={`w-full text-card-foreground rounded-none sm:rounded-[24px] flex flex-col justify-between relative overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${cardSizeClass} ${
             glassBackground
               ? 'figma-glass-card'
               : 'bg-card border-0 sm:border border-border shadow-none sm:shadow-2xl sm:shadow-black/25'
@@ -346,20 +355,87 @@ export const AppContainer: React.FC<AppContainerProps> = ({
           <div className="relative z-1 flex flex-col flex-1 h-full w-full justify-between overflow-hidden min-h-0">
             {children}
           </div>
-
-          {/* Floating Bottom Navigation Dock (Inside main card for both mobile and desktop) */}
-          {bottomDock && (
-            <div
-              className="absolute bottom-5 inset-x-0 z-20 flex justify-center pointer-events-none px-4"
-              style={{
-                bottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))',
-              }}
-            >
-              {bottomDock}
-            </div>
-          )}
         </main>
+  );
+
+  // ===== DESKTOP SHELL: dark frame → [sidebar | rounded wallpaper canvas → floating window] =====
+  if (useDesktopShell) {
+    return (
+      <div className="desktop-shell h-dvh w-full flex overflow-hidden font-sans" dir="rtl">
+        {desktopSidebar}
+
+        <div className="flex-1 min-w-0 h-full py-2 pl-2">
+          <div
+            className="desktop-canvas relative w-full h-full rounded-[22px] overflow-hidden isolate"
+            style={wallpaper === 'wafer-sky' ? undefined : { ...getBackgroundStyle(), backgroundAttachment: 'scroll' }}
+          >
+            {/* Dynamic Interactive Cloud & Sky Background */}
+            {wallpaper === 'wafer-sky' && <DynamicSkyBackground isDark={isDark} />}
+
+            {svgFilters}
+
+            {desktopCorner && <div className="absolute top-4 left-4 z-30">{desktopCorner}</div>}
+
+            <div
+              className={`absolute inset-0 flex items-center transition-all duration-500 ease-out z-10 ${
+                isCalendarExpanded ? 'pt-16 pb-6 px-6' : 'py-16 px-10'
+              } ${
+                isCalendarExpanded
+                  ? 'justify-center'
+                  : desktopPosition === 'right'
+                  ? 'justify-start'
+                  : desktopPosition === 'left'
+                  ? 'justify-end'
+                  : 'justify-center'
+              }`}
+            >
+              {card}
+            </div>
+          </div>
+        </div>
       </div>
+    );
+  }
+
+  // ===== MOBILE / TABLET: original centered card + floating bottom dock =====
+  return (
+    <div
+      style={wallpaper === 'wafer-sky' ? undefined : getBackgroundStyle()}
+      className={`min-h-screen w-full flex items-center p-0 sm:p-4 md:px-10 font-sans transition-all duration-500 ease-out relative overflow-hidden ${
+        isCalendarExpanded
+          ? 'justify-center'
+          : desktopPosition === 'right'
+          ? 'justify-center sm:justify-start'
+          : desktopPosition === 'left'
+          ? 'justify-center sm:justify-end'
+          : 'justify-center'
+      }`}
+      dir="rtl"
+    >
+      {/* Dynamic Interactive Cloud & Sky Background */}
+      {wallpaper === 'wafer-sky' && <DynamicSkyBackground isDark={isDark} />}
+
+      <div className={`flex flex-col items-center w-full relative z-1 transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        isCalendarExpanded
+          ? 'sm:w-[98vw] sm:max-w-[1600px]'
+          : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px]'
+      }`}>
+        {/* SVG Chromatic Dispersion & Refraction Filter for Main Card (Desktop/Tablet) */}
+        {svgFilters}
+        {card}
+      </div>
+
+      {/* Floating Bottom Navigation Dock: Fixed 40px from browser bottom on desktop */}
+      {bottomDock && (
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-30 pointer-events-none flex justify-center"
+          style={{
+            bottom: isMobile ? 'calc(1rem + env(safe-area-inset-bottom, 0px))' : '40px',
+          }}
+        >
+          {bottomDock}
+        </div>
+      )}
     </div>
   );
 };

@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { playTaskDoneSound } from '@/lib/sound';
+import { cn, getTaskPencilPattern } from '@/lib/utils';
 
 interface BoxDetailViewProps {
   box: Box;
@@ -342,9 +343,12 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                   {/* Task Content */}
                   <div className="flex-1 min-w-0">
                     <span
-                      className={`text-xs font-semibold dark:font-medium block truncate leading-snug ${
-                        isDone ? 'pencil-strike text-muted-foreground' : 'text-foreground'
-                      }`}
+                      className={cn(
+                        'text-xs font-semibold dark:font-medium block truncate leading-snug',
+                        isDone
+                          ? ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground']
+                          : 'text-foreground'
+                      )}
                     >
                       {task.title}
                     </span>

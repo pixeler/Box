@@ -425,15 +425,15 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSelectPreset(todayKey)}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-muted/60 transition-colors cursor-pointer ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer ${
                     selectedDateKey === todayKey ? 'bg-primary/10 text-primary font-bold' : 'text-foreground'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <RiCalendarCheckLine className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <span className="font-medium">امروز</span>
+                    <RiCalendarCheckLine className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="font-medium text-xs">امروز</span>
                   </div>
-                  <span className="text-[11.5px] text-muted-foreground font-normal">
+                  <span className="text-xs text-muted-foreground font-normal">
                     {getWeekdayNameFromDateKey(todayKey)}
                   </span>
                 </button>
@@ -442,15 +442,15 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSelectPreset(tomorrowKey)}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-muted/60 transition-colors cursor-pointer ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer ${
                     selectedDateKey === tomorrowKey ? 'bg-primary/10 text-primary font-bold' : 'text-foreground'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <RiSunLine className="w-4.5 h-4.5 text-amber-500 shrink-0" />
-                    <span className="font-medium">فردا</span>
+                    <RiSunLine className="size-4 text-amber-500 shrink-0" />
+                    <span className="font-medium text-xs">فردا</span>
                   </div>
-                  <span className="text-[11.5px] text-muted-foreground font-normal">
+                  <span className="text-xs text-muted-foreground font-normal">
                     {getWeekdayNameFromDateKey(tomorrowKey)}
                   </span>
                 </button>
@@ -508,30 +508,30 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                   <button
                     type="button"
                     onClick={prevMonth}
-                    className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                    className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                     title="ماه قبل"
                   >
-                    <RiArrowRightSLine className="w-4.5 h-4.5" />
+                    <RiArrowRightSLine className="size-4" />
                   </button>
 
-                  <span className="text-xs font-bold text-foreground">
+                  <span className="text-xs font-semibold text-foreground tracking-tight">
                     {PERSIAN_MONTH_NAMES[viewMonth - 1]} {toPersianDigits(viewYear)}
                   </span>
 
                   <button
                     type="button"
                     onClick={nextMonth}
-                    className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                    className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                     title="ماه بعد"
                   >
-                    <RiArrowLeftSLine className="w-4.5 h-4.5" />
+                    <RiArrowLeftSLine className="size-4" />
                   </button>
                 </div>
 
                 {/* Weekday Headers */}
-                <div className="grid grid-cols-7 text-center mb-1.5 text-[11.5px] font-semibold text-muted-foreground/70">
+                <div className="grid grid-cols-7 text-center mb-1.5 text-xs font-medium text-muted-foreground">
                   {WEEK_DAYS_SHORT.map((wd, i) => (
-                    <div key={i} className={i === 6 ? 'text-rose-500' : ''}>
+                    <div key={i} className={i === 6 ? 'text-destructive font-semibold' : ''}>
                       {wd}
                     </div>
                   ))}
@@ -540,7 +540,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                 {/* Calendar Days Grid */}
                 <div className="grid grid-cols-7 gap-y-1.5 text-center text-xs">
                   {Array.from({ length: firstDayOffset }).map((_, i) => (
-                    <div key={`empty-${i}`} className="w-8 h-8" />
+                    <div key={`empty-${i}`} className="size-8" />
                   ))}
 
                   {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -564,14 +564,14 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                         onMouseEnter={() => setHoveredDate(currentKey)}
                         onClick={() => handleSelectDay(dayNum)}
                         title={dayHolidays.map((h) => h.title).join(' | ')}
-                        className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center transition-all cursor-pointer text-xs ${
+                        className={`size-8 mx-auto rounded-full flex items-center justify-center transition-colors cursor-pointer text-xs tabular-nums ${
                           isSelected
-                            ? 'bg-primary text-primary-foreground font-bold shadow-xs scale-105'
+                            ? 'bg-primary text-primary-foreground font-semibold shadow-xs scale-105'
                             : isToday
-                            ? 'border border-foreground font-bold text-foreground hover:bg-muted/50'
+                            ? 'border border-border font-semibold text-foreground bg-accent/40 hover:bg-accent'
                             : isRedDay
-                            ? 'text-rose-500 font-bold hover:bg-rose-500/10'
-                            : 'text-foreground/90 hover:bg-muted/70 font-medium'
+                            ? 'text-destructive font-semibold hover:bg-destructive/10'
+                            : 'text-foreground/90 hover:bg-accent hover:text-accent-foreground font-normal'
                         }`}
                       >
                         {toPersianDigits(dayNum)}
@@ -1053,15 +1053,15 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
             BOTTOM NAVIGATION / ACTION BAR (باتم نویگشین)
             Matching QuickCapture style and dimensions
            ------------------------------------------------------------- */}
-        <div className="pt-3 border-t border-border/70 dark:border-white/10 flex items-center justify-between shrink-0">
+        <div className="pt-3 border-t border-border flex items-center justify-between shrink-0">
           {/* Submit / Confirm Button (Right side in RTL) */}
           {currentView === 'date' ? (
             <button
               type="button"
               onClick={handleConfirm}
-              className="flex items-center gap-2 rounded-full bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 px-6 py-2.5 text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 h-9 text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer active:scale-95"
             >
-              <RiCheckLine className="w-4 h-4 stroke-[2.5]" />
+              <RiCheckLine className="size-4 stroke-[2.5]" />
               <span>انتخاب تاریخ</span>
             </button>
           ) : currentView === 'time' ? (
@@ -1071,18 +1071,18 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                 setHasTime(true);
                 setCurrentView('date');
               }}
-              className="flex items-center gap-2 rounded-full bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 px-6 py-2.5 text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 h-9 text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer active:scale-95"
             >
-              <RiCheckLine className="w-4 h-4 stroke-[2.5]" />
+              <RiCheckLine className="size-4 stroke-[2.5]" />
               <span>تأیید زمان</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setCurrentView('date')}
-              className="flex items-center gap-2 rounded-full bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 px-6 py-2.5 text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 h-9 text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer active:scale-95"
             >
-              <RiCheckLine className="w-4 h-4 stroke-[2.5]" />
+              <RiCheckLine className="size-4 stroke-[2.5]" />
               <span>تأیید تکرار</span>
             </button>
           )}
@@ -1098,7 +1098,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                   setHasDuration(false);
                   setRepeat('none');
                 }}
-                className="px-3 py-2 rounded-full text-xs font-medium text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                className="px-3 h-9 rounded-full text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
               >
                 بدون تاریخ
               </button>
@@ -1107,7 +1107,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border/70 dark:border-white/10 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-4 h-9 rounded-full border border-input bg-background shadow-xs text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
             >
               <span>انصراف</span>
             </button>

@@ -167,7 +167,7 @@ export function getWeekDaysForDate(targetDate: Date): WeekDayInfo[] {
     days.push({
       date: d,
       jalali: j,
-      dayName: PERSIAN_WEEKDAY_NAMES[i],
+      dayName: PERSIAN_FULL_WEEKDAY_NAMES[i],
       dayShortName: PERSIAN_WEEKDAY_SHORT_NAMES[i],
       dayNumber: j.jd,
       formattedDate: key,
@@ -449,3 +449,4 @@ export function getDescriptiveDayLabel(targetDateKey: string, todayKey: string):
 
   return 'روز';
 }
+

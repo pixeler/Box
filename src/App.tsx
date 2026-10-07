@@ -1,21 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppContainer } from './components/layout/AppContainer';
 import { MobileScrollArea } from './components/layout/MobileScrollArea';
-import { WeeklyStrip } from './components/calendar/WeeklyStrip';
 import { QuickCaptureInput } from './components/capture/QuickCaptureInput';
 import { DayStream } from './components/stream/DayStream';
 import { PinnedSection } from './components/stream/PinnedSection';
 import { NotebookView } from './components/notebook/NotebookView';
-import { ProfileView, WALLPAPER_LIST } from './components/profile/ProfileView';
+import { ProfileView } from './components/profile/ProfileView';
 import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
+import { DesktopSidebar } from './components/navigation/DesktopSidebar';
+import { DesktopSearchButton } from './components/navigation/DesktopSearchButton';
 import { SearchModal } from './components/search/SearchModal';
 import { TodoView } from './components/todo/TodoView';
 import { FocusView } from './components/focus/FocusView';
+import { CalendarView } from './components/calendar/CalendarView';
 // Archived: import { BoxesModal } from './components/boxes/BoxesModal';
 import { ToastContainer } from './components/ui/Toast';
 import { LoginModal } from './components/auth/LoginModal';
 import { useAuth } from './lib/auth';
 import { syncManager, type SyncState } from './lib/sync';
+import { RiArrowLeftSLine, RiArrowRightSLine, RiArrowGoBackLine } from '@remixicon/react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { PartyIcon } from '@hugeicons/core-free-icons';
+import { getDailyQuote } from './lib/quotes';
 
 import { taskRepo, noteRepo, eventRepo, tagRepo } from './repositories';
 import { syncWidgetData } from './lib/widget';
@@ -28,11 +34,11 @@ import {
   getFullPersianWeekdayName,
   extractDateOnly,
   addJalaliDays,
+  toPersianDigits,
 } from './lib/jalali';
-import { isOfficialHoliday } from './lib/holidays';
 import { isTaskOccurringOnDate } from './lib/recurrence';
 import { checkAndSeedDesignDemoData } from './lib/seed';
-import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
+import { type ThemeId, getStoredTheme, applyTheme, isDarkMode } from './lib/theme';
 import type { Task, EventItem, Note, Tag, TimeOfDay } from './types/models';
 import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
 
@@ -42,7 +48,9 @@ export function App() {
   const [selectedDateKey, setSelectedDateKey] = useState<string>(() => getTodayJalaliKey());
   const [displayedDateKey, setDisplayedDateKey] = useState<string>(() => getTodayJalaliKey());
   const [wallpaper, setWallpaper] = useState<string>(() => {
-    return localStorage.getItem('second_brain_wallpaper') || WALLPAPER_LIST[0].id;
+    const saved = localStorage.getItem('second_brain_wallpaper');
+    if (!saved || saved === 'clean-snow') return 'wafer-sky';
+    return saved;
   });
   const [theme, setTheme] = useState<ThemeId>(() => getStoredTheme());
   const [glassBackground, setGlassBackground] = useState<boolean>(() => {
@@ -75,7 +83,7 @@ export function App() {
   const [futureTasks, setFutureTasks] = useState<Task[]>([]);
   const [futureEvents, setFutureEvents] = useState<EventItem[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
-  const [datesWithItems, setDatesWithItems] = useState<Set<string>>(new Set());
+  const [_datesWithItems, setDatesWithItems] = useState<Set<string>>(new Set());
   const [searchOpen, setSearchOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
   const { user } = useAuth();
@@ -84,6 +92,7 @@ export function App() {
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
   const [quickCaptureTimeOfDay, setQuickCaptureTimeOfDay] = useState<TimeOfDay | undefined>(undefined);
   const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState<number>(0);
 
   // Daily Tasks Target state (Karma / Goal celebration)
   const [dailyTaskGoal, setDailyTaskGoal] = useState<number>(() => {
@@ -153,6 +162,19 @@ export function App() {
     localStorage.setItem('second_brain_desktop_position', pos);
   };
 
+  // Desktop sidebar collapsed state with persistence
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('second_brain_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('second_brain_sidebar_collapsed', String(next));
+      return next;
+    });
+  }, []);
+
   // Global keyboard shortcuts (supports both English and Persian layouts)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -165,10 +187,17 @@ export function App() {
           target.isContentEditable ||
           Boolean(target.closest?.('[contenteditable="true"]')));
 
-      // 1. Search shortcut: Ctrl+K / Cmd+K / Ctrl+ن (supports English and Persian layout)
+      // 1. Search shortcut: Ctrl+P / Cmd+P / Persian Ctrl+ح (supports English and Persian layout)
       if (
         (e.ctrlKey || e.metaKey) &&
-        (e.key === 'k' || e.key === 'K' || e.key === 'ن' || e.code === 'KeyK')
+        (e.code === 'KeyP' ||
+          e.key === 'p' ||
+          e.key === 'P' ||
+          e.key === 'ح' ||
+          e.code === 'KeyK' ||
+          e.key === 'k' ||
+          e.key === 'K' ||
+          e.key === 'ن')
       ) {
         e.preventDefault();
         setSearchOpen((prev) => !prev);
@@ -177,6 +206,13 @@ export function App() {
 
       // If user is inside an input field, do not trigger single-key navigation shortcuts
       if (isInput) return;
+
+      // Toggle desktop sidebar: Ctrl+B / Cmd+B (Persian layout: ذ)
+      if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyB' || e.key === 'b' || e.key === 'B' || e.key === 'ذ')) {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
 
       // 2. Add / Quick Capture shortcut: 'N' or Persian 'د' (KeyN)
       if (
@@ -220,7 +256,7 @@ export function App() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [quickCaptureOpen, searchOpen]);
+  }, [quickCaptureOpen, searchOpen, toggleSidebar]);
 
 
   // High-performance parallelized fetch for day data (only 4 consolidated IndexedDB queries)
@@ -446,25 +482,36 @@ export function App() {
         setNewlyAddedTaskId((prev) => (prev === createdId ? null : prev));
       }, 1500);
     }
+    setCalendarRefreshKey((k) => k + 1);
     await loadDayData();
   };
 
   const selectedJalali = parseJalaliKey(selectedDateKey);
   const selectedGregorianDate = jalaliToDate(selectedJalali.jy, selectedJalali.jm, selectedJalali.jd);
   const currentWeekdayName = getFullPersianWeekdayName(selectedGregorianDate);
-  const isFriday = selectedGregorianDate.getDay() === 5;
-  const isSelectedHoliday = isFriday || isOfficialHoliday(selectedDateKey);
-
   return (
     <AppContainer
       wallpaper={wallpaper}
       glassBackground={glassBackground}
       glassOpacity={glassOpacity}
       desktopPosition={desktopPosition}
+      isCalendarExpanded={activeTab === 'calendar'}
+      desktopSidebar={
+        <DesktopSidebar
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
+          onOpenAdd={() => setQuickCaptureOpen(true)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+        />
+      }
+      desktopCorner={<DesktopSearchButton onClick={() => setSearchOpen(true)} />}
+      isDark={isDarkMode(theme)}
       bottomDock={
         <BottomDock
           activeTab={activeTab}
           onTabChange={(tab) => setActiveTab(tab)}
+          onOpenSearch={() => setSearchOpen(true)}
           onOpenAdd={() => setQuickCaptureOpen(true)}
           glassOpacity={glassOpacity}
         />
@@ -473,48 +520,122 @@ export function App() {
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
-      {/* Scrollable       {/* Scrollable Content Area with auto-hiding flush scrollbar */}
-      <MobileScrollArea
-        className="flex-1 min-h-0"
-        contentClassName="pt-0 pb-0 flex flex-col min-h-full"
-      >
+      {/* Content Area: CalendarView has its own fixed header & internal scroller, other tabs use MobileScrollArea */}
+      {activeTab === 'calendar' ? (
+        <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex flex-col">
+          <CalendarView
+            selectedDateKey={selectedDateKey}
+            enableDaySections={enableDaySections}
+            refreshTrigger={calendarRefreshKey}
+            onSelectDate={(newDate) => {
+              setSelectedDateKey(newDate);
+              setActiveTab('day');
+            }}
+            onOpenAddForDate={(dateKey) => {
+              setSelectedDateKey(dateKey);
+              setQuickCaptureOpen(true);
+            }}
+            onBackToToday={() => {
+              setSelectedDateKey(getTodayJalaliKey());
+              setActiveTab('day');
+            }}
+            onTaskChanged={loadDayData}
+          />
+        </div>
+      ) : (
+        <MobileScrollArea
+          className="flex-1 min-h-0"
+          contentClassName="pt-0 pb-0 flex flex-col min-h-full"
+        >
         {activeTab === 'day' && (
-          <>
-            {/* Top Greeting Header & Weekly Strip */}
+          <div
+            key={displayedDateKey}
+            className="w-full flex-1 flex flex-col animate-in fade-in duration-300"
+          >
+            {/* Top Greeting Header (Centered with arrows & Darvish font, WeeklyStrip removed) */}
             <div
               data-no-drag-scroll="true"
-              className="w-full shrink-0 select-none pb-0 pt-3 overflow-hidden"
+              className="w-full shrink-0 select-none pb-1.5 pt-9 sm:pt-11 overflow-hidden"
             >
-              {/* Top Greeting Header */}
-              <div className="w-full pb-2 px-6 flex flex-col items-start justify-center min-h-[44px]">
-                {/* Weekday Name + Dot (Right Aligned) */}
-                <div className="flex items-center gap-1.5 select-none">
-                  <h1 className="text-[21px] font-bold text-foreground tracking-tight leading-snug">
-                    {currentWeekdayName}
-                  </h1>
-                  <span
-                    className={`w-2 h-2 rounded-full inline-block shrink-0 transition-colors duration-200 ${
-                      isSelectedHoliday
-                        ? 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.4)]'
-                        : 'bg-foreground'
-                    }`}
-                  />
-                </div>
-                <p className="text-[12px] text-muted-foreground font-normal mt-0.5 select-none">
-                  هر روزی که شروع میشه یک فرصت تازه است!
-                </p>
+              {/* Row with < Weekday Name > and optional Return-to-Today button */}
+              <div className="w-full px-6 flex items-center justify-between select-none relative" dir="rtl">
+                {/* Arrow Right (>) for Previous Day in RTL */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
+                  className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer active:scale-95"
+                  title="روز قبل"
+                >
+                  <RiArrowRightSLine className="size-6" />
+                </button>
+
+                {/* Weekday Name in Darvish Font */}
+                <h1 className="font-darvish text-lg sm:text-xl font-bold text-foreground tracking-normal select-none leading-snug">
+                  {currentWeekdayName}
+                </h1>
+
+                {/* Arrow Left (<) for Next Day in RTL */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
+                  className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer active:scale-95"
+                  title="روز بعد"
+                >
+                  <RiArrowLeftSLine className="size-6" />
+                </button>
               </div>
 
-              {/* Weekly ribbon calendar */}
-              <WeeklyStrip
-                selectedDateKey={selectedDateKey}
-                onSelectDate={setSelectedDateKey}
-                datesWithItems={datesWithItems}
-              />
+              {/* Motivational quote in Darvish Font (dynamic per day) */}
+              <p className="font-darvish text-xs sm:text-sm text-muted-foreground font-normal mt-2 text-center select-none px-4">
+                {getDailyQuote(selectedDateKey)}
+              </p>
+
+              {/* Daily Tasks Progress Bar with generous top and bottom spacing */}
+              <div
+                ref={goalPillRef}
+                className="w-full px-6 mt-6 sm:mt-7 mb-4 sm:mb-5 flex items-center gap-3 select-none"
+                dir="rtl"
+              >
+                {/* Counter + Popper icon on the FAR RIGHT */}
+                <div
+                  className="flex items-center gap-1.5 shrink-0 text-muted-foreground select-none"
+                  title={`هدف روزانه: ${toPersianDigits(dailyTaskGoal)} تسک (${toPersianDigits(todayDoneCount)} از ${toPersianDigits(dailyTaskGoal)} انجام شد)`}
+                >
+                  <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+                    {toPersianDigits(todayDoneCount)}/{toPersianDigits(dailyTaskGoal)}
+                  </span>
+                  <HugeiconsIcon icon={PartyIcon} size={15} strokeWidth={1.8} className="text-muted-foreground/80 shrink-0" />
+                </div>
+
+                {/* Progress Bar Track on the LEFT */}
+                <div className="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden flex items-center" dir="ltr">
+                  <div
+                    className="h-full bg-neutral-600 dark:bg-neutral-300 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${Math.min(100, Math.round((todayDoneCount / dailyTaskGoal) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Return to today button: directly below progress bar and above tasks list */}
+              {selectedDateKey !== getTodayJalaliKey() && (
+                <div className="w-full flex justify-center mt-1 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDateKey(getTodayJalaliKey())}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/80 hover:bg-secondary text-xs font-semibold text-foreground border border-border/40 shadow-xs transition-all cursor-pointer active:scale-95"
+                    title="بازگشت به امروز"
+                  >
+                    <RiArrowGoBackLine className="size-3.5 text-muted-foreground" />
+                    <span>بازگشت به امروز</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Stream Content Area sitting flush on the app container with full-width rows */}
-            <div className="w-full flex-1 px-0 pt-3 pb-24 bg-transparent">
+            <div className="w-full flex-1 px-0 pt-3.5 sm:pt-4 pb-24 bg-transparent">
 
               {/* Pinned Items Section (سنجاق شده) - Below WeeklyStrip and above DayStream */}
               {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
@@ -553,7 +674,7 @@ export function App() {
                 goalPillRef={goalPillRef}
               />
             </div>
-          </>
+          </div>
         )}
 
         {activeTab === 'notebook' && <NotebookView />}
@@ -586,6 +707,7 @@ export function App() {
           />
         )}
       </MobileScrollArea>
+      )}
 
 
       {/* Archived: Boxes Modal Sheet */}

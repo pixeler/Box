@@ -1204,14 +1204,14 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
             {/* Common Bottom Bar: Only show if not using keyboard submit on Android for task creation */}
             {(!isAndroid || activeTab !== 'task') && (
-              <div className="flex items-center justify-start pt-2.5 border-t border-border/70 dark:border-white/10">
+              <div className="flex items-center justify-start pt-2.5 border-t border-border">
                 <button
                   type="submit"
                   disabled={!title.trim()}
-                  className="w-9 h-9 rounded-full bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shadow-xs transition-all cursor-pointer active:scale-90"
+                  className="size-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shadow-xs transition-colors cursor-pointer active:scale-95"
                   title="ایجاد تسک"
                 >
-                  <RiCheckLine className="w-5 h-5 stroke-[2.5]" />
+                  <RiCheckLine className="size-4 stroke-[2.5]" />
                 </button>
               </div>
             )}

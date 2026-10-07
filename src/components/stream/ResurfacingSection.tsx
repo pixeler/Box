@@ -150,14 +150,14 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
           {/* 1. Text, count and subtitle on FAR RIGHT (First child in RTL) */}
           <div className="flex flex-col items-start gap-0.5 text-right">
             <div className="flex items-center gap-2">
-              <span className="text-foreground font-normal text-[12px]">
+              <span className="text-foreground font-medium text-sm">
                 از روزهای قبل
               </span>
-              <span className="text-muted-foreground font-normal text-[12px]">
-                {toPersianDigits(localOverdueTasks.length)}
+              <span className="text-muted-foreground font-normal text-xs tabular-nums">
+                ({toPersianDigits(localOverdueTasks.length)})
               </span>
             </div>
-            <span className="text-[11px] text-muted-foreground/80 font-normal">
+            <span className="text-xs text-muted-foreground/80 font-normal">
               تسک‌ها را می‌توانید به امروز درگ کنید
             </span>
           </div>
@@ -178,11 +178,11 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
             {criticalTasks.length > 0 && (
               <div className="mx-4 my-1.5 rounded-2xl border border-rose-500/25 bg-rose-500/[0.05] dark:bg-rose-500/[0.09] backdrop-blur-xs overflow-hidden transition-all duration-200 shadow-2xs">
                 {/* هدر باکس خیلی عقب‌افتاده بدون فلش، بدون نقطه قرمز و بدون شمارشگر */}
-                <div className="py-2.5 px-4 text-right">
-                  <span className="text-rose-600 dark:text-rose-400 font-bold text-[13px] tracking-tight block">
+                <div className="py-2 px-4 text-right">
+                  <span className="text-destructive font-semibold text-xs tracking-tight block">
                     خیلی عقب‌افتاده
                   </span>
-                  <span className="text-[11px] text-rose-500/80 dark:text-rose-400/80 font-normal mt-0.5 block">
+                  <span className="text-xs text-destructive/80 font-normal mt-0.5 block">
                     یا انجام بده یا حذفشان کن.
                   </span>
                 </div>
@@ -318,11 +318,11 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
         >
           {/* 1. Text on FAR RIGHT (First child in RTL) */}
           <div className="flex items-center gap-2">
-            <span className="text-foreground font-normal text-[12px]">
+            <span className="text-foreground font-medium text-sm">
               برای بعدا
             </span>
-            <span className="text-muted-foreground font-normal text-[12px]">
-              {toPersianDigits(futureTaskCount + futureEventCount)}
+            <span className="text-muted-foreground font-normal text-xs tabular-nums">
+              ({toPersianDigits(futureTaskCount + futureEventCount)})
             </span>
           </div>
 
