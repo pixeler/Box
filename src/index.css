@@ -21,6 +21,14 @@
 }
 
 @font-face {
+  font-family: 'NastaliqSky';
+  src: url('/fonts/Nastaliq/NotoNastaliqUrdu.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Darvish';
   src: url('/fonts/Darvish/Darvish VF.woff2') format('woff2-variations'),
        url('/fonts/Darvish/Darvish VF.woff2') format('woff2');
@@ -1381,90 +1389,100 @@ button:active {
   will-change: transform, opacity, background-color;
 }
 
-/* Authentic Hand-Drawn Irregular Pencil Strike-through */
-@keyframes pencilStrikeDrawRTL {
+/* Authentic Hand-Drawn Irregular Multi-Line Pencil Strike-through */
+@keyframes pencilStrikeDrawMultiLine {
   0% {
-    clip-path: polygon(100% 0%, 100% 0%, 100% 100%, 100% 100%);
+    background-size: 0% 15px;
     opacity: 0.35;
   }
-  15% {
+  18% {
     opacity: 1;
   }
   100% {
-    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+    background-size: 100% 15px;
     opacity: 1;
   }
 }
 
 .pencil-strike {
   position: relative;
-  display: inline-block;
-  max-width: 100%;
+  display: inline;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding: 0 2px;
   text-decoration: none !important;
-  vertical-align: baseline;
+  background-repeat: no-repeat;
+  background-position: right 52%;
+  background-size: 100% 15px;
+  animation: pencilStrikeDrawMultiLine 460ms cubic-bezier(0.22, 0.9, 0.32, 1) forwards;
+  /* Default Variant 1: Classic organic graphite stroke */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p1' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.36 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.5 C 16 6.2, 34 10.8, 52 7.6 C 70 10.4, 88 6.8, 118 8.2' fill='none' stroke='%2352525b' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p1)' opacity='0.96'/%3E%3Cpath d='M3 9 C 18 7, 38 10, 58 8 C 78 10, 98 7.5, 117 8.5' fill='none' stroke='%23a1a1aa' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='12 3 18 3 8 2' opacity='0.75'/%3E%3C/svg%3E");
 }
 
 .pencil-strike::after {
-  content: '';
-  position: absolute;
-  left: -6px;
-  right: -6px;
-  top: 50%;
-  height: 16px;
-  transform: translateY(-50%);
-  pointer-events: none;
-  background-color: currentColor;
-  opacity: 0.92;
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  animation: pencilStrikeDrawRTL 460ms cubic-bezier(0.22, 0.9, 0.32, 1) forwards;
-  /* Default mask (Variant 1: Classic organic graphite stroke) */
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p1' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.36 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.5 C 16 6.2, 34 10.8, 52 7.6 C 70 10.4, 88 6.8, 118 8.2' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p1)' opacity='0.96'/%3E%3Cpath d='M3 9 C 18 7, 38 10, 58 8 C 78 10, 98 7.5, 117 8.5' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='12 3 18 3 8 2' opacity='0.75'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p1' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.36 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.5 C 16 6.2, 34 10.8, 52 7.6 C 70 10.4, 88 6.8, 118 8.2' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p1)' opacity='0.96'/%3E%3Cpath d='M3 9 C 18 7, 38 10, 58 8 C 78 10, 98 7.5, 117 8.5' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='12 3 18 3 8 2' opacity='0.75'/%3E%3C/svg%3E");
+  display: none !important;
 }
 
-/* 5 Distinct Authentic Hand-Drawn Pencil Patterns */
+/* 5 Distinct Authentic Hand-Drawn Multi-Line Pencil Patterns */
 
 /* Variant 1: Classic organic graphite stroke */
-.pencil-strike.pencil-strike-1::after,
-:nth-child(5n+1) > * > .pencil-strike::after,
-:nth-child(5n+1) .pencil-strike::after {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p1' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.36 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.5 C 16 6.2, 34 10.8, 52 7.6 C 70 10.4, 88 6.8, 118 8.2' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p1)' opacity='0.96'/%3E%3Cpath d='M3 9 C 18 7, 38 10, 58 8 C 78 10, 98 7.5, 117 8.5' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='12 3 18 3 8 2' opacity='0.75'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p1' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.36 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.5 C 16 6.2, 34 10.8, 52 7.6 C 70 10.4, 88 6.8, 118 8.2' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p1)' opacity='0.96'/%3E%3Cpath d='M3 9 C 18 7, 38 10, 58 8 C 78 10, 98 7.5, 117 8.5' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='12 3 18 3 8 2' opacity='0.75'/%3E%3C/svg%3E");
+.pencil-strike.pencil-strike-1,
+:nth-child(5n+1) > * > .pencil-strike,
+:nth-child(5n+1) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p1' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.36 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.5 C 16 6.2, 34 10.8, 52 7.6 C 70 10.4, 88 6.8, 118 8.2' fill='none' stroke='%2352525b' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p1)' opacity='0.96'/%3E%3Cpath d='M3 9 C 18 7, 38 10, 58 8 C 78 10, 98 7.5, 117 8.5' fill='none' stroke='%23a1a1aa' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='12 3 18 3 8 2' opacity='0.75'/%3E%3C/svg%3E");
+}
+.dark .pencil-strike.pencil-strike-1,
+.dark :nth-child(5n+1) > * > .pencil-strike,
+.dark :nth-child(5n+1) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p1d' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.36 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M2 8.5 C 16 6.2, 34 10.8, 52 7.6 C 70 10.4, 88 6.8, 118 8.2' fill='none' stroke='%23d4d4d8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p1d)' opacity='0.96'/%3E%3Cpath d='M3 9 C 18 7, 38 10, 58 8 C 78 10, 98 7.5, 117 8.5' fill='none' stroke='%2371717a' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='12 3 18 3 8 2' opacity='0.75'/%3E%3C/svg%3E");
 }
 
 /* Variant 2: Heavy rough sketch / crayon stroke */
-.pencil-strike.pencil-strike-2::after,
-:nth-child(5n+2) > * > .pencil-strike::after,
-:nth-child(5n+2) .pencil-strike::after {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p2' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.42 0.15' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M1 8.2 C 20 6.5, 42 10.2, 64 7.2 C 84 9.8, 102 7.0, 119 8.5' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p2)' opacity='0.98'/%3E%3Cpath d='M2 8.8 C 16 7.2, 36 9.8, 56 7.8 C 76 9.5, 96 7.6, 118 8.2' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-dasharray='10 2 15 3 6 2' opacity='0.8'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p2' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.42 0.15' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M1 8.2 C 20 6.5, 42 10.2, 64 7.2 C 84 9.8, 102 7.0, 119 8.5' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p2)' opacity='0.98'/%3E%3Cpath d='M2 8.8 C 16 7.2, 36 9.8, 56 7.8 C 76 9.5, 96 7.6, 118 8.2' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round' stroke-dasharray='10 2 15 3 6 2' opacity='0.8'/%3E%3C/svg%3E");
+.pencil-strike.pencil-strike-2,
+:nth-child(5n+2) > * > .pencil-strike,
+:nth-child(5n+2) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p2' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.42 0.15' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M1 8.2 C 20 6.5, 42 10.2, 64 7.2 C 84 9.8, 102 7.0, 119 8.5' fill='none' stroke='%2352525b' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p2)' opacity='0.98'/%3E%3Cpath d='M2 8.8 C 16 7.2, 36 9.8, 56 7.8 C 76 9.5, 96 7.6, 118 8.2' fill='none' stroke='%23a1a1aa' stroke-width='1.4' stroke-linecap='round' stroke-dasharray='10 2 15 3 6 2' opacity='0.8'/%3E%3C/svg%3E");
+}
+.dark .pencil-strike.pencil-strike-2,
+.dark :nth-child(5n+2) > * > .pencil-strike,
+.dark :nth-child(5n+2) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p2d' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.42 0.15' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M1 8.2 C 20 6.5, 42 10.2, 64 7.2 C 84 9.8, 102 7.0, 119 8.5' fill='none' stroke='%23d4d4d8' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p2d)' opacity='0.98'/%3E%3Cpath d='M2 8.8 C 16 7.2, 36 9.8, 56 7.8 C 76 9.5, 96 7.6, 118 8.2' fill='none' stroke='%2371717a' stroke-width='1.4' stroke-linecap='round' stroke-dasharray='10 2 15 3 6 2' opacity='0.8'/%3E%3C/svg%3E");
 }
 
 /* Variant 3: Energetic Wavy / Zigzag Hand Stroke (مواج و زیگزاگی) */
-.pencil-strike.pencil-strike-3::after,
-:nth-child(5n+3) > * > .pencil-strike::after,
-:nth-child(5n+3) .pencil-strike::after {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p3' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.30 0.12' numOctaves='2' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='1.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 8.5 C 5 3.5, 9 3.5, 13 8.5 C 17 13.5, 21 13.5, 25 8.5 C 29 3.5, 33 3.5, 37 8.5 C 41 13.5, 45 13.5, 49 8.5 C 53 3.5, 57 3.5, 61 8.5 C 65 13.5, 69 13.5, 73 8.5 C 77 3.5, 81 3.5, 85 8.5 C 89 13.5, 93 13.5, 97 8.5 C 101 3.5, 105 3.5, 109 8.5 C 113 13.5, 116 11, 118 8.5' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p3)' opacity='0.96'/%3E%3Cpath d='M 3 8.8 C 6 4, 10 4, 14 8.8 C 18 13.5, 22 13.5, 26 8.8 C 30 4, 34 4, 38 8.8 C 42 13.5, 46 13.5, 50 8.8 C 54 4, 58 4, 62 8.8 C 66 13.5, 70 13.5, 74 8.8 C 78 4, 82 4, 86 8.8 C 90 13.5, 94 13.5, 98 8.8 C 102 4, 106 4, 110 8.8 C 114 13, 116 10.5, 118 8.8' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='10 2 14 3 6 2' opacity='0.75'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p3' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.30 0.12' numOctaves='2' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='1.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 8.5 C 5 3.5, 9 3.5, 13 8.5 C 17 13.5, 21 13.5, 25 8.5 C 29 3.5, 33 3.5, 37 8.5 C 41 13.5, 45 13.5, 49 8.5 C 53 3.5, 57 3.5, 61 8.5 C 65 13.5, 69 13.5, 73 8.5 C 77 3.5, 81 3.5, 85 8.5 C 89 13.5, 93 13.5, 97 8.5 C 101 3.5, 105 3.5, 109 8.5 C 113 13.5, 116 11, 118 8.5' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p3)' opacity='0.96'/%3E%3Cpath d='M 3 8.8 C 6 4, 10 4, 14 8.8 C 18 13.5, 22 13.5, 26 8.8 C 30 4, 34 4, 38 8.8 C 42 13.5, 46 13.5, 50 8.8 C 54 4, 58 4, 62 8.8 C 66 13.5, 70 13.5, 74 8.8 C 78 4, 82 4, 86 8.8 C 90 13.5, 94 13.5, 98 8.8 C 102 4, 106 4, 110 8.8 C 114 13, 116 10.5, 118 8.8' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='10 2 14 3 6 2' opacity='0.75'/%3E%3C/svg%3E");
+.pencil-strike.pencil-strike-3,
+:nth-child(5n+3) > * > .pencil-strike,
+:nth-child(5n+3) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p3' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.30 0.12' numOctaves='2' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='1.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 8.5 C 5 3.5, 9 3.5, 13 8.5 C 17 13.5, 21 13.5, 25 8.5 C 29 3.5, 33 3.5, 37 8.5 C 41 13.5, 45 13.5, 49 8.5 C 53 3.5, 57 3.5, 61 8.5 C 65 13.5, 69 13.5, 73 8.5 C 77 3.5, 81 3.5, 85 8.5 C 89 13.5, 93 13.5, 97 8.5 C 101 3.5, 105 3.5, 109 8.5 C 113 13.5, 116 11, 118 8.5' fill='none' stroke='%2352525b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p3)' opacity='0.96'/%3E%3Cpath d='M 3 8.8 C 6 4, 10 4, 14 8.8 C 18 13.5, 22 13.5, 26 8.8 C 30 4, 34 4, 38 8.8 C 42 13.5, 46 13.5, 50 8.8 C 54 4, 58 4, 62 8.8 C 66 13.5, 70 13.5, 74 8.8 C 78 4, 82 4, 86 8.8 C 90 13.5, 94 13.5, 98 8.8 C 102 4, 106 4, 110 8.8 C 114 13, 116 10.5, 118 8.8' fill='none' stroke='%23a1a1aa' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='10 2 14 3 6 2' opacity='0.75'/%3E%3C/svg%3E");
+}
+.dark .pencil-strike.pencil-strike-3,
+.dark :nth-child(5n+3) > * > .pencil-strike,
+.dark :nth-child(5n+3) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p3d' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.30 0.12' numOctaves='2' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='1.8' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 8.5 C 5 3.5, 9 3.5, 13 8.5 C 17 13.5, 21 13.5, 25 8.5 C 29 3.5, 33 3.5, 37 8.5 C 41 13.5, 45 13.5, 49 8.5 C 53 3.5, 57 3.5, 61 8.5 C 65 13.5, 69 13.5, 73 8.5 C 77 3.5, 81 3.5, 85 8.5 C 89 13.5, 93 13.5, 97 8.5 C 101 3.5, 105 3.5, 109 8.5 C 113 13.5, 116 11, 118 8.5' fill='none' stroke='%23d4d4d8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p3d)' opacity='0.96'/%3E%3Cpath d='M 3 8.8 C 6 4, 10 4, 14 8.8 C 18 13.5, 22 13.5, 26 8.8 C 30 4, 34 4, 38 8.8 C 42 13.5, 46 13.5, 50 8.8 C 54 4, 58 4, 62 8.8 C 66 13.5, 70 13.5, 74 8.8 C 78 4, 82 4, 86 8.8 C 90 13.5, 94 13.5, 98 8.8 C 102 4, 106 4, 110 8.8 C 114 13, 116 10.5, 118 8.8' fill='none' stroke='%2371717a' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='10 2 14 3 6 2' opacity='0.75'/%3E%3C/svg%3E");
 }
 
 /* Variant 4: Double scratch / crossing pencil lines (دو خطه متقاطع) */
-.pencil-strike.pencil-strike-4::after,
-:nth-child(5n+4) > * > .pencil-strike::after,
-:nth-child(5n+4) .pencil-strike::after {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p4' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.35 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 10.5 C 26 7.2, 52 11.5, 76 7.5 C 94 10.5, 108 7.5, 118 9' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4)' opacity='0.95'/%3E%3Cpath d='M 3 6.5 C 28 10.2, 54 6.2, 80 10 C 96 7, 110 8.5, 119 7.5' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4)' opacity='0.85'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p4' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.35 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 10.5 C 26 7.2, 52 11.5, 76 7.5 C 94 10.5, 108 7.5, 118 9' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4)' opacity='0.95'/%3E%3Cpath d='M 3 6.5 C 28 10.2, 54 6.2, 80 10 C 96 7, 110 8.5, 119 7.5' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4)' opacity='0.85'/%3E%3C/svg%3E");
+.pencil-strike.pencil-strike-4,
+:nth-child(5n+4) > * > .pencil-strike,
+:nth-child(5n+4) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p4' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.35 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 10.5 C 26 7.2, 52 11.5, 76 7.5 C 94 10.5, 108 7.5, 118 9' fill='none' stroke='%2352525b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4)' opacity='0.95'/%3E%3Cpath d='M 3 6.5 C 28 10.2, 54 6.2, 80 10 C 96 7, 110 8.5, 119 7.5' fill='none' stroke='%2371717a' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4)' opacity='0.85'/%3E%3C/svg%3E");
+}
+.dark .pencil-strike.pencil-strike-4,
+.dark :nth-child(5n+4) > * > .pencil-strike,
+.dark :nth-child(5n+4) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p4d' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.35 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.2' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 10.5 C 26 7.2, 52 11.5, 76 7.5 C 94 10.5, 108 7.5, 118 9' fill='none' stroke='%23d4d4d8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4d)' opacity='0.95'/%3E%3Cpath d='M 3 6.5 C 28 10.2, 54 6.2, 80 10 C 96 7, 110 8.5, 119 7.5' fill='none' stroke='%23a1a1aa' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p4d)' opacity='0.85'/%3E%3C/svg%3E");
 }
 
 /* Variant 5: Smooth flowing natural wave (موج نرم طبیعی) */
-.pencil-strike.pencil-strike-5::after,
-:nth-child(5n+5) > * > .pencil-strike::after,
-:nth-child(5n+5) .pencil-strike::after {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p5' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.34 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.1' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 9.5 C 18 5.5, 36 12.5, 56 6.8 C 76 11.2, 96 6.5, 118 8.8' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p5)' opacity='0.95'/%3E%3Cpath d='M 3 9 C 20 6.2, 38 12, 58 7.5 C 78 11.5, 98 7, 117 8.5' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='14 3 12 2 8 2' opacity='0.75'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p5' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.34 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.1' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 9.5 C 18 5.5, 36 12.5, 56 6.8 C 76 11.2, 96 6.5, 118 8.8' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p5)' opacity='0.95'/%3E%3Cpath d='M 3 9 C 20 6.2, 38 12, 58 7.5 C 78 11.5, 98 7, 117 8.5' fill='none' stroke='black' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='14 3 12 2 8 2' opacity='0.75'/%3E%3C/svg%3E");
+.pencil-strike.pencil-strike-5,
+:nth-child(5n+5) > * > .pencil-strike,
+:nth-child(5n+5) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p5' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.34 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.1' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 9.5 C 18 5.5, 36 12.5, 56 6.8 C 76 11.2, 96 6.5, 118 8.8' fill='none' stroke='%2352525b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p5)' opacity='0.95'/%3E%3Cpath d='M 3 9 C 20 6.2, 38 12, 58 7.5 C 78 11.5, 98 7, 117 8.5' fill='none' stroke='%23a1a1aa' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='14 3 12 2 8 2' opacity='0.75'/%3E%3C/svg%3E");
+}
+.dark .pencil-strike.pencil-strike-5,
+.dark :nth-child(5n+5) > * > .pencil-strike,
+.dark :nth-child(5n+5) .pencil-strike {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 16' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cfilter id='p5d' x='-10%25' y='-30%25' width='120%25' height='160%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.34 0.12' numOctaves='3' result='noise'/%3E%3CfeDisplacementMap in='SourceGraphic' in2='noise' scale='2.1' xChannelSelector='R' yChannelSelector='G'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M 2 9.5 C 18 5.5, 36 12.5, 56 6.8 C 76 11.2, 96 6.5, 118 8.8' fill='none' stroke='%23d4d4d8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' filter='url(%23p5d)' opacity='0.95'/%3E%3Cpath d='M 3 9 C 20 6.2, 38 12, 58 7.5 C 78 11.5, 98 7, 117 8.5' fill='none' stroke='%2371717a' stroke-width='1.1' stroke-linecap='round' stroke-dasharray='14 3 12 2 8 2' opacity='0.75'/%3E%3C/svg%3E");
 }
 
 /* Dotted/Dashed separator border (خط‌چین ۲ پیکسل پر و ۴ پیکسل خالی) between items */

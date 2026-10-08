@@ -54,6 +54,12 @@ export const WALLPAPER_LIST: WallpaperItem[] = [
     title: 'ابر و آسمان اسکی (Ascii Magic)',
     url: '/wallpapers/wafer-sky.jpg',
   },
+  {
+    id: 'morning-live',
+    title: 'صبح بخیر (آسمان زنده)',
+    bgGradient:
+      'radial-gradient(circle at 78% 20%, rgba(255,246,215,0.9) 0%, rgba(255,246,215,0) 45%), radial-gradient(ellipse at 25% 90%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 40%), linear-gradient(180deg, #3a8fe0 0%, #78baf0 50%, #fff0d6 100%)',
+  },
 
   // --- پالت‌های روشن و لطیف (Light Tones & Gradients) ---
   {

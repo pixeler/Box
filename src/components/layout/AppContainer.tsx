@@ -3,6 +3,9 @@ import { WALLPAPER_LIST } from '../profile/ProfileView';
 import { useIsMobile, useIsDesktop } from '@/lib/device';
 import { generatePillDisplacementMap } from '@/lib/glass';
 import { DynamicSkyBackground } from './DynamicSkyBackground';
+import { MorningSkyBackground } from './MorningSkyBackground';
+
+const isLiveSkyWallpaper = (id: string) => id === 'wafer-sky' || id === 'morning-live';
 
 export type DesktopPosition = 'right' | 'center' | 'left';
 
@@ -367,10 +370,11 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         <div className="flex-1 min-w-0 h-full py-2 pl-2">
           <div
             className="desktop-canvas relative w-full h-full rounded-[22px] overflow-hidden isolate"
-            style={wallpaper === 'wafer-sky' ? undefined : { ...getBackgroundStyle(), backgroundAttachment: 'scroll' }}
+            style={isLiveSkyWallpaper(wallpaper) ? undefined : { ...getBackgroundStyle(), backgroundAttachment: 'scroll' }}
           >
             {/* Dynamic Interactive Cloud & Sky Background */}
             {wallpaper === 'wafer-sky' && <DynamicSkyBackground isDark={isDark} />}
+            {wallpaper === 'morning-live' && <MorningSkyBackground isDark={isDark} />}
 
             {svgFilters}
 
@@ -400,7 +404,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   // ===== MOBILE / TABLET: original centered card + floating bottom dock =====
   return (
     <div
-      style={wallpaper === 'wafer-sky' ? undefined : getBackgroundStyle()}
+      style={isLiveSkyWallpaper(wallpaper) ? undefined : getBackgroundStyle()}
       className={`min-h-screen w-full flex items-center p-0 sm:p-4 md:px-10 font-sans transition-all duration-500 ease-out relative overflow-hidden ${
         isCalendarExpanded
           ? 'justify-center'
@@ -414,6 +418,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     >
       {/* Dynamic Interactive Cloud & Sky Background */}
       {wallpaper === 'wafer-sky' && <DynamicSkyBackground isDark={isDark} />}
+      {wallpaper === 'morning-live' && <MorningSkyBackground isDark={isDark} />}
 
       <div className={`flex flex-col items-center w-full relative z-1 transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         isCalendarExpanded

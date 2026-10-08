@@ -396,7 +396,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           - RIGHT SIDE (RTL): Month & Year Clickable side-by-side (NO arrows, NO dividing line underneath)
           - LEFT SIDE (RTL): Mode Switcher dropdown (هفته ⌄ / ماه / سال)
       */}
-      <header className="w-full relative flex items-center justify-between px-6 sm:px-8 pt-8 sm:pt-10 pb-5 sm:pb-6 shrink-0 border-b-0" dir="rtl">
+      <header className="w-full relative flex items-center justify-between px-6 sm:px-8 pt-5 sm:pt-7 pb-4 sm:pb-5 shrink-0 border-b-0" dir="rtl">
         {/* RIGHT SIDE in RTL: Return to today button (if viewing date other than today) */}
         <div className="flex items-center min-w-[32px] sm:min-w-[120px] justify-start z-10">
           {isNotToday && (
@@ -421,8 +421,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           )}
         </div>
 
-        {/* CENTER: Month & Year clickable text side-by-side */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-1.5 z-20">
+        {/* CENTER: Month & Year clickable text side-by-side with minimal gap */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 z-20">
           {/* Separate Month Dropdown Picker */}
           <div className="relative" ref={monthDropdownRef}>
             <button
@@ -431,7 +431,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 setIsMonthPickerOpen(!isMonthPickerOpen);
                 setIsYearPickerOpen(false);
               }}
-              className="font-darvish text-xl sm:text-2xl font-bold text-foreground hover:text-foreground/80 hover:bg-secondary/40 px-2 py-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
+              className="font-darvish text-xl sm:text-2xl font-bold text-foreground hover:text-foreground/80 hover:bg-secondary/40 px-1 py-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
               title="انتخاب ماه"
             >
               <span>{currentMonthName}</span>
@@ -481,7 +481,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 setIsYearPickerOpen(!isYearPickerOpen);
                 setIsMonthPickerOpen(false);
               }}
-              className="font-darvish text-xl sm:text-2xl font-bold text-foreground hover:text-foreground/80 hover:bg-secondary/40 px-2 py-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
+              className="font-darvish text-xl sm:text-2xl font-bold text-foreground hover:text-foreground/80 hover:bg-secondary/40 px-1 py-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
               title="انتخاب سال"
             >
               <span>{toPersianDigits(currentYearNumber)}</span>
@@ -591,16 +591,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               }}
               className="w-full shrink-0 flex flex-col bg-background/98 z-20"
             >
-              {/* Week Columns Header: Day numbers, Weekday names, and Calendar Occasions/Holidays */}
+              {/* Week Columns Header: Day numbers and Weekday names */}
               <div className="w-full flex cal-dashed-row">
                 {/* Spacer matching hour label width */}
-                <div className="w-12 sm:w-16 shrink-0 py-3.5 sm:py-4.5" />
+                <div className="w-12 sm:w-16 shrink-0 py-2 sm:py-2.5" />
 
                 {/* 7 Columns Header */}
                 <div className="flex-1 grid grid-cols-7">
                   {weekDays.map((day, dIdx) => {
                     const isToday = day.formattedDate === todayKey;
-                    const dayHolidays = getHolidaysForDate(day.formattedDate);
                     const isFriday = dIdx === 6;
                     const isHoliday = isFriday || isOfficialHoliday(day.formattedDate);
 
@@ -608,13 +607,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       <div
                         key={day.formattedDate}
                         className={cn(
-                          'flex flex-col items-center px-1 sm:px-2 py-3.5 sm:py-4.5 relative transition-colors h-full justify-between',
+                          'flex flex-col items-center px-1 sm:px-2 py-2 sm:py-2.5 relative transition-colors h-full justify-center',
                           dIdx > 0 && 'cal-dashed-col',
                           isToday && 'bg-primary/[0.04] dark:bg-white/[0.04] rounded-t-2xl'
                         )}
                       >
                         {/* Day Number + Full Weekday Name */}
-                        <div className="flex flex-col items-center py-1 sm:py-1.5 min-h-[66px] justify-center">
+                        <div className="flex flex-col items-center py-0.5 justify-center">
                           {/* Day Number: smaller number font inside circle */}
                           <div
                             className={cn(
@@ -640,25 +639,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           >
                             {day.dayName}
                           </span>
-
-                          {/* Holiday / Occasion Name (مناسبت‌های تقویمی و روزهای تعطیل) */}
-                          {dayHolidays.length > 0 ? (
-                            <span
-                              className={cn(
-                                "text-[9px] truncate max-w-[85px] text-center mt-1 px-1 select-none",
-                                isHoliday
-                                  ? "text-rose-500 dark:text-rose-400 font-medium"
-                                  : "text-muted-foreground/80 font-normal"
-                              )}
-                              title={dayHolidays.map((h) => h.title).join(' • ')}
-                            >
-                              {dayHolidays[0].title}
-                            </span>
-                          ) : isFriday ? (
-                            <span className="text-[9px] text-rose-500/80 dark:text-rose-400/80 select-none mt-1 font-medium">
-                              تعطیل
-                            </span>
-                          ) : null}
                         </div>
                       </div>
                     );
@@ -666,102 +646,168 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 </div>
               </div>
 
-              {/* SECTION 1: Unscheduled / Anytime Tasks Section (FIXED AT TOP, HUGGING CONTENT) */}
-              <div className="w-full flex cal-dashed-row shrink-0">
-                {/* Row Label */}
-                <div className="w-12 sm:w-16 shrink-0 flex items-start justify-center pt-3 text-[10px] sm:text-[11px] font-semibold text-muted-foreground select-none">
-                  <span>هر زمان</span>
-                </div>
+              {/* When day sections is disabled, show SECTION 1 (Unscheduled) fixed at top */}
+              {!enableDaySections && (
+                <div className="w-full flex cal-dashed-row shrink-0">
+                  {/* Row Label */}
+                  <div className="w-12 sm:w-16 shrink-0 flex items-start justify-center pt-3 text-[10px] sm:text-[11px] font-semibold text-muted-foreground select-none">
+                    <span>هر زمان</span>
+                  </div>
 
-                {/* 7 Columns for unscheduled tasks */}
-                <div className="flex-1 grid grid-cols-7 auto-rows-fr">
-                  {weekDays.map((day, dIdx) => {
-                    const isToday = day.formattedDate === todayKey;
-                    const dayTasks = getTasksForDate(day.formattedDate);
-                    const unscheduledTasks = dayTasks.filter((t) => {
-                      if (t.due_time && t.due_time.trim()) return false;
-                      if (enableDaySections && t.time_of_day && t.time_of_day !== 'anytime') return false;
-                      return true;
-                    });
+                  {/* 7 Columns for unscheduled tasks */}
+                  <div className="flex-1 grid grid-cols-7 auto-rows-fr">
+                    {weekDays.map((day, dIdx) => {
+                      const isToday = day.formattedDate === todayKey;
+                      const dayHolidays = getHolidaysForDate(day.formattedDate);
+                      const isFriday = dIdx === 6;
+                      const dayTasks = getTasksForDate(day.formattedDate);
+                      const unscheduledTasks = dayTasks.filter((t) => {
+                        if (t.due_time && t.due_time.trim()) return false;
+                        return true;
+                      });
 
-                    const cellKey = `unscheduled-${day.formattedDate}`;
-                    const isDragOver = dragOverCell === cellKey;
+                      const cellKey = `unscheduled-${day.formattedDate}`;
+                      const isDragOver = dragOverCell === cellKey;
 
-                    return (
-                      <div
-                        key={cellKey}
-                        onDragOver={(e) => handleCellDragOver(e, cellKey)}
-                        onDragLeave={handleCellDragLeave}
-                        onDrop={(e) => handleCellDrop(e, day.formattedDate, { timeOfDay: 'anytime' })}
-                        className={cn(
-                          'min-h-[70px] p-1.5 pb-2.5 flex flex-col gap-1 transition-colors h-full',
-                          dIdx > 0 && 'cal-dashed-col',
-                          isToday && 'bg-primary/[0.04] dark:bg-white/[0.04]',
-                          isDragOver && 'bg-primary/5 ring-2 ring-primary/40'
-                        )}
-                      >
-                        {/* Minimal "+ اضافه کردن کار" Button: Under dashed line of day, above first task with comfortable margins */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (onOpenAddForDate) {
-                              onOpenAddForDate(day.formattedDate);
-                            } else {
-                              onSelectDate(day.formattedDate);
-                            }
-                          }}
-                          className="w-[calc(100%-12px)] mx-auto my-2 py-1.5 px-2 rounded-lg border border-dashed border-border/70 hover:border-foreground/30 bg-card/60 hover:bg-secondary/60 text-[10px] text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 group shrink-0"
-                          title={`افزودن کار برای ${day.dayName}`}
+                      return (
+                        <div
+                          key={cellKey}
+                          onDragOver={(e) => handleCellDragOver(e, cellKey)}
+                          onDragLeave={handleCellDragLeave}
+                          onDrop={(e) => handleCellDrop(e, day.formattedDate, { timeOfDay: 'anytime' })}
+                          className={cn(
+                            'min-h-[70px] p-1.5 pb-2.5 flex flex-col gap-1 transition-colors h-full',
+                            dIdx > 0 && 'cal-dashed-col',
+                            isToday && 'bg-primary/[0.04] dark:bg-white/[0.04]',
+                            isDragOver && 'bg-primary/5 ring-2 ring-primary/40'
+                          )}
                         >
-                          <RiAddLine className="size-3 text-muted-foreground group-hover:text-foreground shrink-0" />
-                          <span className="truncate">اضافه کردن کار</span>
-                        </button>
+                          {/* Occasions & Holidays as Bullet Points right below the dashed line */}
+                          {(dayHolidays.length > 0 || isFriday) && (
+                            <div className="w-full px-1.5 pt-0.5 pb-1 flex flex-col gap-1 select-none border-b border-border/25 mb-0.5">
+                              {dayHolidays.map((h, hIdx) => {
+                                const isRed = h.isOfficial;
+                                return (
+                                  <div
+                                    key={hIdx}
+                                    className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight"
+                                    title={h.title}
+                                  >
+                                    <span
+                                      className={cn(
+                                        'size-1.5 rounded-full mt-1 shrink-0',
+                                        isRed ? 'bg-rose-500 shadow-xs' : 'bg-primary/50 dark:bg-primary/70'
+                                      )}
+                                    />
+                                    <span
+                                      className={cn(
+                                        'break-words font-medium text-right leading-tight',
+                                        isRed
+                                          ? 'text-rose-500 dark:text-rose-400 font-semibold'
+                                          : 'text-muted-foreground'
+                                      )}
+                                    >
+                                      {h.title}
+                                    </span>
+                                  </div>
+                                );
+                              })}
 
-                        {unscheduledTasks.map((task, idx) => (
-                          <div key={task.id} className="w-full">
-                            <TaskItemRow
-                              task={task}
-                              tagsMap={tagsMap}
-                              currentDateKey={day.formattedDate}
-                              onStatusChanged={() => {
-                                loadCalendarData();
-                                if (onTaskChanged) onTaskChanged();
-                              }}
-                              draggable={true}
-                              onDragStart={(e) => handleTaskDragStart(e, task.id)}
-                              isLast={idx === unscheduledTasks.length - 1}
-                              className="py-1.5 px-2 text-xs"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+                              {/* Friday label if Friday and no other official holiday */}
+                              {isFriday && !dayHolidays.some((h) => h.isOfficial) && (
+                                <div className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight">
+                                  <span className="size-1.5 rounded-full mt-1 shrink-0 bg-rose-500 shadow-xs" />
+                                  <span className="font-semibold text-rose-500 dark:text-rose-400">
+                                    تعطیل
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Tasks List */}
+                          {unscheduledTasks.map((task, idx) => (
+                            <div key={task.id} className="w-full">
+                              <TaskItemRow
+                                task={task}
+                                tagsMap={tagsMap}
+                                currentDateKey={day.formattedDate}
+                                onStatusChanged={() => {
+                                  loadCalendarData();
+                                  if (onTaskChanged) onTaskChanged();
+                                }}
+                                draggable={true}
+                                onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                                isLast={idx === unscheduledTasks.length - 1}
+                                className="py-1.5 px-2 text-xs"
+                              />
+                            </div>
+                          ))}
+
+                          {/* Minimal "+ اضافه کردن کار" Button placed UNDER the last task */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onOpenAddForDate) {
+                                onOpenAddForDate(day.formattedDate);
+                              } else {
+                                onSelectDate(day.formattedDate);
+                              }
+                            }}
+                            className="w-[calc(100%-8px)] mx-auto mt-1 mb-1 py-1 px-2 rounded-lg border border-dashed border-border/70 hover:border-foreground/30 bg-card/60 hover:bg-secondary/60 text-[10px] text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 group shrink-0"
+                            title={`افزودن کار برای ${day.dayName}`}
+                          >
+                            <RiAddLine className="size-3 text-muted-foreground group-hover:text-foreground shrink-0" />
+                            <span className="truncate">اضافه کردن کار</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* 2. SCROLLABLE TIMELINE SECTION: Time-of-day OR 24-Hour Timeline */}
+            {/* 2. MAIN BODY: Day Sections (fills remaining container height equally) OR 24-Hour Timeline */}
             <div
               ref={timelineScrollRef}
-              className="flex-1 w-full overflow-y-auto no-scrollbar min-h-0 pb-24 relative"
+              className={cn(
+                'flex-1 w-full min-h-0 relative',
+                enableDaySections
+                  ? 'overflow-y-auto no-scrollbar pb-1.5 flex flex-col'
+                  : 'overflow-y-auto no-scrollbar pb-24'
+              )}
             >
               {enableDaySections ? (
-                /* Time-of-Day Segments (صبح، ظهر، عصر و شب) */
-                <div className="w-full flex flex-col flex-1">
-                  {(['morning', 'day', 'evening'] as TimeOfDay[]).map((sectionKey) => {
-                    const sectionConfig = TIME_OF_DAY_SECTIONS.find((s) => s.key === sectionKey);
+                /* 4 Day Sections (هر زمان, صبح, ظهر, عصر و شب): Equally distributed with flex-1 to fill all vertical container space! */
+                <div className="w-full flex flex-col flex-1 min-h-full">
+                  {TIME_OF_DAY_SECTIONS.map((sectionConfig, sIdx) => {
+                    const sectionKey = sectionConfig.key;
+                    const isAnytime = sectionKey === 'anytime';
+                    const isLastSection = sIdx === TIME_OF_DAY_SECTIONS.length - 1; // 'evening'
                     return (
-                      <div key={sectionKey} className="w-full flex cal-dashed-row min-h-[90px]">
-                        <div className="w-12 sm:w-16 shrink-0 flex items-start justify-center pt-2 text-[10px] sm:text-[11px] font-semibold text-muted-foreground select-none">
-                          <span>{sectionConfig?.label || sectionKey}</span>
+                      <div
+                        key={sectionKey}
+                        className="w-full flex cal-dashed-row flex-1 min-h-[95px] sm:min-h-[110px]"
+                      >
+                        {/* Section Label on right */}
+                        <div className="w-12 sm:w-16 shrink-0 flex items-start justify-center pt-2.5 sm:pt-3 text-[10px] sm:text-[11px] font-semibold text-muted-foreground select-none">
+                          <span>{sectionConfig.label}</span>
                         </div>
 
-                        <div className="flex-1 grid grid-cols-7 auto-rows-fr">
+                        {/* 7 Columns for this section */}
+                        <div className="flex-1 grid grid-cols-7 auto-rows-fr h-full">
                           {weekDays.map((day, dIdx) => {
                             const isToday = day.formattedDate === todayKey;
+                            const dayHolidays = getHolidaysForDate(day.formattedDate);
+                            const isFriday = dIdx === 6;
                             const dayTasks = getTasksForDate(day.formattedDate);
-                            const sectionTasks = dayTasks.filter((t) => t.time_of_day === sectionKey);
+                            const sectionTasks = isAnytime
+                              ? dayTasks.filter((t) => {
+                                  if (t.due_time && t.due_time.trim()) return false;
+                                  return !t.time_of_day || t.time_of_day === 'anytime';
+                                })
+                              : dayTasks.filter((t) => t.time_of_day === sectionKey);
 
                             const cellKey = `tod-${sectionKey}-${day.formattedDate}`;
                             const isDragOver = dragOverCell === cellKey;
@@ -773,12 +819,57 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 onDragLeave={handleCellDragLeave}
                                 onDrop={(e) => handleCellDrop(e, day.formattedDate, { timeOfDay: sectionKey })}
                                 className={cn(
-                                  'min-h-[85px] p-1.5 pb-2 flex flex-col gap-1 transition-colors h-full',
+                                  'min-h-[85px] sm:min-h-[100px] p-1.5 pb-2.5 flex flex-col gap-1 transition-colors h-full flex-1',
                                   dIdx > 0 && 'cal-dashed-col',
                                   isToday && 'bg-primary/[0.04] dark:bg-white/[0.04]',
+                                  isToday && isLastSection && 'rounded-b-2xl',
                                   isDragOver && 'bg-primary/5 ring-2 ring-primary/40'
                                 )}
                               >
+                                {/* Occasions & Holidays as Bullet Points right below the dashed line */}
+                                {isAnytime && (dayHolidays.length > 0 || isFriday) && (
+                                  <div className="w-full px-1.5 pt-0.5 pb-1 flex flex-col gap-1 select-none border-b border-border/25 mb-0.5">
+                                    {dayHolidays.map((h, hIdx) => {
+                                      const isRed = h.isOfficial;
+                                      return (
+                                        <div
+                                          key={hIdx}
+                                          className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight"
+                                          title={h.title}
+                                        >
+                                          <span
+                                            className={cn(
+                                              'size-1.5 rounded-full mt-1 shrink-0',
+                                              isRed ? 'bg-rose-500 shadow-xs' : 'bg-primary/50 dark:bg-primary/70'
+                                            )}
+                                          />
+                                          <span
+                                            className={cn(
+                                              'break-words font-medium text-right leading-tight',
+                                              isRed
+                                                ? 'text-rose-500 dark:text-rose-400 font-semibold'
+                                                : 'text-muted-foreground'
+                                            )}
+                                          >
+                                            {h.title}
+                                          </span>
+                                        </div>
+                                      );
+                                    })}
+
+                                    {/* Friday label if Friday and no other official holiday */}
+                                    {isFriday && !dayHolidays.some((h) => h.isOfficial) && (
+                                      <div className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight">
+                                        <span className="size-1.5 rounded-full mt-1 shrink-0 bg-rose-500 shadow-xs" />
+                                        <span className="font-semibold text-rose-500 dark:text-rose-400">
+                                          تعطیل
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Tasks List */}
                                 {sectionTasks.map((task, idx) => (
                                   <div key={task.id} className="w-full">
                                     <TaskItemRow
@@ -796,6 +887,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     />
                                   </div>
                                 ))}
+
+                                {/* Minimal "+ اضافه کردن کار" Button placed UNDER the last task */}
+                                {isAnytime && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (onOpenAddForDate) {
+                                        onOpenAddForDate(day.formattedDate);
+                                      } else {
+                                        onSelectDate(day.formattedDate);
+                                      }
+                                    }}
+                                    className="w-[calc(100%-8px)] mx-auto mt-1 mb-1 py-1 px-2 rounded-lg border border-dashed border-border/70 hover:border-foreground/30 bg-card/60 hover:bg-secondary/60 text-[10px] text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 group shrink-0"
+                                    title={`افزودن کار برای ${day.dayName}`}
+                                  >
+                                    <RiAddLine className="size-3 text-muted-foreground group-hover:text-foreground shrink-0" />
+                                    <span className="truncate">اضافه کردن کار</span>
+                                  </button>
+                                )}
                               </div>
                             );
                           })}
@@ -846,7 +956,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           className={cn(
                             'relative h-[1536px]',
                             dIdx > 0 && 'cal-dashed-col',
-                            isToday && 'bg-primary/[0.04] dark:bg-white/[0.04]'
+                            isToday && 'bg-primary/[0.04] dark:bg-white/[0.04] rounded-b-2xl'
                           )}
                         >
                           {/* 24 Hour Drop Zones (Horizontal Dashed Grid Lines) */}
@@ -929,7 +1039,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     {/* Title */}
                                     <span
                                       className={cn(
-                                        'truncate font-semibold text-[11px] leading-tight flex-1',
+                                        heightPx > 36 ? 'break-words line-clamp-2' : 'truncate',
+                                        'font-semibold text-[11px] leading-tight flex-1',
                                         isDone && ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground']
                                       )}
                                     >
