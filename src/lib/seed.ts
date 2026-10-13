@@ -19,7 +19,7 @@ export async function checkAndSeedDemoBoxes() {
 
       await boxRepo.create({
         title: 'یوتیوب',
-        image: 'Bix 2.png',
+        image: 'Box 2.png',
         icon: 'RiYoutubeFill',
         order: 2,
       });
@@ -35,7 +35,6 @@ export async function checkAndSeedDemoBoxes() {
         title: 'روزا',
         image: 'Box 1.png',
         icon: 'RiSunLine',
-        badge_icon: 'RiGroupLine',
         order: 4,
       });
 

@@ -1600,3 +1600,25 @@ button:active {
   background-color: color-mix(in srgb, hsl(var(--secondary) / 0.75) 94%, #8b5cf6 6%);
   border-color: color-mix(in srgb, hsl(var(--border) / 0.65) 88%, #8b5cf6 12%);
 }
+
+/* ==========================================================================
+   Desktop Secondary Sidebar Open Transition (Notebook & Folders)
+   - Harmonized with main DesktopSidebar cubic-bezier(0.16, 1, 0.3, 1) curve
+   ========================================================================== */
+@keyframes secondarySidebarOpen {
+  0% {
+    width: 0px;
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  100% {
+    width: 230px;
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.desktop-secondary-sidebar {
+  animation: secondarySidebarOpen 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: width, opacity, transform;
+}

@@ -1,10 +1,10 @@
 import React from 'react';
 import type { Box } from '@/types/models';
-import { BoxIconRenderer, BoxBadgeRenderer } from './BoxIconRenderer';
+import { BoxIconRenderer } from './BoxIconRenderer';
 
 interface BoxThumbnailProps {
-  box: Pick<Box, 'image' | 'icon' | 'badge_icon' | 'title'>;
-  size?: 'sm' | 'md' | 'lg';
+  box: Pick<Box, 'image' | 'icon' | 'title'> & { badge_icon?: string };
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
 }
 
@@ -14,25 +14,26 @@ export const BoxThumbnail: React.FC<BoxThumbnailProps> = ({
   className = '',
 }) => {
   const sizeClasses = {
+    xs: 'w-5 h-5',
     sm: 'w-10 h-10',
-    md: 'w-20 h-20 sm:w-24 sm:h-24',
-    lg: 'w-28 h-28 sm:w-32 sm:h-32',
+    md: 'w-16 h-16 sm:w-[72px] sm:h-[72px]',
+    lg: 'w-24 h-24 sm:w-28 sm:h-28',
   }[size];
 
   const iconSizes = {
+    xs: 'w-2.5 h-2.5',
     sm: 'w-3.5 h-3.5',
-    md: 'w-5 h-5 sm:w-6 sm:h-6',
-    lg: 'w-8 h-8 sm:w-9 sm:h-9',
+    md: 'w-4 h-4 sm:w-5 sm:h-5',
+    lg: 'w-7 h-7 sm:w-8 sm:h-8',
   }[size];
 
-  const badgeSizes = {
-    sm: 'w-2.5 h-2.5',
-    md: 'w-3.5 h-3.5',
-    lg: 'w-4 h-4',
-  }[size];
 
   // Resolve image source
-  let imgSrc = box.image;
+  let rawImg = box.image || 'Box 1.png';
+  if (rawImg.toLowerCase().includes('bix 2')) {
+    rawImg = 'Box 2.png';
+  }
+  let imgSrc = rawImg;
   if (!imgSrc.startsWith('/') && !imgSrc.startsWith('http')) {
     imgSrc = `/Boxs/${imgSrc}`;
   }
@@ -44,6 +45,12 @@ export const BoxThumbnail: React.FC<BoxThumbnailProps> = ({
         src={imgSrc}
         alt={box.title}
         loading="lazy"
+        onError={(e) => {
+          const target = e.currentTarget as HTMLImageElement;
+          if (!target.src.includes('Box%201.png') && !target.src.includes('Box 1.png')) {
+            target.src = '/Boxs/Box%201.png';
+          }
+        }}
         className="w-full h-full object-contain filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.12)] transition-transform duration-200"
       />
 
@@ -61,13 +68,6 @@ export const BoxThumbnail: React.FC<BoxThumbnailProps> = ({
         </div>
       )}
 
-      {/* Optional Corner Badge */}
-      {box.badge_icon && (
-        <BoxBadgeRenderer
-          badgeId={box.badge_icon}
-          className={badgeSizes}
-        />
-      )}
     </div>
   );
 };

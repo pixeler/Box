@@ -83,6 +83,7 @@ export interface Tag {
 
 export interface Box {
   id: string;
+  parent_id?: string | null;
   title: string;
   image: string; // e.g. "/Boxs/Box 1.png"
   icon?: string; // e.g. "RiSunLine", "RiYoutubeLine"
@@ -90,6 +91,7 @@ export interface Box {
   badge_icon?: string; // e.g. "RiGroupLine"
   badge_color?: string;
   description?: string;
+  color?: string; // e.g. color preset or hex
   order?: number;
   created_at: string;
   updated_at: string;

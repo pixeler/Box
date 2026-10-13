@@ -13,6 +13,7 @@ import {
   getJalaliMonthLength,
   getJalaliMonthFirstDayOfWeek,
   extractDateOnly,
+  getJalaliDate,
 } from '@/lib/jalali';
 import { isTaskOccurringOnDate } from '@/lib/recurrence';
 import { getHolidaysForDate, isOfficialHoliday } from '@/lib/holidays';
@@ -29,6 +30,8 @@ import {
   RiLayoutGridLine,
   RiCheckLine,
   RiTimeLine,
+  RiArrowRightSLine,
+  RiArrowLeftSLine,
 } from '@remixicon/react';
 
 function formatDurationPersian(minutes: number): string {
@@ -390,13 +393,51 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return currentTime.hour * 64 + (currentTime.minute / 60) * 64;
   }, [currentTime]);
 
+  const handleNavigatePrev = useCallback(() => {
+    if (viewMode === 'week') {
+      const d = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
+      d.setDate(d.getDate() - 7);
+      const prevJ = getJalaliDate(d);
+      setCurrentDateKey(formatJalaliKey(prevJ));
+    } else if (viewMode === 'month') {
+      let prevM = parsedCurrent.jm - 1;
+      let prevY = parsedCurrent.jy;
+      if (prevM < 1) {
+        prevM = 12;
+        prevY--;
+      }
+      setCurrentDateKey(formatJalaliKey({ jy: prevY, jm: prevM, jd: 1 }));
+    } else {
+      setCurrentDateKey(formatJalaliKey({ jy: parsedCurrent.jy - 1, jm: parsedCurrent.jm, jd: 1 }));
+    }
+  }, [viewMode, parsedCurrent]);
+
+  const handleNavigateNext = useCallback(() => {
+    if (viewMode === 'week') {
+      const d = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
+      d.setDate(d.getDate() + 7);
+      const nextJ = getJalaliDate(d);
+      setCurrentDateKey(formatJalaliKey(nextJ));
+    } else if (viewMode === 'month') {
+      let nextM = parsedCurrent.jm + 1;
+      let nextY = parsedCurrent.jy;
+      if (nextM > 12) {
+        nextM = 1;
+        nextY++;
+      }
+      setCurrentDateKey(formatJalaliKey({ jy: nextY, jm: nextM, jd: 1 }));
+    } else {
+      setCurrentDateKey(formatJalaliKey({ jy: parsedCurrent.jy + 1, jm: parsedCurrent.jm, jd: 1 }));
+    }
+  }, [viewMode, parsedCurrent]);
+
   return (
     <div className="w-full h-full flex flex-col bg-background text-foreground overflow-hidden select-none calendar-smooth-open">
       {/* 1. Header Bar:
           - RIGHT SIDE (RTL): Month & Year Clickable side-by-side (NO arrows, NO dividing line underneath)
           - LEFT SIDE (RTL): Mode Switcher dropdown (هفته ⌄ / ماه / سال)
       */}
-      <header className="w-full relative flex items-center justify-between px-6 sm:px-8 pt-5 sm:pt-7 pb-4 sm:pb-5 shrink-0 border-b-0" dir="rtl">
+      <header className="w-full relative flex items-center justify-between px-2 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-5 shrink-0 border-b-0" dir="rtl">
         {/* RIGHT SIDE in RTL: Return to today button (if viewing date other than today) */}
         <div className="flex items-center min-w-[32px] sm:min-w-[120px] justify-start z-10">
           {isNotToday && (
@@ -421,10 +462,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           )}
         </div>
 
-        {/* CENTER: Month & Year clickable text side-by-side with minimal gap */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 z-20">
-          {/* Separate Month Dropdown Picker */}
-          <div className="relative" ref={monthDropdownRef}>
+        {/* CENTER: Month & Year clickable text side-by-side with hover navigation arrows */}
+        <div className="group absolute left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-1.5 z-20">
+          {/* Previous Arrow (Right in RTL): هفته قبل / ماه قبل */}
+          <button
+            type="button"
+            onClick={handleNavigatePrev}
+            className="size-6 sm:size-7 rounded-full flex items-center justify-center bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/50 shadow-2xs transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer active:scale-90"
+            title={viewMode === 'week' ? 'هفته قبل' : viewMode === 'month' ? 'ماه قبل' : 'سال قبل'}
+          >
+            <RiArrowRightSLine className="size-4" />
+          </button>
+
+          <div className="flex items-center gap-0.5">
+            {/* Separate Month Dropdown Picker */}
+            <div className="relative" ref={monthDropdownRef}>
             <button
               type="button"
               onClick={() => {
@@ -521,6 +573,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               </div>
             )}
           </div>
+          </div>
+
+          {/* Next Arrow (Left in RTL): هفته بعد / ماه بعد */}
+          <button
+            type="button"
+            onClick={handleNavigateNext}
+            className="size-6 sm:size-7 rounded-full flex items-center justify-center bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/50 shadow-2xs transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer active:scale-90"
+            title={viewMode === 'week' ? 'هفته بعد' : viewMode === 'month' ? 'ماه بعد' : 'سال بعد'}
+          >
+            <RiArrowLeftSLine className="size-4" />
+          </button>
         </div>
 
         {/* LEFT SIDE in RTL: View Mode Segment Selector (هفته / ماه / سال with icons) */}
@@ -594,7 +657,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               {/* Week Columns Header: Day numbers and Weekday names */}
               <div className="w-full flex cal-dashed-row">
                 {/* Spacer matching hour label width */}
-                <div className="w-12 sm:w-16 shrink-0 py-2 sm:py-2.5" />
+                <div className="w-12 sm:w-16 shrink-0 pt-2 sm:pt-2.5 pb-5 sm:pb-7" />
 
                 {/* 7 Columns Header */}
                 <div className="flex-1 grid grid-cols-7">
@@ -607,13 +670,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       <div
                         key={day.formattedDate}
                         className={cn(
-                          'flex flex-col items-center px-1 sm:px-2 py-2 sm:py-2.5 relative transition-colors h-full justify-center',
+                          'flex flex-col items-center px-1 sm:px-2 pt-2 sm:pt-2.5 pb-5 sm:pb-7 relative transition-colors h-full justify-start',
                           dIdx > 0 && 'cal-dashed-col',
                           isToday && 'bg-primary/[0.04] dark:bg-white/[0.04] rounded-t-2xl'
                         )}
                       >
                         {/* Day Number + Full Weekday Name */}
-                        <div className="flex flex-col items-center py-0.5 justify-center">
+                        <div className="flex flex-col items-center justify-start">
                           {/* Day Number: smaller number font inside circle */}
                           <div
                             className={cn(

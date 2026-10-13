@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { Box } from '@/types/models';
 import { boxRepo } from '@/repositories';
 import { BoxThumbnail } from './BoxThumbnail';
-import { BOX_ICONS_LIST, BOX_BADGES_LIST } from './BoxIconRenderer';
+import { BOX_ICONS_LIST } from './BoxIconRenderer';
 import { toast } from '@/lib/toast';
 import {
   RiCloseLine,
@@ -13,7 +13,7 @@ import {
 
 export const BOX_TEMPLATES = [
   { id: 'Box 1.png', name: 'سفید مینیمال', allowsCustomIcon: true },
-  { id: 'Bix 2.png', name: 'مقوایی کرافت', allowsCustomIcon: true },
+  { id: 'Box 2.png', name: 'مقوایی کرافت', allowsCustomIcon: true },
   { id: 'Box 5.png', name: 'چرم قهوه‌ای', allowsCustomIcon: false },
   { id: 'Box6.png', name: 'شکلاتی اوریو', allowsCustomIcon: false },
   { id: 'Box 3.png', name: 'چرم مشکی', allowsCustomIcon: false },
@@ -29,6 +29,7 @@ interface CreateBoxSheetProps {
   onClose: () => void;
   onSaved: (box: Box) => void;
   editBox?: Box | null;
+  parentId?: string | null;
 }
 
 export const CreateBoxSheet: React.FC<CreateBoxSheetProps> = ({
@@ -36,6 +37,7 @@ export const CreateBoxSheet: React.FC<CreateBoxSheetProps> = ({
   onClose,
   onSaved,
   editBox,
+  parentId,
 }) => {
   const [isClosing, setIsClosing] = useState(false);
   const [title, setTitle] = useState(editBox?.title || '');
@@ -100,7 +102,7 @@ export const CreateBoxSheet: React.FC<CreateBoxSheetProps> = ({
           title: cleanTitle,
           image: selectedImage,
           icon: selectedIcon || undefined,
-          badge_icon: selectedBadge || undefined,
+          badge_icon: undefined,
           description: description.trim() || undefined,
         });
         toast.show('باکس با موفقیت ویرایش شد');
@@ -110,7 +112,8 @@ export const CreateBoxSheet: React.FC<CreateBoxSheetProps> = ({
           title: cleanTitle,
           image: selectedImage,
           icon: selectedIcon || undefined,
-          badge_icon: selectedBadge || undefined,
+          badge_icon: undefined,
+          parent_id: parentId || null,
           description: description.trim() || undefined,
         });
         toast.show('باکس جدید با موفقیت ساخته شد');
@@ -312,32 +315,6 @@ export const CreateBoxSheet: React.FC<CreateBoxSheetProps> = ({
             </div>
           </div>
 
-          {/* 3. Corner Badge Selector */}
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-foreground">
-              نشان گوشه جعبه (اختیاری)
-            </span>
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-              {BOX_BADGES_LIST.map(({ id, label, Icon }) => {
-                const isSelected = selectedBadge === id;
-                return (
-                  <button
-                    key={id || 'none'}
-                    type="button"
-                    onClick={() => setSelectedBadge(id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs shrink-0 transition-all cursor-pointer border ${
-                      isSelected
-                        ? 'border-primary bg-primary/10 text-primary font-bold'
-                        : 'border-border/70 dark:border-white/10 text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {Icon && <Icon className="w-3.5 h-3.5" />}
-                    <span>{label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* 4. Description (Optional) */}
           <div className="space-y-1.5 pb-2">

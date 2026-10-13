@@ -15,9 +15,12 @@ interface AppContainerProps {
   glassOpacity?: number;
   desktopPosition?: DesktopPosition;
   isCalendarExpanded?: boolean;
+  isNotebookExpanded?: boolean;
   bottomDock?: React.ReactNode;
   /** Desktop-only (>=1024px): sidebar rendered inside the dark frame. Replaces bottomDock. */
   desktopSidebar?: React.ReactNode;
+  /** Desktop-only: secondary sidebar (e.g. notebook tree navigation) next to main sidebar. */
+  secondarySidebar?: React.ReactNode;
   /** Desktop-only: floating element in the canvas' top corner (e.g. glass search pill). */
   desktopCorner?: React.ReactNode;
   isDark?: boolean;
@@ -30,8 +33,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   glassOpacity = 0.18,
   desktopPosition = 'center',
   isCalendarExpanded = false,
+  isNotebookExpanded = false,
   bottomDock,
   desktopSidebar,
+  secondarySidebar,
   desktopCorner,
   isDark = false,
   children,
@@ -118,9 +123,13 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   const cardSizeClass = useDesktopShell
     ? isCalendarExpanded
       ? 'w-full h-full max-w-[1600px]'
+      : isNotebookExpanded
+      ? 'w-[760px] min-w-[700px] max-w-[840px] h-[820px] max-h-full'
       : 'w-[460px] min-w-[460px] max-w-[460px] h-[750px] max-h-full'
     : isCalendarExpanded
     ? 'sm:w-full h-dvh sm:h-[890px] sm:min-h-[890px] sm:max-h-[94vh]'
+    : isNotebookExpanded
+    ? 'sm:w-[760px] sm:min-w-[700px] sm:max-w-[840px] h-dvh sm:h-[820px] sm:min-h-[780px] sm:max-h-[92vh]'
     : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px] h-dvh sm:h-[750px] sm:min-h-[750px] sm:max-h-[750px]';
 
   const svgFilters = !isMobile && dispMapUrl && (
@@ -366,6 +375,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     return (
       <div className="desktop-shell h-dvh w-full flex overflow-hidden font-sans" dir="rtl">
         {desktopSidebar}
+        {secondarySidebar}
 
         <div className="flex-1 min-w-0 h-full py-2 pl-2">
           <div
@@ -382,7 +392,11 @@ export const AppContainer: React.FC<AppContainerProps> = ({
 
             <div
               className={`absolute inset-0 flex items-center transition-all duration-500 ease-out z-10 ${
-                isCalendarExpanded ? 'pt-16 pb-6 px-6' : 'py-16 px-10'
+                isCalendarExpanded
+                  ? 'pt-16 pb-6 px-6'
+                  : isNotebookExpanded
+                  ? 'py-8 px-6 sm:px-8'
+                  : 'py-16 px-10'
               } ${
                 isCalendarExpanded
                   ? 'justify-center'
@@ -423,6 +437,8 @@ export const AppContainer: React.FC<AppContainerProps> = ({
       <div className={`flex flex-col items-center w-full relative z-1 transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
         isCalendarExpanded
           ? 'sm:w-[98vw] sm:max-w-[1600px]'
+          : isNotebookExpanded
+          ? 'sm:w-[760px] sm:min-w-[700px] sm:max-w-[840px]'
           : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px]'
       }`}>
         {/* SVG Chromatic Dispersion & Refraction Filter for Main Card (Desktop/Tablet) */}

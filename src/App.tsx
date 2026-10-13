@@ -5,6 +5,8 @@ import { QuickCaptureInput } from './components/capture/QuickCaptureInput';
 import { DayStream } from './components/stream/DayStream';
 import { PinnedSection } from './components/stream/PinnedSection';
 import { NotebookView } from './components/notebook/NotebookView';
+import { NotebookProvider } from './components/notebook/NotebookContext';
+import { NotebookSecondarySidebarConnected } from './components/notebook/NotebookSecondarySidebar';
 import { ProfileView } from './components/profile/ProfileView';
 import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
 import { DesktopSidebar } from './components/navigation/DesktopSidebar';
@@ -490,22 +492,27 @@ export function App() {
   const selectedGregorianDate = jalaliToDate(selectedJalali.jy, selectedJalali.jm, selectedJalali.jd);
   const currentWeekdayName = getFullPersianWeekdayName(selectedGregorianDate);
   return (
-    <AppContainer
-      wallpaper={wallpaper}
-      glassBackground={glassBackground}
-      glassOpacity={glassOpacity}
-      desktopPosition={desktopPosition}
-      isCalendarExpanded={activeTab === 'calendar'}
-      desktopSidebar={
-        <DesktopSidebar
-          activeTab={activeTab}
-          onTabChange={(tab) => setActiveTab(tab)}
-          onOpenAdd={() => setQuickCaptureOpen(true)}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-        />
-      }
-      desktopCorner={<DesktopSearchButton onClick={() => setSearchOpen(true)} />}
+    <NotebookProvider>
+      <AppContainer
+        wallpaper={wallpaper}
+        glassBackground={glassBackground}
+        glassOpacity={glassOpacity}
+        desktopPosition={desktopPosition}
+        isCalendarExpanded={activeTab === 'calendar'}
+        isNotebookExpanded={activeTab === 'notebook'}
+        desktopSidebar={
+          <DesktopSidebar
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab)}
+            onOpenAdd={() => setQuickCaptureOpen(true)}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={toggleSidebar}
+          />
+        }
+        secondarySidebar={
+          activeTab === 'notebook' ? <NotebookSecondarySidebarConnected /> : undefined
+        }
+        desktopCorner={<DesktopSearchButton onClick={() => setSearchOpen(true)} />}
       isDark={isDarkMode(theme)}
       bottomDock={
         <BottomDock
@@ -520,7 +527,7 @@ export function App() {
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
-      {/* Content Area: CalendarView has its own fixed header & internal scroller, other tabs use MobileScrollArea */}
+      {/* Content Area: CalendarView and NotebookView have their own fixed header & internal scroller, other tabs use MobileScrollArea */}
       {activeTab === 'calendar' ? (
         <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex flex-col">
           <CalendarView
@@ -541,6 +548,10 @@ export function App() {
             }}
             onTaskChanged={loadDayData}
           />
+        </div>
+      ) : activeTab === 'notebook' ? (
+        <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex flex-col">
+          <NotebookView />
         </div>
       ) : (
         <MobileScrollArea
@@ -677,7 +688,6 @@ export function App() {
           </div>
         )}
 
-        {activeTab === 'notebook' && <NotebookView />}
         {activeTab === 'todo' && (
           <TodoView
             onBackToToday={() => setActiveTab('day')}
@@ -761,7 +771,8 @@ export function App() {
           onComplete={() => setCelebrationCoords(null)}
         />
       )}
-    </AppContainer>
+      </AppContainer>
+    </NotebookProvider>
   );
 }
 
