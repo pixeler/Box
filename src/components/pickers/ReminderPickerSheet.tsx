@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import {
   RiTimeLine,
   RiCheckLine,
@@ -109,10 +110,7 @@ export const ReminderPickerSheet: React.FC<ReminderPickerSheetProps> = ({
     handleClose();
   };
 
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? document.getElementById('app-main') || document.body
-      : null;
+  const portalTarget = getOverlayPortalTarget();
 
   if (!portalTarget) return null;
 

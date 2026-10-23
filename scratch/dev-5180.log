@@ -1,0 +1,45 @@
+
+> friendly-curie-second-brain@0.1.0 dev
+> vite --port 5180 --strictPort --host 127.0.0.1
+
+[2m۱۰:۵۲:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Forced re-optimization of dependencies
+
+  [32m[1mVITE[22m v6.4.3[39m  [2mready in [0m[1m532[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5180[22m/[39m
+[2m۱۰:۵۳:۱۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/captured.html[22m
+[2m۱۰:۵۳:۱۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_1/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_1/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_2/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_2/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/welcome.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/captured.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/welcome.html[22m
+[2m۱۰:۵۹:۰۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/ProfileView.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۱۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/ProfileView.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۱۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/SettingsDialog.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۴۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۵۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۵۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۱:۰۰:۰۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۱:۰۴:۱۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx[22m
+[2m۱۱:۰۴:۱۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۰۴:۲۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۰۶:۴۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۰۷:۱۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۲۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarView.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۳۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/SettingsSidebar.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/SettingsSidebar.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۴۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۱:۱۳:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۱۳:۲۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx[22m

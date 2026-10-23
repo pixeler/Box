@@ -1,0 +1,15 @@
+src/components/calendar/CalendarAddRow.tsx
+src/components/calendar/CalendarDayView.tsx
+src/components/calendar/CalendarHeader.tsx
+src/components/calendar/CalendarMonthView.tsx
+src/components/calendar/CalendarYearView.tsx
+src/components/calendar/calendarUtils.ts
+src/components/editor/BlockHoverHandles.tsx
+src/components/editor/EditorColorMenu.tsx
+src/components/editor/TaskAddBlock.tsx
+src/components/editor/TaskPickerPanel.tsx
+src/components/editor/TaskRefBlock.tsx
+src/components/notebook/FolderTile.tsx
+src/components/notebook/noteMenu.ts
+src/components/profile/SettingsSidebar.tsx
+src/lib/overlay.ts

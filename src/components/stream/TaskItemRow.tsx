@@ -63,6 +63,8 @@ interface TaskItemRowProps {
   onDrop?: (e: React.DragEvent) => void;
   isNewlyAdded?: boolean;
   isLast?: boolean;
+  /** Denser card for tight calendar grids (week view): smaller title and meta. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -80,6 +82,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
   onDrop,
   isNewlyAdded = false,
   isLast = false,
+  compact = false,
   className = '',
 }) => {
   const isMobile = useIsMobile();
@@ -214,7 +217,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
           >
             <div className="flex items-start justify-between w-full">
               {/* 1. RIGHT SIDE in RTL: Checkbox and Content (Title + Description + Date) */}
-              <div className="flex items-start gap-3 flex-1 min-w-0">
+              <div className={cn('flex items-start flex-1 min-w-0', compact ? 'gap-2' : 'gap-3')}>
                 {/* Circular checkbox */}
                 <button
                   type="button"
@@ -222,7 +225,9 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     e.stopPropagation();
                     handleToggle();
                   }}
-                  className={`size-5 flex items-center justify-center shrink-0 mt-0.5 transition-colors cursor-pointer rounded-full border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                  className={`flex items-center justify-center shrink-0 mt-0.5 transition-colors cursor-pointer rounded-full border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+              compact ? 'size-4' : 'size-5'
+            } ${
                     isRecurring
                       ? 'border-dashed'
                       : 'border-solid'
@@ -252,7 +257,12 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                       </span>
                     )}
 
-                    <h3 className="text-sm font-medium leading-snug transition-colors break-words line-clamp-2">
+                    <h3
+                      className={cn(
+                        'font-medium leading-snug transition-colors break-words line-clamp-2',
+                        compact ? 'text-[11px]' : 'text-sm'
+                      )}
+                    >
                       <span
                         className={cn(
                           isDone
@@ -267,7 +277,12 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
 
                   {/* Task Description if present */}
                   {task.description && task.description.trim() && (
-                    <p className="text-xs font-normal leading-relaxed mt-1 select-none break-words line-clamp-2">
+                    <p
+                      className={cn(
+                        'font-normal leading-relaxed mt-1 select-none break-words',
+                        compact ? 'text-[10.5px] line-clamp-1' : 'text-xs line-clamp-2'
+                      )}
+                    >
                       <span
                         className={cn(
                           isDone
@@ -282,12 +297,22 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
 
                   {/* Meta: Recurring tasks show only time and repeat icon. Non-recurring tasks show date/time */}
                   {isRecurring ? (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal mt-1.5 select-none">
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 text-muted-foreground font-normal select-none',
+                        compact ? 'mt-1 text-[10.5px]' : 'mt-1.5 text-xs'
+                      )}
+                    >
                       {recurringTime && <span>{recurringTime}</span>}
                       <RiRepeatLine className="size-3.5 text-muted-foreground/80 shrink-0" />
                     </div>
                   ) : dateDisplay ? (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-normal mt-1.5 select-none">
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 text-muted-foreground font-normal select-none',
+                        compact ? 'mt-1 text-[10.5px]' : 'mt-1.5 text-xs'
+                      )}
+                    >
                       <span>{dateDisplay}</span>
                     </div>
                   ) : null}
@@ -311,7 +336,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
         {/* Right Click Context Menu matching reference project */}
         {!isMobile && (
           <ContextMenuContent
-            className="w-[15.5rem] p-1.5"
+            className="w-[15.5rem] p-1.5 !z-[170]"
             dir="rtl"
             onClick={(e) => e.stopPropagation()}
           >

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import type { Tag, Box, TimeOfDay } from '@/types/models';
 import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
+import { cn } from '@/lib/utils';
 import { extractQuickTokens } from '@/lib/quick-parser';
 import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
@@ -38,6 +40,7 @@ import {
   RiInboxArchiveLine,
   RiSparklingLine,
   RiAlarmLine,
+  RiCloseLine,
 } from '@remixicon/react';
 import { ReminderPickerSheet } from '../pickers/ReminderPickerSheet';
 
@@ -52,6 +55,13 @@ interface QuickCaptureInputProps {
   onOpen?: () => void;
   defaultBoxId?: string | null;
   initialTimeOfDay?: TimeOfDay | null;
+  /**
+   * `modal` is the global bottom sheet / centered popup. `inline` renders the
+   * exact same composer in place, stays open after a submit, and closes through
+   * its own "بستن" action.
+   */
+  variant?: 'modal' | 'inline';
+  className?: string;
 }
 
 type CaptureTab = 'task' | 'note';
@@ -64,7 +74,11 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   onOpen,
   defaultBoxId,
   initialTimeOfDay,
+  variant = 'modal',
+  className,
 }) => {
+  const isInline = variant === 'inline';
+  const isActive = Boolean(isOpen) || isInline;
   const [activeTab, _setActiveTab] = useState<CaptureTab>('task');
   void _setActiveTab;
   const [title, setTitle] = useState('');
@@ -114,10 +128,10 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const todayKey = getTodayJalaliKey();
 
   useEffect(() => {
-    if (isOpen) {
+    if (isActive) {
       setTimeOfDay(initialTimeOfDay || 'anytime');
     }
-  }, [isOpen, initialTimeOfDay]);
+  }, [isActive, initialTimeOfDay]);
 
   // Parse title tokens in real time (for task mode)
   const parsedResult = useMemo(() => {
@@ -135,12 +149,12 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       setTagsMap(m);
     });
     boxRepo.list().then(setBoxes);
-  }, [isOpen, tagPickerOpen]);
+  }, [isActive, tagPickerOpen]);
 
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || isInline) {
       setKeyboardHeight(0);
       return;
     }
@@ -179,11 +193,11 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       cleanup?.();
       window.visualViewport?.removeEventListener('resize', handleVisualViewport);
     };
-  }, [isOpen]);
+  }, [isOpen, isInline]);
 
   // When opening or switching tab, focus title input immediately and sync due date
   useEffect(() => {
-    if (isOpen) {
+    if (isActive) {
       if (defaultBoxId) {
         setSelectedBox(defaultBoxId);
       }
@@ -199,7 +213,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       }, delay);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, activeTab, currentSelectedDateKey, defaultBoxId]);
+  }, [isActive, activeTab, currentSelectedDateKey, defaultBoxId]);
 
   // Auto-resize title textarea as user types or changes content
   useEffect(() => {
@@ -207,7 +221,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       titleInputRef.current.style.height = 'auto';
       titleInputRef.current.style.height = `${titleInputRef.current.scrollHeight}px`;
     }
-  }, [title, isOpen, activeTab]);
+  }, [title, isActive, activeTab]);
 
   // Keep due date updated with selected date if not overridden
   useEffect(() => {
@@ -215,19 +229,6 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       setDueDate(currentSelectedDateKey);
     }
   }, [currentSelectedDateKey]);
-
-  // Close on Escape key press
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
 
   // Real-time synchronization of parsed properties with chips/state
   useEffect(() => {
@@ -278,7 +279,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           target.isContentEditable ||
           Boolean(target.closest?.('[contenteditable="true"]')));
 
-      if (!isOpen) {
+      if (!isActive) {
         if (
           !e.ctrlKey &&
           !e.altKey &&
@@ -289,52 +290,60 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           e.preventDefault();
           onOpen?.();
         }
-      } else {
-        if (e.key === 'Escape' || e.code === 'Escape') {
-          if (tagSuggestQuery !== null) {
-            setTagSuggestQuery(null);
-            return;
-          }
-          if (commandPaletteQuery !== null) {
-            setCommandPaletteQuery(null);
-            return;
-          }
-          if (datePickerOpen) {
-            setDatePickerOpen(false);
-            return;
-          }
-          if (boxPickerOpen) {
-            setBoxPickerOpen(false);
-            return;
-          }
-          if (priorityPickerOpen) {
-            setPriorityPickerOpen(false);
-            return;
-          }
-          if (timeOfDayPickerOpen) {
-            setTimeOfDayPickerOpen(false);
-            return;
-          }
-          if (reminderPickerOpen) {
-            setReminderPickerOpen(false);
-            return;
-          }
-          if (tagPickerOpen) {
-            setTagPickerOpen(false);
-            return;
-          }
-          e.preventDefault();
-          handleClose();
+        return;
+      }
+
+      if (e.key === 'Escape' || e.code === 'Escape') {
+        // The composer can sit inside a dialog (e.g. the note editor). Escape
+        // belongs to the composer while it is open, so the dialog stays put.
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (tagSuggestQuery !== null) {
+          setTagSuggestQuery(null);
+          return;
         }
+        if (commandPaletteQuery !== null) {
+          setCommandPaletteQuery(null);
+          return;
+        }
+        if (datePickerOpen) {
+          setDatePickerOpen(false);
+          return;
+        }
+        if (boxPickerOpen) {
+          setBoxPickerOpen(false);
+          return;
+        }
+        if (priorityPickerOpen) {
+          setPriorityPickerOpen(false);
+          return;
+        }
+        if (timeOfDayPickerOpen) {
+          setTimeOfDayPickerOpen(false);
+          return;
+        }
+        if (reminderPickerOpen) {
+          setReminderPickerOpen(false);
+          return;
+        }
+        if (tagPickerOpen) {
+          setTagPickerOpen(false);
+          return;
+        }
+        handleClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Capture phase, so an enclosing dialog never sees the Escape first.
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [
-    isOpen,
+    isActive,
     datePickerOpen,
     boxPickerOpen,
     priorityPickerOpen,
+    timeOfDayPickerOpen,
+    reminderPickerOpen,
+    tagPickerOpen,
     tagSuggestQuery,
     commandPaletteQuery,
     onOpen,
@@ -444,16 +453,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     }
   };
 
-  const handleClose = () => {
-    if (isClosing) return;
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsClosing(false);
-      resetForm();
-    }, 350);
-  };
-
-  const resetForm = () => {
+  const resetDraft = () => {
     setTitle('');
     setDescription('');
     setPriority(undefined);
@@ -477,11 +477,30 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     setCommandPaletteQuery(null);
     hadDateTokenRef.current = false;
     hadPriorityTokenRef.current = false;
-    onClose?.();
+  };
+
+  const handleClose = () => {
+    if (isClosing) return;
+    if (isInline) {
+      resetDraft();
+      onClose?.();
+      return;
+    }
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      resetDraft();
+      onClose?.();
+    }, 350);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+    if (e) {
+      e.preventDefault();
+      // The note editor hosts this composer inside its own form, where a
+      // bubbling submit would close the note.
+      e.stopPropagation();
+    }
     if (isSubmittingRef.current) return;
 
     const rawInputVal = (titleInputRef.current?.value || title).trim();
@@ -541,7 +560,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         });
         createdId = createdTask?.id;
         toast.show(
-          effectiveDueDate === currentSelectedDateKey
+          effectiveDueDate === todayKey
             ? 'تسک به کارهای امروز اضافه شد'
             : 'تسک جدید با موفقیت ایجاد شد'
         );
@@ -563,11 +582,19 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       }
 
       await onItemCreated(createdId);
-      setIsClosing(true);
-      setTimeout(() => {
-        setIsClosing(false);
-        resetForm();
-      }, 350);
+      if (isInline) {
+        resetDraft();
+        window.setTimeout(() => {
+          titleInputRef.current?.focus({ preventScroll: true });
+        }, 0);
+      } else {
+        setIsClosing(true);
+        setTimeout(() => {
+          setIsClosing(false);
+          resetDraft();
+          onClose?.();
+        }, 350);
+      }
     } catch (err) {
       console.error('Failed to create item:', err);
     } finally {
@@ -674,45 +701,12 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     return base;
   };
 
-  if (!isOpen && !isClosing) return null;
+  if (!isInline && !isOpen && !isClosing) return null;
 
-  const isNoteFullscreen = isFullscreen && activeTab === 'note';
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? isNoteFullscreen
-        ? document.body
-        : (document.getElementById('app-main') || document.body)
-      : null;
-  if (!portalTarget) return null;
+  const isNoteFullscreen = !isInline && isFullscreen && activeTab === 'note';
 
-  return createPortal(
-    <div
-      className={
-        isNoteFullscreen
-          ? 'fixed inset-0 z-[100] w-screen h-screen flex flex-col bg-black/65 sm:backdrop-blur-xs select-none'
-          : `absolute inset-0 z-50 flex flex-col justify-end bg-black/60 sm:backdrop-blur-xs select-none ${
-              isClosing ? 'animate-panel-backdrop-out' : 'animate-panel-backdrop-in'
-            }`
-      }
-      onClick={handleClose}
-      dir="rtl"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        data-open={isClosing ? 'false' : 'true'}
-        style={{
-          transform: keyboardHeight > 0 ? `translate3d(0, -${keyboardHeight}px, 0)` : undefined,
-          transition: keyboardHeight > 0 ? 'transform 0.16s cubic-bezier(0.2, 0, 0, 1)' : undefined,
-        }}
-        className={`bg-card text-card-foreground font-sans text-right flex flex-col overflow-hidden will-change-transform ${
-          isNoteFullscreen
-            ? 'fixed inset-0 z-[101] w-screen h-screen pb-6 px-6 md:px-14 md:py-8 flex flex-col bg-card'
-            : `t-panel-slide relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-4 max-h-[92%] border-t border-border/80 dark:border-white/10 ${
-                isClosing ? 'animate-panel-out' : 'animate-panel-in'
-              }`
-        }`}
-        dir="rtl"
-      >
+  const panel = (
+    <>
         {/* Top Left Action Buttons: Fullscreen & Close */}
         <div className={`absolute ${isNoteFullscreen ? 'left-6 md:left-14 top-6 md:top-8' : 'left-6 top-6'} flex items-center gap-1 z-30 pointer-events-auto`}>
           {activeTab === 'note' && (
@@ -894,7 +888,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   }`}
                 >
                   {isPinned ? (
-                    <RiPushpinFill className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                    <RiPushpinFill className="w-3.5 h-3.5 text-foreground" />
                   ) : (
                     <RiPushpinLine className="w-3.5 h-3.5 text-muted-foreground" />
                   )}
@@ -1017,7 +1011,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   title={isPinned ? 'پین‌شده (حذف پین)' : 'پین کردن'}
                 >
                   {isPinned ? (
-                    <RiPushpinFill className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+                    <RiPushpinFill className="w-4 h-4 text-foreground" />
                   ) : (
                     <RiPushpinLine className="w-4 h-4 text-muted-foreground/75 hover:text-foreground transition-colors" />
                   )}
@@ -1202,18 +1196,45 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
               </div>
             )}
 
-            {/* Common Bottom Bar: Only show if not using keyboard submit on Android for task creation */}
-            {(!isAndroid || activeTab !== 'task') && (
-              <div className="flex items-center justify-start pt-2.5 border-t border-border">
+            {/* Bottom bar: the modal keeps the compact check, inline exposes both actions */}
+            {isInline ? (
+              <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    disabled={!title.trim()}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-30 active:scale-95 cursor-pointer"
+                    title="افزودن تسک"
+                  >
+                    <RiCheckLine className="size-3.5 stroke-[2.5]" />
+                    افزودن
+                  </button>
+                  <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">
+                    Enter برای افزودن
+                  </span>
+                </div>
                 <button
-                  type="submit"
-                  disabled={!title.trim()}
-                  className="size-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shadow-xs transition-colors cursor-pointer active:scale-95"
-                  title="ایجاد تسک"
+                  type="button"
+                  onClick={handleClose}
+                  className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground active:scale-95 cursor-pointer"
                 >
-                  <RiCheckLine className="size-4 stroke-[2.5]" />
+                  <RiCloseLine className="size-3.5" />
+                  بستن
                 </button>
               </div>
+            ) : (
+              (!isAndroid || activeTab !== 'task') && (
+                <div className="flex items-center justify-start pt-2.5 border-t border-border">
+                  <button
+                    type="submit"
+                    disabled={!title.trim()}
+                    className="size-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center shadow-xs transition-colors cursor-pointer active:scale-95"
+                    title="ایجاد تسک"
+                  >
+                    <RiCheckLine className="size-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              )
             )}
           </div>
         </form>
@@ -1295,6 +1316,61 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
             );
           }}
         />
+      </>
+  );
+
+  if (isInline) {
+    return (
+      <div
+        dir="rtl"
+        onMouseDown={(event) => event.stopPropagation()}
+        className={cn(
+          'w-full overflow-visible rounded-2xl border border-border/70 bg-card px-4 pb-2 pt-3 font-sans text-right text-card-foreground shadow-sm',
+          className
+        )}
+      >
+        {panel}
+      </div>
+    );
+  }
+
+  const portalTarget =
+    typeof document !== 'undefined'
+      ? isNoteFullscreen
+        ? document.body
+        : getOverlayPortalTarget()
+      : null;
+  if (!portalTarget) return null;
+
+  return createPortal(
+    <div
+      className={
+        isNoteFullscreen
+          ? 'fixed inset-0 z-[100] w-screen h-screen flex flex-col bg-black/65 sm:backdrop-blur-xs select-none'
+          : `absolute inset-0 z-50 flex flex-col justify-end bg-black/60 select-none sm:items-center sm:justify-center sm:p-6 sm:backdrop-blur-xs ${
+              isClosing ? 'animate-panel-backdrop-out' : 'animate-panel-backdrop-in'
+            }`
+      }
+      onClick={handleClose}
+      dir="rtl"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        data-open={isClosing ? 'false' : 'true'}
+        style={{
+          transform: keyboardHeight > 0 ? `translate3d(0, -${keyboardHeight}px, 0)` : undefined,
+          transition: keyboardHeight > 0 ? 'transform 0.16s cubic-bezier(0.2, 0, 0, 1)' : undefined,
+        }}
+        className={`bg-card text-card-foreground font-sans text-right flex flex-col overflow-hidden will-change-transform ${
+          isNoteFullscreen
+            ? 'fixed inset-0 z-[101] w-screen h-screen pb-6 px-6 md:px-14 md:py-8 flex flex-col bg-card'
+            : `t-panel-slide relative w-full rounded-t-[28px] shadow-2xl pb-4 px-5 pt-4 max-h-[92%] border-t border-border/80 dark:border-white/10 sm:max-w-[640px] sm:max-h-[85vh] sm:rounded-[28px] sm:border sm:px-6 sm:pb-5 ${
+                isClosing ? 'animate-panel-out' : 'animate-panel-in'
+              }`
+        }`}
+        dir="rtl"
+      >
+        {panel}
       </div>
     </div>,
     portalTarget

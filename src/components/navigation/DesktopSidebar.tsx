@@ -22,6 +22,8 @@ interface DesktopSidebarProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd?: () => void;
+  onOpenSettings?: () => void;
+  settingsOpen?: boolean;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
@@ -56,6 +58,8 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   activeTab,
   onTabChange,
   onOpenAdd,
+  onOpenSettings,
+  settingsOpen = false,
   collapsed,
   onToggleCollapsed,
 }) => {
@@ -183,12 +187,21 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
       {/* Bottom: settings + profile */}
       <div className="flex flex-col gap-1">
         <button
+          id="desktop-settings-trigger"
           type="button"
-          onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}
+          onClick={() => {
+            if (onOpenSettings) {
+              onOpenSettings();
+            } else {
+              onTabChange(activeTab === 'profile' ? 'day' : 'profile');
+            }
+          }}
+          aria-expanded={onOpenSettings ? settingsOpen : undefined}
+          aria-controls={onOpenSettings ? 'desktop-settings-panel' : undefined}
           className={cn(
             itemBase,
             collapsed ? 'justify-center w-10 mx-auto' : 'gap-3 px-3',
-            activeTab === 'profile'
+            settingsOpen || (!onOpenSettings && activeTab === 'profile')
               ? 'bg-foreground/[0.09] text-foreground font-semibold shadow-2xs'
               : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05]'
           )}
@@ -202,7 +215,15 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
 
         <button
           type="button"
-          onClick={() => onTabChange('profile')}
+          onClick={() => {
+            if (onOpenSettings) {
+              onOpenSettings();
+            } else {
+              onTabChange('profile');
+            }
+          }}
+          aria-expanded={onOpenSettings ? settingsOpen : undefined}
+          aria-controls={onOpenSettings ? 'desktop-settings-panel' : undefined}
           className={cn(
             itemBase,
             'h-11',

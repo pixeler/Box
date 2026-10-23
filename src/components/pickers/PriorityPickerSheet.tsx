@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import {
   RiFlagLine,
   RiFlagFill,
@@ -90,10 +91,7 @@ export const PriorityPickerSheet: React.FC<PriorityPickerSheetProps> = ({
 
   if (!isOpen && !isClosing) return null;
 
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? document.getElementById('app-main') || document.body
-      : null;
+  const portalTarget = getOverlayPortalTarget();
 
   if (!portalTarget) return null;
 

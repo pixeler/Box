@@ -58,8 +58,12 @@ export interface Note {
   type: "note" | "idea";
   title: string;
   body: string;
+  /** BlockNote block JSON; keeps custom blocks (like embedded tasks) intact. */
+  body_json?: string;
   description?: string;
   color?: string; // pastel color hex code or class
+  icon?: string; // emoji shown above the title, Notion-style
+  cover?: string; // note color preset id from noteTheme, or an image data URL
   date_key?: string; // e.g. "1404/10/30"
   tag_ids: string[];
   pinned?: boolean;

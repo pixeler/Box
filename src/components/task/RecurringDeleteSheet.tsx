@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import { RiCalendarEventLine, RiDeleteBinLine, RiCloseLine } from '@remixicon/react';
 
 interface RecurringDeleteSheetProps {
@@ -19,10 +20,7 @@ export const RecurringDeleteSheet: React.FC<RecurringDeleteSheetProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? document.getElementById('app-main') || document.body
-      : null;
+  const portalTarget = getOverlayPortalTarget();
   if (!portalTarget) return null;
 
   return createPortal(

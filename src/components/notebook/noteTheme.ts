@@ -1,3 +1,5 @@
+import { toPersianDigits } from '@/lib/jalali';
+
 export interface NoteColorPreset {
   id: string;
   name: string;
@@ -118,6 +120,30 @@ export const NOTE_COLOR_PRESETS: NoteColorPreset[] = [
     darkSubtext: 'dark:text-[#A8A39C]',
   },
 ];
+
+/**
+ * A short, human date for a note: today, yesterday, a few days ago, or the
+ * Jalali day and month. Kept in the note layer so every list shows it the same.
+ */
+export function formatNoteDate(isoDateString?: string): string {
+  if (!isoDateString) return '';
+  const date = new Date(isoDateString);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const startOfDay = (value: Date) =>
+    new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+
+  if (dayDiff <= 0) return 'امروز';
+  if (dayDiff === 1) return 'دیروز';
+  if (dayDiff < 7) return `${toPersianDigits(dayDiff)} روز پیش`;
+
+  try {
+    return new Intl.DateTimeFormat('fa-IR', { day: 'numeric', month: 'short' }).format(date);
+  } catch {
+    return '';
+  }
+}
 
 export function getNoteColorPreset(colorId?: string | null, fallbackIndex: number = 0): NoteColorPreset {
   if (colorId) {

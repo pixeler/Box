@@ -397,12 +397,16 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
     return base;
   };
 
-  const portalTarget = typeof document !== 'undefined' ? (document.getElementById('app-main') || document.body) : null;
+  // Always opens over the whole browser window (not only the app frame or the
+  // note panel), so on desktop the detail window slides in from the edge of the
+  // browser. Its own sheets mount here too, which keeps them above it.
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
   if (!portalTarget) return null;
 
   return createPortal(
     <div
-      className={`absolute inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-2xs select-none ${
+      data-overlay-root=""
+      className={`fixed inset-0 z-[160] flex flex-col justify-end bg-black/60 backdrop-blur-2xs select-none ${
         isClosing ? 'animate-panel-backdrop-out' : 'animate-panel-backdrop-in'
       }`}
       onClick={handleClose}
@@ -411,13 +415,13 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
         ref={containerRef}
         onClick={(e) => e.stopPropagation()}
         data-open={isClosing ? 'false' : 'true'}
-        className={`t-panel-slide relative w-full bg-card text-card-foreground border-t border-border/80 dark:border-white/10 rounded-t-[28px] shadow-2xl pb-6 px-4 sm:px-6 pt-3 font-sans text-right flex flex-col max-h-[92%] overflow-y-auto ${
+        className={`t-panel-slide relative w-full bg-card text-card-foreground border-t border-border/80 dark:border-white/10 rounded-t-[28px] shadow-2xl pb-6 px-4 sm:px-6 pt-3 font-sans text-right flex flex-col max-h-[92%] overflow-y-auto sm:absolute sm:inset-y-3 sm:right-3 sm:left-auto sm:w-[380px] sm:max-w-[calc(100%-1.5rem)] sm:max-h-none sm:rounded-[24px] sm:border ${
           isClosing ? 'animate-panel-out' : 'animate-panel-in'
         }`}
         dir="rtl"
       >
         {/* Todoist Top Bar: Center Handle & Top Action Circles */}
-        <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-3 shrink-0" />
+        <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-3 shrink-0 sm:hidden" />
 
         <div className="flex items-center justify-between w-full pb-2">
           {/* Close button (Right in RTL - Todoist circular style) */}
@@ -443,7 +447,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
               title={isPinned ? 'حذف از پین‌شده‌ها' : 'پین کردن تسک'}
             >
               {isPinned ? (
-                <RiPushpinFill className="w-4 h-4 text-amber-500" />
+                <RiPushpinFill className="w-4 h-4 text-foreground" />
               ) : (
                 <RiPushpinLine className="w-4 h-4 text-muted-foreground" />
               )}

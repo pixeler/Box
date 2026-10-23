@@ -35,8 +35,8 @@ export const MoveNoteModal: React.FC<MoveNoteModalProps> = ({
     try {
       await noteRepo.update(note.id, { box_id: targetBoxId });
       const targetName = targetBoxId
-        ? boxes.find((b) => b.id === targetBoxId)?.title || 'جعبه'
-        : 'بدون جعبه';
+        ? boxes.find((b) => b.id === targetBoxId)?.title || 'پوشه'
+        : 'بدون پوشه';
       toast.show(`یادداشت به «${targetName}» منتقل شد`);
       onMoved();
       onClose();
@@ -60,7 +60,7 @@ export const MoveNoteModal: React.FC<MoveNoteModalProps> = ({
         <div className="flex items-center justify-between pb-2 border-b border-border/60">
           <div className="flex items-center gap-2">
             <RiFolderTransferLine className="size-5 text-primary" />
-            <h3 className="font-darvish text-base font-bold">انتقال یادداشت به جعبه</h3>
+            <h3 className="font-darvish text-base font-bold">انتقال یادداشت به پوشه</h3>
           </div>
           <button
             type="button"
@@ -91,7 +91,7 @@ export const MoveNoteModal: React.FC<MoveNoteModalProps> = ({
               <span className="size-7 rounded-xl bg-muted flex items-center justify-center text-muted-foreground">
                 <RiInboxLine className="size-4" />
               </span>
-              <span className="text-xs">بدون جعبه (عمومی)</span>
+              <span className="text-xs">بدون پوشه (ریشه)</span>
             </div>
             {currentBoxId === null && <RiCheckLine className="size-4 text-primary" />}
           </button>

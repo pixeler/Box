@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { WALLPAPER_LIST } from '../profile/ProfileView';
 import { useIsMobile, useIsDesktop } from '@/lib/device';
-import { generatePillDisplacementMap } from '@/lib/glass';
+import { generateLensDisplacementMap, generatePillDisplacementMap } from '@/lib/glass';
 import { DynamicSkyBackground } from './DynamicSkyBackground';
 import { MorningSkyBackground } from './MorningSkyBackground';
 
@@ -52,6 +52,14 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     }
     return '';
   });
+  // Refraction map shaped like the card itself: the lens follows the window
+  // edges instead of a stretched pill silhouette.
+  const [lensMapUrl, setLensMapUrl] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return generateLensDisplacementMap(460, 750, 26, 0.06, 64);
+    }
+    return '';
+  });
 
   useEffect(() => {
     if (isMobile) return;
@@ -59,8 +67,41 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     setDispMapUrl(url);
   }, [isMobile]);
 
-  const refractionScale = 54; // Scaled for CSS displacement coordinates
-  const dispersionOffset = 22; // Dispersion: strong vivid RGB chromatic split
+  // Regenerate the lens map whenever the floating window changes size.
+  useEffect(() => {
+    if (isMobile) return;
+    const el = cardRef.current;
+    if (!el) return;
+
+    let frame = 0;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 80 || rect.height < 80) return;
+      const radius = rect.width >= 600 ? 24 : 26;
+      const url = generateLensDisplacementMap(rect.width, rect.height, radius, 0.06, 64);
+      if (url) setLensMapUrl(url);
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+
+    schedule();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    observer?.observe(el);
+    return () => {
+      observer?.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [isMobile]);
+
+  const activeMap = lensMapUrl || dispMapUrl;
+  // The window uses a thick lens with a wide chromatic split; the dock is much
+  // smaller, so it needs a gentler scale or the whole pill smears.
+  const cardRefractionScale = 98;
+  const cardDispersionOffset = 40;
+  const dockRefractionScale = 38;
+  const dockDispersionOffset = 16;
 
   const currentItem = WALLPAPER_LIST.find((w) => w.id === wallpaper || wallpaper.startsWith(w.id)) || WALLPAPER_LIST[0];
 
@@ -124,15 +165,15 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     ? isCalendarExpanded
       ? 'w-full h-full max-w-[1600px]'
       : isNotebookExpanded
-      ? 'w-[760px] min-w-[700px] max-w-[840px] h-[820px] max-h-full'
-      : 'w-[460px] min-w-[460px] max-w-[460px] h-[750px] max-h-full'
+      ? 'w-full min-w-0 max-w-[1040px] h-[820px] max-h-full'
+      : 'w-[460px] max-w-full h-[750px] max-h-full'
     : isCalendarExpanded
     ? 'sm:w-full h-dvh sm:h-[890px] sm:min-h-[890px] sm:max-h-[94vh]'
     : isNotebookExpanded
-    ? 'sm:w-[760px] sm:min-w-[700px] sm:max-w-[840px] h-dvh sm:h-[820px] sm:min-h-[780px] sm:max-h-[92vh]'
+    ? 'sm:w-[calc(100vw-320px)] sm:min-w-[680px] sm:max-w-[1040px] h-dvh sm:h-[820px] sm:min-h-[780px] sm:max-h-[92vh]'
     : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px] h-dvh sm:h-[750px] sm:min-h-[750px] sm:max-h-[750px]';
 
-  const svgFilters = !isMobile && dispMapUrl && (
+  const svgFilters = !isMobile && activeMap && (
           <svg
             className="absolute w-0 h-0 pointer-events-none"
             aria-hidden="true"
@@ -157,7 +198,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
                 <feDisplacementMap
                   in="SourceGraphic"
                   in2="DISPLACEMENT_MAP"
-                  scale={refractionScale + dispersionOffset}
+                  scale={dockRefractionScale + dockDispersionOffset}
                   xChannelSelector="R"
                   yChannelSelector="G"
                   result="RED_DISPLACED"
@@ -176,7 +217,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
                 <feDisplacementMap
                   in="SourceGraphic"
                   in2="DISPLACEMENT_MAP"
-                  scale={refractionScale}
+                  scale={dockRefractionScale}
                   xChannelSelector="R"
                   yChannelSelector="G"
                   result="GREEN_DISPLACED"
@@ -195,7 +236,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
                 <feDisplacementMap
                   in="SourceGraphic"
                   in2="DISPLACEMENT_MAP"
-                  scale={Math.max(10, refractionScale - dispersionOffset)}
+                  scale={Math.max(10, dockRefractionScale - dockDispersionOffset)}
                   xChannelSelector="R"
                   yChannelSelector="G"
                   result="BLUE_DISPLACED"
@@ -232,23 +273,26 @@ export const AppContainer: React.FC<AppContainerProps> = ({
                 />
               </filter>
 
+              {/* The card filter maps the lens 1:1 onto the window, so the
+                  refraction ring lands on the visible edges instead of the
+                  padded filter region. */}
               <filter
                 id="figma-glass-card-filter"
-                x="-20%"
-                y="-20%"
-                width="140%"
-                height="140%"
+                x="0"
+                y="0"
+                width="100%"
+                height="100%"
                 colorInterpolationFilters="sRGB"
               >
                 <feImage
-                  href={dispMapUrl}
+                  href={activeMap}
                   result="DISPLACEMENT_MAP"
                   preserveAspectRatio="none"
                 />
                 <feDisplacementMap
                   in="SourceGraphic"
                   in2="DISPLACEMENT_MAP"
-                  scale={refractionScale + dispersionOffset}
+                  scale={cardRefractionScale + cardDispersionOffset}
                   xChannelSelector="R"
                   yChannelSelector="G"
                   result="RED_DISPLACED"
@@ -265,7 +309,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
                 <feDisplacementMap
                   in="SourceGraphic"
                   in2="DISPLACEMENT_MAP"
-                  scale={refractionScale}
+                  scale={cardRefractionScale}
                   xChannelSelector="R"
                   yChannelSelector="G"
                   result="GREEN_DISPLACED"
@@ -282,7 +326,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
                 <feDisplacementMap
                   in="SourceGraphic"
                   in2="DISPLACEMENT_MAP"
-                  scale={Math.max(10, refractionScale - dispersionOffset)}
+                  scale={Math.max(10, cardRefractionScale - cardDispersionOffset)}
                   xChannelSelector="R"
                   yChannelSelector="G"
                   result="BLUE_DISPLACED"
@@ -310,7 +354,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
                 />
                 <feGaussianBlur
                   in="RGB_COMBINED"
-                  stdDeviation="0.4"
+                  stdDeviation="0.25"
                   result="FINAL_GLASS"
                 />
               </filter>
@@ -332,13 +376,13 @@ export const AppContainer: React.FC<AppContainerProps> = ({
             glassBackground
               ? {
                   backdropFilter:
-                    !isMobile && dispMapUrl
-                      ? `url(#${filterId}) blur(1.5px) saturate(180%)`
-                      : 'blur(20px) saturate(180%)',
+                    !isMobile && activeMap
+                      ? `url(#${filterId}) blur(4px) saturate(175%) brightness(1.03)`
+                      : 'blur(16px) saturate(180%)',
                   WebkitBackdropFilter:
-                    !isMobile && dispMapUrl
-                      ? `url(#${filterId}) blur(1.5px) saturate(180%)`
-                      : 'blur(20px) saturate(180%)',
+                    !isMobile && activeMap
+                      ? `url(#${filterId}) blur(4px) saturate(175%) brightness(1.03)`
+                      : 'blur(16px) saturate(180%)',
                   // @ts-ignore
                   '--glass-opacity': String(glassOpacity ?? 0.18),
                 }
@@ -354,15 +398,26 @@ export const AppContainer: React.FC<AppContainerProps> = ({
             aria-hidden="true"
           />
 
-          {/* Specular sheen overlay for glass mode */}
+          {/* Specular sheen overlay for glass mode: a diagonal streak, a soft
+              corner bloom and a bright rim so the pane reads as a physical slab. */}
           {glassBackground && (
-            <div
-              className="figma-glass-sheen absolute inset-0 sm:rounded-[16px] pointer-events-none z-0"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.12) 100%)',
-              }}
-            />
+            <>
+              <div
+                className="figma-glass-sheen absolute inset-0 sm:rounded-[24px] pointer-events-none z-0"
+                style={{
+                  background:
+                    'linear-gradient(118deg, rgba(255,255,255,0.46) 0%, rgba(255,255,255,0.14) 18%, rgba(255,255,255,0) 42%, rgba(255,255,255,0) 62%, rgba(255,255,255,0.10) 84%, rgba(255,255,255,0.30) 100%)',
+                }}
+              />
+              <div className="figma-glass-rim absolute inset-0 sm:rounded-[24px] pointer-events-none z-0" />
+              <div
+                className="figma-glass-bloom absolute inset-0 sm:rounded-[24px] pointer-events-none z-0"
+                style={{
+                  background:
+                    'radial-gradient(120% 70% at 12% 0%, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0) 55%), radial-gradient(90% 60% at 100% 100%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 60%)',
+                }}
+              />
+            </>
           )}
           <div className="relative z-1 flex flex-col flex-1 h-full w-full justify-between overflow-hidden min-h-0">
             {children}
@@ -438,7 +493,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         isCalendarExpanded
           ? 'sm:w-[98vw] sm:max-w-[1600px]'
           : isNotebookExpanded
-          ? 'sm:w-[760px] sm:min-w-[700px] sm:max-w-[840px]'
+          ? 'sm:w-[calc(100vw-320px)] sm:min-w-[680px] sm:max-w-[1040px]'
           : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px]'
       }`}>
         {/* SVG Chromatic Dispersion & Refraction Filter for Main Card (Desktop/Tablet) */}

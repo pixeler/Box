@@ -1,0 +1,200 @@
+[2m۱۹:۳۶:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Forced re-optimization of dependencies
+
+  [32m[1mVITE[22m v6.4.3[39m  [2mready in [0m[1m865[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5181[22m/[39m
+[2m۱۹:۴۵:۳۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۹:۴۶:۰۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m۱۹:۵۰:۱۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/captured.html[22m
+[2m۱۹:۵۰:۱۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/welcome.html[22m
+[2m۱۹:۵۰:۱۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html[22m
+[2m۱۹:۵۰:۱۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html[22m
+[2m۱۹:۵۰:۲۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html[22m
+[2m۱۹:۵۰:۲۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/captured.html[22m
+[2m۱۹:۵۰:۲۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/welcome.html[22m
+[2m۱۹:۵۰:۲۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html[22m
+[2m۱۰:۴۹:۰۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/TaskItemRow.tsx, /src/index.css[22m
+[2m۱۰:۵۰:۱۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/captured.html[22m
+[2m۱۰:۵۰:۱۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/welcome.html[22m
+[2m۱۰:۵۰:۳۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_1/captured.html[22m
+[2m۱۰:۵۰:۳۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_1/welcome.html[22m
+[2m۱۰:۵۰:۵۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_2/captured.html[22m
+[2m۱۰:۵۰:۵۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_2/welcome.html[22m
+[2m۱۰:۵۱:۰۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html[22m
+[2m۱۰:۵۳:۰۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/captured.html[22m
+[2m۱۰:۵۳:۰۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_1/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_1/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_2/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_2/welcome.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/captured.html[22m
+[2m۱۰:۵۳:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-glass/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_3/welcome.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/ghbmnnjooekpmoecnnnilnnbdlolhkhi/1.111.1_0/offscreendocument.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/captured.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/ngpampappnmepgilojfohadhhmbhlaek/6.43.1_0/welcome.html[22m
+[2m۱۰:۵۳:۴۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mscratch/chrome-profile-verify/Default/Extensions/nmmhkkegccagdldgiimedpiccmgmieda/1.0.0.6_0/html/craw_window.html[22m
+[2m۱۰:۵۹:۰۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/ProfileView.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۱۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/ProfileView.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۱۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/SettingsDialog.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۴۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۵۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۰:۵۹:۵۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۱:۰۰:۰۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۱:۰۴:۱۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx[22m
+[2m۱۱:۰۴:۱۷[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۰۴:۲۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۰۶:۴۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۰۷:۱۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۲۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarView.tsx, /src/index.css[22m
+[2m۱۱:۱۲:۴۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۱:۱۳:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۱:۱۳:۲۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx[22m
+[2m۱۹:۰۷:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m۱۹:۰۷:۵۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/common/DailyGoalCelebration.tsx, /src/App.tsx, /src/components/profile/ProfileView.tsx[22m
+[2m۱۹:۰۸:۰۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m۱۹:۰۸:۴۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۰۸:۵۵[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۰۹:۰۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۹:۰۹:۱۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۹:۰۹:۲۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/DayStream.tsx, /src/index.css[22m
+[2m۱۹:۱۰:۴۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۱۱:۰۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۱۷:۰۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۱۷:۰۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/common/DailyGoalCelebration.tsx, /src/App.tsx, /src/components/profile/ProfileView.tsx[22m
+[2m۱۹:۱۹:۰۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx, /src/components/notebook/NotebookView.tsx, /src/components/profile/ProfileView.tsx, /src/components/calendar/CalendarView.tsx, /src/components/stream/NoteItemRow.tsx, /src/components/stream/TaskItemRow.tsx, /src/components/calendar/CalendarMonthView.tsx, /src/components/boxes/CreateBoxSheet.tsx[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/DayStream.tsx, /src/index.css[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx, /src/components/notebook/NotebookView.tsx, /src/components/profile/ProfileView.tsx, /src/components/calendar/CalendarView.tsx, /src/components/stream/NoteItemRow.tsx, /src/components/stream/TaskItemRow.tsx, /src/components/calendar/CalendarMonthView.tsx, /src/components/boxes/CreateBoxSheet.tsx[22m
+[2m۱۹:۲۸:۲۳[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/common/DailyGoalCelebration.tsx, /src/App.tsx, /src/components/profile/ProfileView.tsx[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/boxes/CreateBoxSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarView.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/capture/QuickCaptureInput.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/common/DeleteConfirmSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/capture/QuickCaptureInput.tsx, /src/components/notebook/NoteEditModal.tsx[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/MoveNoteModal.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/JalaliDatePicker.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/BoxPickerSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/ProfileView.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/TaskItemRow.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/task/RecurringDeleteSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NoteCard.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NoteEditModal.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookContext.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookSecondarySidebar.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/notebook/NotebookSidebar.tsx[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookView.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/notebook/NotebookView.tsx, /src/components/notebook/NoteCard.tsx, /src/components/notebook/NoteEditModal.tsx[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx, /src/components/notebook/NotebookView.tsx, /src/components/profile/ProfileView.tsx, /src/components/calendar/CalendarView.tsx, /src/components/stream/NoteItemRow.tsx, /src/components/stream/TaskItemRow.tsx, /src/components/calendar/CalendarMonthView.tsx, /src/components/boxes/CreateBoxSheet.tsx[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/types/models.ts[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/PriorityPickerSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/ReminderPickerSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/TagPickerSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/TimeOfDayPickerSheet.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/task/TaskEditModal.tsx, /src/index.css[22m
+[2m۱۹:۳۳:۴۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarAddRow.tsx, /src/index.css[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarDayView.tsx, /src/index.css[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarHeader.tsx, /src/index.css[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarMonthView.tsx, /src/index.css[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/BlockHoverHandles.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarYearView.tsx, /src/index.css[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/calendar/CalendarView.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/FolderTile.tsx, /src/index.css[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/EditorColorMenu.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/TaskAddBlock.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/TaskPickerPanel.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/TaskRefBlock.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/notebook/NotebookView.tsx, /src/components/notebook/NoteCard.tsx, /src/components/notebook/NoteEditModal.tsx[22m
+[2m۱۹:۳۴:۳۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/capture/QuickCaptureInput.tsx, /src/components/calendar/JalaliDatePicker.tsx, /src/components/pickers/PriorityPickerSheet.tsx, /src/components/pickers/TimeOfDayPickerSheet.tsx, /src/components/pickers/ReminderPickerSheet.tsx, /src/components/pickers/TagPickerSheet.tsx, /src/components/pickers/BoxPickerSheet.tsx, /src/components/common/DeleteConfirmSheet.tsx, /src/components/task/RecurringDeleteSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/task/TaskEditModal.tsx, /src/index.css[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/layout/AppContainer.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/boxes/CreateBoxSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/capture/QuickCaptureInput.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/common/DeleteConfirmSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/BlockNoteEditor.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/JalaliDatePicker.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/MoveNoteModal.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookContext.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/notebook/NotebookSidebar.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookSecondarySidebar.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NoteCard.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NoteEditModal.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/notebook/noteTheme.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/BoxPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/PriorityPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/TagPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/ReminderPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/TimeOfDayPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/ProfileView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/TaskItemRow.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/task/RecurringDeleteSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/NoteItemRow.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/types/models.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/task/TaskEditModal.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/lib/glass.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/JalaliDatePicker.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/capture/QuickCaptureInput.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/BlockNoteEditor.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/common/DeleteConfirmSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/boxes/CreateBoxSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/MoveNoteModal.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookContext.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookSecondarySidebar.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/notebook/NotebookSidebar.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NoteCard.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NoteEditModal.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/notebook/noteTheme.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/BoxPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/PriorityPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/ReminderPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/TagPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/pickers/TimeOfDayPickerSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/profile/ProfileView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/types/models.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/TaskItemRow.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/task/RecurringDeleteSheet.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/task/TaskEditModal.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/stream/NoteItemRow.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/lib/glass.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/BlockHoverHandles.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/EditorColorMenu.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarAddRow.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarDayView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarHeader.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarMonthView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/calendar/calendarUtils.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/calendar/CalendarYearView.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/TaskAddBlock.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/TaskRefBlock.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/TaskPickerPanel.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/FolderTile.tsx[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/notebook/noteMenu.ts[22m
+[2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/lib/overlay.ts[22m
+[2m۱۹:۴۰:۱۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m

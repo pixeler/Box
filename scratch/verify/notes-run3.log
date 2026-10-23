@@ -1,0 +1,18 @@
+desktop new note: clicked
+desktop task menu click: {"result":"clicked","tag":"P","text":"انتخاب از لیست تسک‌ها"}
+desktop new list click: clicked
+desktop note add row: {"result":"clicked"}
+desktop note inline: {"composerVisible":true,"insideEditor":true,"rect":{"width":491,"height":213,"top":200,"left":947},"focusOnComposer":true,"chipCount":8}
+desktop note submit: clicked
+desktop note after submit: {
+  "composerStillOpen": true,
+  "titleValue": "",
+  "noteHasTask": 1,
+  "noteSnippet": "\n\nپیگیری پیشنهاد همکاری\nامروز\nاولویت\nهر زمان\nبرچسب\nیادآور\nافزودن\nEnter برای افزودن\nبستن\n\n\n"
+}
+desktop after Escape: {"composerOpen":false,"noteStillOpen":true,"overlayRoot":true}
+desktop after second Escape: {"noteStillOpen":false,"overlayRoot":false}
+mobile day add click: clicked
+mobile day inline: {"open":true,"rect":{"width":358,"height":239,"top":272,"left":16},"closeVisible":true,"focusOnComposer":true}
+mobile day submit: clicked
+mobile day after submit: {"composerStillOpen":true,"titleValue":"","bodyHasTask":true}

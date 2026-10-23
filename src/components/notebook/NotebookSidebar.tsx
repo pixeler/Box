@@ -136,7 +136,7 @@ export const NotebookSidebar: React.FC<NotebookSidebarProps> = ({
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <RiPushpin2Line className="size-4 shrink-0 text-amber-500" />
+              <RiPushpin2Line className="size-4 shrink-0 text-muted-foreground" />
               <span>سنجاق‌شده‌ها</span>
             </div>
             {pinnedCount > 0 && (

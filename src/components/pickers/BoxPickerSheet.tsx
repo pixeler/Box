@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import type { Box } from '@/types/models';
 import { BoxThumbnail } from '../boxes/BoxThumbnail';
 import {
@@ -54,10 +55,7 @@ export const BoxPickerSheet: React.FC<BoxPickerSheetProps> = ({
 
   if (!isOpen && !isClosing) return null;
 
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? document.getElementById('app-main') || document.body
-      : null;
+  const portalTarget = getOverlayPortalTarget();
 
   if (!portalTarget) return null;
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { taskRepo, noteRepo, tagRepo, entryRepo, eventRepo, boxRepo, type ExportData } from '@/repositories';
 import { toPersianDigits } from '@/lib/jalali';
+import { cn } from '@/lib/utils';
 import {
   RiShieldCheckLine,
   RiArrowLeftSLine,
@@ -10,7 +11,6 @@ import {
   RiComputerLine,
   RiLogoutBoxRLine,
   RiTimeLine,
-  RiEqualizerLine,
   RiPaletteLine,
   RiImageLine,
   RiInformationLine,
@@ -164,16 +164,14 @@ export interface ProfileViewProps {
   onDailyTaskGoalChange?: (goal: number) => void;
   onOpenAuthModal?: () => void;
   onBackToToday?: () => void;
-  isOpen?: boolean;
-  onClose?: () => void;
+  /** 'page' fills the mobile tab; 'panel' is the desktop settings side panel. */
+  variant?: 'page' | 'panel';
 }
 
 type SubPage =
   | 'main'
-  | 'general'
   | 'theme'
   | 'wallpaper'
-  | 'stream'
   | 'ambient'
   | 'backup'
   | 'about'
@@ -181,44 +179,92 @@ type SubPage =
   | 'feedback'
   | 'account';
 
-// Custom hook for horizontal drag-to-scroll
-function useHorizontalDrag() {
-  const ref = useRef<HTMLDivElement>(null);
-  const isDown = useRef(false);
-  const startX = useRef(0);
-  const startScrollLeft = useRef(0);
-  const hasDragged = useRef(false);
+const SettingsGroup: React.FC<{
+  title: string;
+  children: React.ReactNode;
+}> = ({ title, children }) => (
+  <section className="space-y-1.5">
+    <h3 className="px-1 text-[10.5px] font-semibold text-muted-foreground/80">{title}</h3>
+    <div className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-card/55">
+      {children}
+    </div>
+  </section>
+);
 
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || !ref.current) return;
-    isDown.current = true;
-    startX.current = e.clientX;
-    startScrollLeft.current = ref.current.scrollLeft;
-    hasDragged.current = false;
-  };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDown.current || !ref.current) return;
-    const deltaX = e.clientX - startX.current;
-    if (Math.abs(deltaX) > 4) {
-      hasDragged.current = true;
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {}
-    }
-    ref.current.scrollLeft = startScrollLeft.current - deltaX;
-  };
-
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDown.current) return;
-    isDown.current = false;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-  };
-
-  return { ref, onPointerDown, onPointerMove, onPointerUp, hasDragged };
+interface SettingsRowProps {
+  icon: React.ElementType;
+  title: string;
+  description?: string;
+  onClick?: () => void;
+  trailing?: React.ReactNode;
 }
+
+const SettingsRow: React.FC<SettingsRowProps> = ({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  trailing,
+}) => {
+  const content = (
+    <>
+      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[12px] font-semibold leading-snug text-foreground">
+          {title}
+        </span>
+        {description && (
+          <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">
+            {description}
+          </span>
+        )}
+      </span>
+      {trailing ??
+        (onClick ? (
+          <RiArrowLeftSLine className="size-4 shrink-0 text-muted-foreground/50" />
+        ) : null)}
+    </>
+  );
+
+  if (!onClick) {
+    return <div className="flex w-full items-center gap-3 px-3 py-2.5 text-right">{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 px-3 py-2.5 text-right outline-none transition-colors hover:bg-secondary/40 focus-visible:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring cursor-pointer"
+    >
+      {content}
+    </button>
+  );
+};
+
+const SettingsSwitch: React.FC<{
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}> = ({ checked, onChange, label }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    onClick={() => onChange(!checked)}
+    className={cn(
+      'relative h-6 w-11 shrink-0 rounded-full p-0.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card cursor-pointer',
+      checked ? 'bg-primary' : 'bg-muted-foreground/30'
+    )}
+  >
+    <span
+      className={cn(
+        'block size-5 rounded-full bg-primary-foreground shadow-md transition-transform duration-200',
+        checked ? '-translate-x-5' : 'translate-x-0'
+      )}
+    />
+  </button>
+);
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   currentWallpaper,
@@ -238,6 +284,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onDailyTaskGoalChange,
   onOpenAuthModal,
   onBackToToday,
+  variant = 'page',
 }) => {
   const isMobile = useIsMobile();
   const { user, signOut } = useAuth();
@@ -266,8 +313,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const customImageInputRef = useRef<HTMLInputElement>(null);
   const backupImportInputRef = useRef<HTMLInputElement>(null);
-  const themeDrag = useHorizontalDrag();
-  const wallpaperDrag = useHorizontalDrag();
+
+  const subPageShellClass =
+    variant === 'panel'
+      ? 'w-full select-none space-y-4 px-4 py-4 animate-in fade-in duration-200 sm:px-5'
+      : 'w-full max-w-md mx-auto flex-1 select-none space-y-4 px-4 pb-28 pt-4 animate-in fade-in duration-200';
+
+  const mainShellClass =
+    variant === 'panel'
+      ? 'w-full select-none space-y-5 px-4 py-4 animate-in fade-in duration-200 sm:px-5'
+      : 'w-full max-w-md mx-auto flex-1 select-none space-y-5 px-4 pb-28 pt-4 animate-in fade-in duration-200';
 
   // Keep themeTab in sync with active theme
   useEffect(() => {
@@ -398,251 +453,59 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   // Helper for subpage top back button
   const renderSubPageHeader = (title: string) => (
-    <div className="flex items-center justify-between pb-3 border-b border-border/60">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveSubPage('main')}
-          className="w-8 h-8 rounded-full bg-secondary/80 hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all cursor-pointer active:scale-95"
-          title="بازگشت به تنظیمات"
-        >
-          <RiArrowRightSLine className="w-5 h-5" />
-        </button>
-        <h2 className="text-sm font-bold text-foreground">{title}</h2>
-      </div>
+    <div className="flex items-center gap-2 border-b border-border/60 pb-3">
       <button
         type="button"
         onClick={() => setActiveSubPage('main')}
-        className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary/70 text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:scale-95 cursor-pointer"
+        aria-label="بازگشت به تنظیمات"
+        title="بازگشت به تنظیمات"
       >
-        بازگشت
+        <RiArrowRightSLine className="size-5" />
       </button>
+      <h2 className="text-sm font-bold text-foreground">{title}</h2>
     </div>
   );
 
   // ----------------------------------------------------------------------------------
-  // 1. Sub-page: عمومی (General Settings)
-  // ----------------------------------------------------------------------------------
-  if (activeSubPage === 'general') {
-    return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
-        {renderSubPageHeader('تنظیمات عمومی')}
-
-        <div className="rounded-2xl border border-border/80 bg-card/80 backdrop-blur-sm divide-y divide-border/60 overflow-hidden shadow-2xs">
-          {/* Glass Dock & Container */}
-          <div className="p-3.5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
-                  <RiDropLine className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground">پس‌زمینه شیشه‌ای داک و کانتینر</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">افکت انکسار نور، شکست رنگ و شیشه مایع</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                role="switch"
-                aria-checked={glassBackground}
-                onClick={() => onGlassBackgroundChange?.(!glassBackground)}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer p-0.5 select-none shrink-0 ${
-                  glassBackground ? 'bg-primary' : 'bg-muted-foreground/30'
-                }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                    glassBackground ? '-translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Glass Opacity Slider - displayed when glassBackground is ON */}
-            {glassBackground && (
-              <div className="pt-2.5 pb-1 border-t border-border/40 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-semibold text-foreground/90">درجه شفافیت شیشه</span>
-                  <span className="font-mono text-primary font-bold tabular-nums text-xs">
-                    {toPersianDigits(Math.round((glassOpacity ?? 0.18) * 100))}٪
-                  </span>
-                </div>
-                <div className="relative flex items-center w-full">
-                  <input
-                    type="range"
-                    min="0.04"
-                    max="0.75"
-                    step="0.02"
-                    value={glassOpacity ?? 0.18}
-                    onChange={(e) => onGlassOpacityChange?.(parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-secondary rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
-                    dir="ltr"
-                  />
-                </div>
-                <div className="flex justify-between text-[9.5px] text-muted-foreground select-none">
-                  <span>شفاف و براق (کم)</span>
-                  <span>مات و یخی (زیاد)</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Desktop Position */}
-          {!isMobile && (
-            <div className="p-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
-                  <RiComputerLine className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground">موقعیت پنجره دسکتاپ</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">محل قرارگیری کادر برنامه روی مانیتور</p>
-                </div>
-              </div>
-
-              <div className="flex items-center bg-muted/60 dark:bg-zinc-800/80 p-0.5 rounded-xl border border-border/70 text-[11px] font-medium gap-0.5 select-none shrink-0">
-                <button
-                  type="button"
-                  onClick={() => onDesktopPositionChange?.('right')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    desktopPosition === 'right'
-                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  راست
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDesktopPositionChange?.('center')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    desktopPosition === 'center'
-                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  وسط
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDesktopPositionChange?.('left')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    desktopPosition === 'left'
-                      ? 'bg-card text-foreground font-semibold shadow-xs ring-1 ring-border/80'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  چپ
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Daily Task Goal (هدف روزانه تسک‌ها / کارما) */}
-          <div className="p-3.5 flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
-                  <RiSparklingLine className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground">هدف روزانه تسک‌ها (کارما)</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    تعداد تسکی که می‌خواهید هر روز تکمیل کنید تا جشن موفقیت پخش شود
-                  </p>
-                </div>
-              </div>
-
-              {/* Number adjuster with + and - */}
-              <div className="flex items-center bg-muted/60 dark:bg-zinc-800/80 p-0.5 rounded-xl border border-border/70 text-[12px] font-medium gap-1 select-none shrink-0">
-                <button
-                  type="button"
-                  onClick={() => onDailyTaskGoalChange?.(Math.max(1, dailyTaskGoal - 1))}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-card text-muted-foreground hover:text-foreground transition-all cursor-pointer active:scale-95 font-bold text-sm"
-                  title="کاهش"
-                >
-                  -
-                </button>
-                <span className="w-6 text-center font-bold text-foreground font-mono tabular-nums text-xs">
-                  {toPersianDigits(dailyTaskGoal)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onDailyTaskGoalChange?.(dailyTaskGoal + 1)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-card text-muted-foreground hover:text-foreground transition-all cursor-pointer active:scale-95 font-bold text-sm"
-                  title="افزایش"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Quick preset buttons: 3, 5, 7, 10 */}
-            <div className="flex items-center gap-1.5 pt-1">
-              <span className="text-[10px] text-muted-foreground ml-1">پیشنهادی:</span>
-              {[3, 5, 7, 10].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => onDailyTaskGoalChange?.(preset)}
-                  className={`px-2.5 py-1 rounded-lg text-[10.5px] font-medium transition-all cursor-pointer ${
-                    dailyTaskGoal === preset
-                      ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-                      : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40'
-                  }`}
-                >
-                  {toPersianDigits(preset)} تسک
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------------------------------------
-  // 2. Sub-page: تم و رنگ (Theme & Palette)
+  // 1. Sub-page: تم و رنگ (Theme & Palette)
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'theme') {
     const listThemes = themeTab === 'dark' ? DARK_THEMES : LIGHT_THEMES;
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('تم و رنگ‌بندی')}
 
-        {/* Dark/Light Mode Switcher */}
-        <div className="p-3.5 rounded-2xl border border-border/80 bg-card/80 backdrop-blur-sm flex items-center justify-between shadow-2xs">
-          <div>
-            <p className="text-xs font-bold text-foreground">حالت تیره (Dark Mode)</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">تغییر بین پالت‌های تیره و روشن</p>
+        {/* Dark/Light Mode Segmented Switch */}
+        <SettingsGroup title="حالت نمایش">
+          <div className="flex items-center gap-0.5 bg-secondary/30 p-2">
+            {(['dark', 'light'] as ThemeMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={themeTab === mode}
+                onClick={() => {
+                  setThemeTab(mode);
+                  const targetThemes = mode === 'dark' ? DARK_THEMES : LIGHT_THEMES;
+                  if (!targetThemes.some((t) => t.id === currentTheme)) {
+                    onThemeChange?.(targetThemes[0].id);
+                  }
+                }}
+                className={cn(
+                  'h-8 flex-1 rounded-lg text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
+                  themeTab === mode
+                    ? 'bg-foreground text-background shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {mode === 'dark' ? 'تیره' : 'روشن'}
+              </button>
+            ))}
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={themeTab === 'dark'}
-            onClick={() => {
-              const nextMode = themeTab === 'dark' ? 'light' : 'dark';
-              setThemeTab(nextMode);
-              const targetThemes = nextMode === 'dark' ? DARK_THEMES : LIGHT_THEMES;
-              if (!targetThemes.some((t) => t.id === currentTheme)) {
-                onThemeChange?.(targetThemes[0].id);
-              }
-            }}
-            className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer p-0.5 select-none shrink-0 ${
-              themeTab === 'dark' ? 'bg-primary' : 'bg-muted-foreground/30'
-            }`}
-          >
-            <div
-              className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                themeTab === 'dark' ? '-translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
+        </SettingsGroup>
 
         {/* Theme List */}
-        <div className="grid grid-cols-1 gap-2.5">
+        <div className="grid grid-cols-1 gap-2">
           {listThemes.map((th) => {
             const isSelected = currentTheme === th.id;
             return (
@@ -650,15 +513,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 key={th.id}
                 type="button"
                 onClick={() => onThemeChange?.(th.id)}
-                className={`p-3 rounded-2xl border transition-all text-right flex items-center justify-between cursor-pointer ${
+                className={cn(
+                  'flex items-center justify-between gap-3 rounded-2xl border p-3 text-right outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
                   isSelected
-                    ? 'border-primary ring-2 ring-primary/20 bg-primary/5 shadow-xs'
-                    : 'border-border/70 bg-card/70 hover:bg-card hover:border-foreground/30'
-                }`}
+                    ? 'border-primary/50 bg-primary/5'
+                    : 'border-border/60 bg-card/55 hover:bg-secondary/40'
+                )}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <div
-                    className="w-10 h-10 rounded-full border border-black/10 overflow-hidden shrink-0 shadow-2xs relative"
+                    className="relative size-10 shrink-0 overflow-hidden rounded-full border border-black/10 shadow-2xs"
                     style={{ backgroundColor: th.previewColors.bg }}
                   >
                     <div
@@ -666,20 +530,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                       style={{ backgroundColor: th.previewColors.card }}
                     />
                     <div
-                      className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs"
+                      className="absolute bottom-1 right-1 size-3.5 rounded-full border border-white/20 shadow-xs"
                       style={{ backgroundColor: th.previewColors.accent }}
                     />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-bold text-foreground">{th.name}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{th.description}</p>
+                    <p className="mt-0.5 line-clamp-1 text-[10px] text-muted-foreground">
+                      {th.description}
+                    </p>
                   </div>
                 </div>
 
                 {isSelected && (
-                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-xs">
-                    <RiCheckLine className="w-3.5 h-3.5 stroke-[3]" />
-                  </div>
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <RiCheckLine className="size-3.5 stroke-[3]" />
+                  </span>
                 )}
               </button>
             );
@@ -694,11 +560,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'wallpaper') {
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('تصویر زمینه')}
 
         {/* Custom Upload Card */}
-        <div className="p-3.5 rounded-2xl border border-dashed border-border/90 bg-card/70 flex items-center justify-between shadow-2xs">
+        <div className="p-3.5 rounded-2xl border border-dashed border-border/70 bg-card/55 flex items-center justify-between shadow-2xs">
           <div>
             <p className="text-xs font-bold text-foreground">انتخاب تصویر از کامپیوتر</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">بارگذاری عکس دلخواه از گالری محلی</p>
@@ -715,6 +581,51 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
         {/* Gallery Grid */}
         <div className="grid grid-cols-2 gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (customWallpaperUrl) {
+                onWallpaperChange(`custom-image:${Date.now()}`);
+              } else {
+                customImageInputRef.current?.click();
+              }
+            }}
+            className={`h-24 rounded-2xl overflow-hidden border text-right transition-all relative flex flex-col cursor-pointer shadow-2xs ${
+              currentWallpaper.startsWith('custom') ||
+              currentWallpaper.startsWith('data:') ||
+              currentWallpaper.startsWith('http')
+                ? 'border-primary ring-2 ring-primary/20 shadow-xs'
+                : 'border-dashed border-border/80 hover:border-foreground/40'
+            }`}
+          >
+            {customWallpaperUrl ? (
+              <>
+                <img
+                  src={customWallpaperUrl}
+                  alt={customWallpaperTitle}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/0 to-black/0 flex items-end p-2.5">
+                  <p className="text-[10.5px] font-medium text-white drop-shadow-xs truncate">
+                    {customWallpaperTitle}
+                  </p>
+                </div>
+                {(currentWallpaper.startsWith('custom') ||
+                  currentWallpaper.startsWith('data:') ||
+                  currentWallpaper.startsWith('http')) && (
+                  <div className="absolute top-2.5 left-2.5 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow z-20">
+                    <RiCheckLine className="w-3.5 h-3.5 stroke-[3]" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-secondary/30">
+                <RiImageAddLine className="w-5 h-5 text-muted-foreground" />
+                <span className="text-[10.5px] font-medium text-muted-foreground">از گالری</span>
+              </div>
+            )}
+          </button>
+
           {WALLPAPER_LIST.map((wp) => {
             const isSelected = currentWallpaper === wp.id;
             return (
@@ -754,117 +665,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   }
 
   // ----------------------------------------------------------------------------------
-  // 4. Sub-page: جریان روزانه و زمان‌بندی (Stream & Sections)
-  // ----------------------------------------------------------------------------------
-  if (activeSubPage === 'stream') {
-    return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
-        {renderSubPageHeader('جریان روزانه و زمان‌بندی')}
-
-        <div className="rounded-2xl border border-border/80 bg-card/80 backdrop-blur-sm divide-y divide-border/60 overflow-hidden shadow-2xs">
-          {/* Day Sections Switch */}
-          <div className="p-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
-                <RiTimeLine className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-foreground">بخش‌بندی روزانه (صبح، ظهر، عصر، شب)</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  تفکیک و دسته‌بندی خودکار کارها و یادداشت‌های امروز بر اساس ساعات روز
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              role="switch"
-              aria-checked={enableDaySections}
-              onClick={() => onEnableDaySectionsChange?.(!enableDaySections)}
-              className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer p-0.5 select-none shrink-0 ${
-                enableDaySections ? 'bg-primary' : 'bg-muted-foreground/30'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                  enableDaySections ? '-translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Daily Task Goal (هدف روزانه تسک‌ها / کارما) */}
-          <div className="p-3.5 flex flex-col gap-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-secondary text-foreground flex items-center justify-center border border-border/60 shrink-0">
-                  <RiSparklingLine className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-foreground">هدف روزانه تسک‌ها (کارما)</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    تعداد تسکی که می‌خواهید هر روز تکمیل کنید تا جشن موفقیت پخش شود
-                  </p>
-                </div>
-              </div>
-
-              {/* Number adjuster with + and - */}
-              <div className="flex items-center bg-muted/60 dark:bg-zinc-800/80 p-0.5 rounded-xl border border-border/70 text-[12px] font-medium gap-1 select-none shrink-0">
-                <button
-                  type="button"
-                  onClick={() => onDailyTaskGoalChange?.(Math.max(1, dailyTaskGoal - 1))}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-card text-muted-foreground hover:text-foreground transition-all cursor-pointer active:scale-95 font-bold text-sm"
-                  title="کاهش"
-                >
-                  -
-                </button>
-                <span className="w-6 text-center font-bold text-foreground font-mono tabular-nums text-xs">
-                  {toPersianDigits(dailyTaskGoal)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onDailyTaskGoalChange?.(dailyTaskGoal + 1)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-card text-muted-foreground hover:text-foreground transition-all cursor-pointer active:scale-95 font-bold text-sm"
-                  title="افزایش"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Quick preset buttons: 3, 5, 7, 10 */}
-            <div className="flex items-center gap-1.5 pt-1">
-              <span className="text-[10px] text-muted-foreground ml-1">پیشنهادی:</span>
-              {[3, 5, 7, 10].map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => onDailyTaskGoalChange?.(preset)}
-                  className={`px-2.5 py-1 rounded-lg text-[10.5px] font-medium transition-all cursor-pointer ${
-                    dailyTaskGoal === preset
-                      ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-                      : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground border border-border/40'
-                  }`}
-                >
-                  {toPersianDigits(preset)} تسک
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ----------------------------------------------------------------------------------
-  // 5. Sub-page: صداهای تمرکز و پس‌زمینه (Ambient Sounds)
+  // 4. Sub-page: صداهای تمرکز و پس‌زمینه (Ambient Sounds)
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'ambient') {
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('صداهای تمرکز و پس‌زمینه')}
 
-        <div className="rounded-2xl border border-border/80 bg-card/80 backdrop-blur-sm p-3.5 space-y-3 shadow-2xs">
+        <div className="rounded-2xl border border-border/60 bg-card/55 p-3.5 space-y-3 shadow-2xs">
           <p className="text-xs text-muted-foreground leading-relaxed">
             صوت‌های پیوسته و طبیعی برای افزایش تمرکز، کاهش استرس و غوطه‌وری در کارها. در حالت فوکوس می‌توانید صدای دلخواه خود را فعال کنید:
           </p>
@@ -895,10 +703,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'backup') {
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('پشتیبان‌گیری و بازگردانی')}
 
-        <div className="rounded-2xl border border-border/80 bg-card/80 backdrop-blur-sm p-4 space-y-4 shadow-2xs">
+        <div className="rounded-2xl border border-border/60 bg-card/55 p-4 space-y-4 shadow-2xs">
           <div>
             <p className="text-xs font-bold text-foreground">پشتیبان‌گیری محلی و آفلاین</p>
             <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
@@ -943,10 +751,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'about') {
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('درباره اسپیس')}
 
-        <div className="p-4 rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm space-y-3.5 shadow-2xs">
+        <div className="p-4 rounded-2xl border border-border/60 bg-card/55 space-y-3.5 shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
               <RiShieldCheckLine className="w-5 h-5 text-primary" />
@@ -970,10 +778,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'changelog') {
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('تغییرات اخیر')}
 
-        <div className="p-4 rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm space-y-3.5 shadow-2xs">
+        <div className="p-4 rounded-2xl border border-border/60 bg-card/55 space-y-3.5 shadow-2xs">
           <div className="border-b border-border/60 pb-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-foreground">نسخه ۱.۰.۰</span>
@@ -996,10 +804,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'feedback') {
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('ارسال بازخورد')}
 
-        <div className="p-4 rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm space-y-3.5 shadow-2xs">
+        <div className="p-4 rounded-2xl border border-border/60 bg-card/55 space-y-3.5 shadow-2xs">
           <p className="text-xs text-muted-foreground leading-relaxed">
             نظرات و پیشنهادات شما به ما در ارتقای اسپیس کمک شایانی می‌کند. لطفاً پیام یا بازخورد خود را در زیر بنویسید:
           </p>
@@ -1043,10 +851,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'account') {
     return (
-      <div className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-4 animate-in fade-in duration-200" dir="rtl">
+      <div className={subPageShellClass} dir="rtl">
         {renderSubPageHeader('حساب کاربری')}
 
-        <div className="p-4 rounded-2xl border border-border/80 bg-card/85 backdrop-blur-sm space-y-4 shadow-2xs">
+        <div className="p-4 rounded-2xl border border-border/60 bg-card/55 space-y-4 shadow-2xs">
           {user ? (
             <>
               <div className="flex items-center gap-3">
@@ -1098,392 +906,306 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   // ----------------------------------------------------------------------------------
   // Main Settings Screen
   // ----------------------------------------------------------------------------------
-  const activeThemes = themeTab === 'dark' ? DARK_THEMES : LIGHT_THEMES;
+  const currentThemeConfig = [...DARK_THEMES, ...LIGHT_THEMES].find(
+    (theme) => theme.id === currentTheme
+  );
+  const currentWallpaperTitle =
+    currentWallpaper.startsWith('custom') ||
+    currentWallpaper.startsWith('data:') ||
+    currentWallpaper.startsWith('http')
+      ? customWallpaperTitle
+      : WALLPAPER_LIST.find((item) => item.id === currentWallpaper)?.title ||
+        'انتخاب تصویر';
+
+  const renderDarkModeSwitch = () => (
+    <SettingsSwitch
+      checked={themeTab === 'dark'}
+      label="حالت تیره"
+      onChange={(checked) => {
+        const nextMode: ThemeMode = checked ? 'dark' : 'light';
+        setThemeTab(nextMode);
+        const targetThemes = checked ? DARK_THEMES : LIGHT_THEMES;
+        if (!targetThemes.some((theme) => theme.id === currentTheme)) {
+          onThemeChange?.(targetThemes[0].id);
+        }
+      }}
+    />
+  );
 
   return (
-    <div
-      className="w-full flex-1 flex flex-col px-4 pt-3 pb-28 max-w-md mx-auto space-y-5 select-none animate-in fade-in duration-200"
-      dir="rtl"
-    >
-      {/* 1. Top Header: User Info & Avatar (Right), Back Arrow (Left) */}
-      <div className="flex items-center justify-between pb-1 select-none">
-        {/* User Info & Avatar on the FAR RIGHT */}
-        <div
-          onClick={() => {
-            if (user) {
-              setActiveSubPage('account');
-            } else {
-              onOpenAuthModal?.();
-            }
-          }}
-          className="flex items-center gap-3 cursor-pointer group/user"
-        >
-          {/* Avatar is child 0 -> FAR RIGHT */}
-          <div className="w-12 h-12 rounded-full bg-secondary/80 border border-border/80 flex items-center justify-center text-muted-foreground group-hover/user:border-primary/50 transition-colors shadow-2xs shrink-0">
-            {user ? (
-              <span className="font-bold text-xs uppercase font-mono text-foreground">
-                {user.email ? user.email.slice(0, 2) : 'SP'}
-              </span>
-            ) : (
-              <RiUserLine className="w-6 h-6 text-foreground/80 group-hover/user:text-foreground transition-colors" />
-            )}
-          </div>
-
-          {/* User Status / Text is child 1 -> to the left of Avatar */}
-          <div className="text-right">
-            <h2 className="text-sm font-bold text-foreground leading-tight group-hover/user:text-primary transition-colors">
-              {user ? (user.email?.split('@')[0] || 'حساب کاربری') : 'ثبت‌نام/ ورود'}
-            </h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
-              {user ? 'همگام‌سازی خودکار فعال است' : 'برای هم‌گام‌سازی بوک‌مارک‌ها و.... ثبت‌نام کنید.'}
-            </p>
-          </div>
-        </div>
-
-        {/* Back navigation arrow on FAR LEFT */}
-        {onBackToToday ? (
-          <button
-            type="button"
-            onClick={onBackToToday}
-            className="w-8 h-8 rounded-full hover:bg-secondary/80 text-foreground/80 hover:text-foreground flex items-center justify-center transition-all cursor-pointer active:scale-95"
-            title="بازگشت به امروز"
-          >
-            <RiArrowLeftSLine className="w-6 h-6 stroke-[2]" />
-          </button>
-        ) : (
-          <div className="w-8 h-8" />
-        )}
-      </div>
-
-      {/* 2. Color Palette Section with Dark Switch (Bleeds past left padding to cut frame) */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          {/* Right: رنگ‌بندی */}
-          <span className="text-sm font-bold text-foreground">رنگ‌بندی</span>
-
-          {/* Left: Switch + تیره */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-foreground font-medium">تیره</span>
+    <div className={mainShellClass} dir="rtl">
+      {variant === 'page' && (
+        <div className="flex items-center justify-between pb-1">
+          <h1 className="font-darvish text-xl font-bold leading-tight text-foreground">
+            تنظیمات
+          </h1>
+          {onBackToToday && (
             <button
               type="button"
-              role="switch"
-              aria-checked={themeTab === 'dark'}
-              onClick={() => {
-                const nextMode = themeTab === 'dark' ? 'light' : 'dark';
-                setThemeTab(nextMode);
-                const targetThemes = nextMode === 'dark' ? DARK_THEMES : LIGHT_THEMES;
-                if (!targetThemes.some((t) => t.id === currentTheme)) {
-                  onThemeChange?.(targetThemes[0].id);
-                }
-              }}
-              className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer p-0.5 select-none shrink-0 ${
-                themeTab === 'dark' ? 'bg-primary' : 'bg-muted-foreground/30'
-              }`}
-              title="تغییر حالت تیره یا روشن"
+              onClick={onBackToToday}
+              className="flex size-8 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring cursor-pointer active:scale-95"
+              aria-label="بازگشت به امروز"
+              title="بازگشت به امروز"
             >
-              <div
-                className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                  themeTab === 'dark' ? '-translate-x-5' : 'translate-x-0'
-                }`}
-              />
+              <RiArrowLeftSLine className="size-5" />
             </button>
-          </div>
-        </div>
-
-        {/* Android Material-style Segmented Color Circles (Left edge cuts the frame) */}
-        <div
-          ref={themeDrag.ref}
-          onPointerDown={themeDrag.onPointerDown}
-          onPointerMove={themeDrag.onPointerMove}
-          onPointerUp={themeDrag.onPointerUp}
-          className="w-[calc(100%+1rem)] -ml-4 flex items-center gap-3 overflow-x-auto no-scrollbar py-3 pr-1 pl-0 -my-2 scroll-smooth cursor-grab active:cursor-grabbing select-none"
-        >
-          {activeThemes.map((th) => {
-            const isSelected = currentTheme === th.id;
-
-            return (
-              <button
-                key={th.id}
-                type="button"
-                onClick={() => {
-                  if (themeDrag.hasDragged.current) return;
-                  onThemeChange?.(th.id);
-                }}
-                className={`p-0.5 rounded-full transition-all cursor-pointer relative shrink-0 active:scale-95 ${
-                  isSelected
-                    ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background shadow-xs'
-                    : 'border border-border/80 dark:border-white/20 hover:border-foreground/50'
-                }`}
-                title={th.name}
-              >
-                {/* Android 4-quadrant segmented color circle */}
-                <svg
-                  viewBox="0 0 44 44"
-                  className="w-11 h-11 rounded-full overflow-hidden shrink-0 shadow-2xs pointer-events-none block"
-                >
-                  {/* Top-left quadrant */}
-                  <path d="M 22 22 L 0 22 A 22 22 0 0 1 22 0 Z" fill={th.previewColors.bg} />
-                  {/* Top-right quadrant */}
-                  <path d="M 22 22 L 22 0 A 22 22 0 0 1 44 22 Z" fill={th.previewColors.card} />
-                  {/* Bottom-left quadrant: Accent */}
-                  <path d="M 22 22 L 0 22 A 22 22 0 0 0 22 44 Z" fill={th.previewColors.accent} />
-                  {/* Bottom-right quadrant: Light/border */}
-                  <path d="M 22 22 L 22 44 A 22 22 0 0 0 44 22 Z" fill={th.previewColors.border} />
-
-                  {/* Clean inner dividing lines */}
-                  <line x1="0" y1="22" x2="44" y2="22" stroke="rgba(0,0,0,0.15)" strokeWidth="0.75" />
-                  <line x1="22" y1="0" x2="22" y2="44" stroke="rgba(0,0,0,0.15)" strokeWidth="0.75" />
-
-                  {/* Outer subtle circle border */}
-                  <circle cx="22" cy="22" r="21.5" fill="none" stroke="currentColor" strokeOpacity="0.18" strokeWidth="1" />
-                </svg>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Wallpaper Rail (Desktop Only - Left edge cuts the frame) */}
-      {!isMobile && (
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between text-xs px-1">
-            <span className="text-sm font-bold text-foreground">تصویرزمینه</span>
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('wallpaper')}
-              className="text-[11px] text-muted-foreground hover:text-foreground font-medium cursor-pointer"
-            >
-              دیدن همه ({toPersianDigits(WALLPAPER_LIST.length + 1)})
-            </button>
-          </div>
-
-          <div
-            ref={wallpaperDrag.ref}
-            onPointerDown={wallpaperDrag.onPointerDown}
-            onPointerMove={wallpaperDrag.onPointerMove}
-            onPointerUp={wallpaperDrag.onPointerUp}
-            className="w-[calc(100%+1rem)] -ml-4 flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1.5 pr-1 pl-0 scroll-smooth cursor-grab active:cursor-grabbing select-none"
-          >
-            {/* First Card: Selection from Gallery (از گالری) */}
-            <button
-              type="button"
-              onClick={() => {
-                if (wallpaperDrag.hasDragged.current) return;
-                if (customWallpaperUrl) {
-                  onWallpaperChange(`custom-image:${Date.now()}`);
-                } else {
-                  customImageInputRef.current?.click();
-                }
-              }}
-              className={`w-[110px] h-[68px] shrink-0 rounded-2xl overflow-hidden border text-center transition-all flex flex-col items-center justify-center cursor-pointer shadow-2xs relative ${
-                currentWallpaper.startsWith('custom-image')
-                  ? 'border-primary ring-2 ring-primary/20 shadow-xs'
-                  : 'border-dashed border-border/90 bg-secondary/40 hover:bg-secondary/70 hover:border-foreground/40'
-              }`}
-              title={customWallpaperUrl ? 'انتخاب تصویر شخصی (برای تغییر دوباره کلیک کنید)' : 'انتخاب تصویر از کامپیوتر'}
-            >
-              {customWallpaperUrl ? (
-                <div className="relative w-full h-full">
-                  <img
-                    src={customWallpaperUrl}
-                    alt={customWallpaperTitle}
-                    className="w-full h-full object-cover"
-                  />
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      customImageInputRef.current?.click();
-                    }}
-                    className="absolute inset-0 bg-black/35 hover:bg-black/50 transition-colors flex items-center justify-center text-white"
-                    title="تغییر عکس از سیستم"
-                  >
-                    <RiImageAddLine className="w-4 h-4 drop-shadow" />
-                  </div>
-                  {currentWallpaper.startsWith('custom-image') && (
-                    <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-foreground text-background flex items-center justify-center shadow z-20">
-                      <RiCheckLine className="w-2.5 h-2.5 stroke-[3]" />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-1 p-2">
-                  <RiImageAddLine className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-[10px] font-medium text-muted-foreground leading-tight">از گالری</span>
-                </div>
-              )}
-            </button>
-
-            {/* Curated Wallpaper Colors & Gradients */}
-            {WALLPAPER_LIST.map((wp) => {
-              const isSelected = currentWallpaper === wp.id;
-
-              return (
-                <button
-                  key={wp.id}
-                  type="button"
-                  onClick={() => {
-                    if (wallpaperDrag.hasDragged.current) return;
-                    onWallpaperChange(wp.id);
-                  }}
-                  className={`w-[110px] h-[68px] shrink-0 rounded-2xl overflow-hidden border text-right transition-all relative flex flex-col cursor-pointer shadow-2xs ${
-                    isSelected
-                      ? 'border-primary ring-2 ring-primary/30 shadow-xs'
-                      : 'border-border/80 hover:border-foreground/40'
-                  }`}
-                  title={wp.title}
-                >
-                  <div
-                    className="w-full h-full relative overflow-hidden flex items-end p-2 select-none"
-                    style={{
-                      background: wp.bgGradient || undefined,
-                      backgroundColor: wp.bgColor || undefined,
-                    }}
-                  >
-                    <span className="text-[9.5px] font-medium text-foreground/85 dark:text-white/95 drop-shadow-xs truncate z-10">
-                      {wp.title}
-                    </span>
-
-                    {isSelected && (
-                      <div className="absolute top-2 left-2 w-4 h-4 rounded-full bg-foreground text-background flex items-center justify-center shadow z-20">
-                        <RiCheckLine className="w-2.5 h-2.5 stroke-[3]" />
-                      </div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+          )}
         </div>
       )}
 
-      {/* 4. Categorized List Menu Items (Clean & Relevant to Space) */}
-      <div className="space-y-4 pt-1">
-        {/* Category: عمومی */}
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-muted-foreground/80 px-1 text-right">عمومی</p>
-          <div className="space-y-1">
-            {/* عمومی */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('general')}
-              className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl bg-zinc-900 text-white dark:bg-zinc-800 dark:text-zinc-100 hover:opacity-90 active:scale-[0.99] text-xs font-semibold transition-all cursor-pointer shadow-2xs"
-            >
-              <RiEqualizerLine className="w-4 h-4 text-white shrink-0" />
-              <span>عمومی</span>
-            </button>
+      <button
+        type="button"
+        onClick={() => {
+          if (user) {
+            setActiveSubPage('account');
+          } else {
+            onOpenAuthModal?.();
+          }
+        }}
+        className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/55 p-3 text-right outline-none transition-colors hover:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+      >
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border/70 bg-secondary/70 text-foreground">
+          {user ? (
+            <span className="font-mono text-xs font-bold uppercase">
+              {user.email ? user.email.slice(0, 2) : 'SP'}
+            </span>
+          ) : (
+            <RiUserLine className="size-5 text-muted-foreground" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12.5px] font-semibold text-foreground">
+            {user ? user.email?.split('@')[0] || 'حساب کاربری' : 'ورود یا ثبت‌نام'}
+          </span>
+          <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
+            {user
+              ? 'همگام‌سازی ابری فعال است'
+              : 'برای همگام‌سازی اطلاعات وارد شوید'}
+          </span>
+        </span>
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold',
+            user
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              : 'bg-foreground text-background'
+          )}
+        >
+          {user ? 'فعال' : 'ورود'}
+        </span>
+      </button>
 
-            {/* تم و رنگ */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('theme')}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiPaletteLine className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>تم و رنگ</span>
-            </button>
+      <SettingsGroup title="ظاهر">
+        <SettingsRow
+          icon={RiPaletteLine}
+          title="تم و رنگ"
+          description="پالت رنگی برنامه"
+          onClick={() => setActiveSubPage('theme')}
+          trailing={
+            <span className="flex shrink-0 items-center gap-1.5 text-[10.5px] text-muted-foreground">
+              <span
+                className="size-2 rounded-full"
+                style={{ backgroundColor: currentThemeConfig?.previewColors.accent }}
+              />
+              {currentThemeConfig?.name}
+            </span>
+          }
+        />
 
-            {/* تصویر زمینه (Desktop Only) */}
-            {!isMobile && (
+        <SettingsRow
+          icon={RiImageLine}
+          title="تصویر زمینه"
+          description={currentWallpaperTitle}
+          onClick={() => setActiveSubPage('wallpaper')}
+        />
+
+        <SettingsRow
+          icon={RiDropLine}
+          title="پس‌زمینه شیشه‌ای"
+          description="افکت شیشه مایع روی کادر برنامه و داک"
+          trailing={
+            <SettingsSwitch
+              checked={glassBackground}
+              onChange={(checked) => onGlassBackgroundChange?.(checked)}
+              label="پس‌زمینه شیشه‌ای"
+            />
+          }
+        />
+
+        {glassBackground && (
+          <div className="space-y-2 px-3 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex items-center justify-between text-[10.5px]">
+              <span className="text-muted-foreground">درجه شفافیت</span>
+              <span className="font-mono font-semibold tabular-nums text-foreground">
+                {toPersianDigits(Math.round((glassOpacity ?? 0.18) * 100))}٪
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0.04"
+              max="0.75"
+              step="0.02"
+              value={glassOpacity ?? 0.18}
+              onChange={(e) => onGlassOpacityChange?.(parseFloat(e.target.value))}
+              className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-secondary accent-primary"
+              dir="ltr"
+              aria-label="درجه شفافیت شیشه"
+            />
+            <div className="flex justify-between text-[9.5px] text-muted-foreground/80">
+              <span>شفاف‌تر</span>
+              <span>مات‌تر</span>
+            </div>
+          </div>
+        )}
+
+        <SettingsRow
+          icon={RiSparklingLine}
+          title="حالت تیره"
+          description="استفاده از پالت تیره در سراسر برنامه"
+          trailing={renderDarkModeSwitch()}
+        />
+
+        {!isMobile && (
+          <SettingsRow
+            icon={RiComputerLine}
+            title="موقعیت پنجره"
+            description="محل قرارگیری کادر برنامه روی نمایشگر"
+            trailing={
+              <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-secondary/40 p-0.5">
+                {(
+                  [
+                    { value: 'right', label: 'راست' },
+                    { value: 'center', label: 'وسط' },
+                    { value: 'left', label: 'چپ' },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => onDesktopPositionChange?.(option.value)}
+                    aria-pressed={desktopPosition === option.value}
+                    className={cn(
+                      'rounded-md px-2 py-1 text-[10.5px] font-medium transition-colors cursor-pointer',
+                      desktopPosition === option.value
+                        ? 'bg-foreground text-background shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            }
+          />
+        )}
+      </SettingsGroup>
+
+      <SettingsGroup title="کارها">
+        <SettingsRow
+          icon={RiTimeLine}
+          title="بخش‌بندی روزانه"
+          description="تفکیک کارها به صبح، ظهر، عصر و شب"
+          trailing={
+            <SettingsSwitch
+              checked={enableDaySections}
+              onChange={(checked) => onEnableDaySectionsChange?.(checked)}
+              label="بخش‌بندی روزانه"
+            />
+          }
+        />
+
+        <SettingsRow
+          icon={RiSparklingLine}
+          title="هدف روزانه"
+          description="تعداد کارها برای جشن موفقیت روزانه"
+          trailing={
+            <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-secondary/40 p-0.5">
               <button
                 type="button"
-                onClick={() => setActiveSubPage('wallpaper')}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
+                onClick={() => onDailyTaskGoalChange?.(Math.max(1, dailyTaskGoal - 1))}
+                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+                aria-label="کاهش هدف روزانه"
               >
-                <RiImageLine className="w-4 h-4 text-foreground/80 shrink-0" />
-                <span>تصویر زمینه</span>
+                −
               </button>
-            )}
-          </div>
+              <span className="w-6 text-center font-mono text-[11px] font-semibold tabular-nums text-foreground">
+                {toPersianDigits(dailyTaskGoal)}
+              </span>
+              <button
+                type="button"
+                onClick={() => onDailyTaskGoalChange?.(dailyTaskGoal + 1)}
+                className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+                aria-label="افزایش هدف روزانه"
+              >
+                +
+              </button>
+            </div>
+          }
+        />
+
+        <div className="flex flex-wrap items-center gap-1.5 px-3 py-2.5">
+          <span className="text-[10px] text-muted-foreground">پیشنهادی:</span>
+          {[3, 5, 7, 10].map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => onDailyTaskGoalChange?.(preset)}
+              className={cn(
+                'rounded-md px-2 py-1 text-[10px] font-medium transition-colors cursor-pointer',
+                dailyTaskGoal === preset
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+              )}
+            >
+              {toPersianDigits(preset)} کار
+            </button>
+          ))}
         </div>
+      </SettingsGroup>
 
-        <div className="border-t border-border/50" />
+      <SettingsGroup title="داده و امکانات">
+        <SettingsRow
+          icon={RiSearchLine}
+          title="جستجوی جامع"
+          description="جستجو در کارها، یادداشت‌ها و پوشه‌ها"
+          onClick={onOpenSearch}
+        />
+        <SettingsRow
+          icon={RiDownload2Line}
+          title="پشتیبان‌گیری و بازگردانی"
+          description="خروجی JSON و بازگردانی اطلاعات"
+          onClick={() => setActiveSubPage('backup')}
+        />
+        <SettingsRow
+          icon={RiHeadphoneLine}
+          title="صداهای تمرکز"
+          description="صوت‌های محیطی برای تمرکز بیشتر"
+          onClick={() => setActiveSubPage('ambient')}
+        />
+      </SettingsGroup>
 
-        {/* Category: ابزارک‌ها و امکانات (Real Space features) */}
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-muted-foreground/80 px-1 text-right">ابزارک‌ها و امکانات</p>
-          <div className="space-y-1">
-            {/* جریان روزانه و زمان‌بندی */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('stream')}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiTimeLine className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>جریان روزانه و زمان‌بندی</span>
-            </button>
+      <SettingsGroup title="اسپیس">
+        <SettingsRow
+          icon={RiInformationLine}
+          title="درباره اسپیس"
+          onClick={() => setActiveSubPage('about')}
+        />
+        <SettingsRow
+          icon={RiHashtag}
+          title="تغییرات اخیر"
+          onClick={() => setActiveSubPage('changelog')}
+        />
+        <SettingsRow
+          icon={RiHeart3Line}
+          title="ارسال بازخورد"
+          onClick={() => setActiveSubPage('feedback')}
+        />
+      </SettingsGroup>
 
-            {/* صداهای تمرکز و پس‌زمینه */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('ambient')}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiHeadphoneLine className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>صداهای تمرکز و پس‌زمینه</span>
-            </button>
+      <p className="pb-1 text-center text-[9.5px] text-muted-foreground/70">
+        اسپیس · نسخه ۱.۰.۰
+      </p>
 
-            {/* پشتیبان‌گیری و بازگردانی */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('backup')}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiDownload2Line className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>پشتیبان‌گیری و داده‌ها</span>
-            </button>
-
-            {/* جستجوی جامع */}
-            <button
-              type="button"
-              onClick={onOpenSearch}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiSearchLine className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>جستجوی جامع</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="border-t border-border/50" />
-
-        {/* Category: اسپیس */}
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold text-muted-foreground/80 px-1 text-right">اسپیس</p>
-          <div className="space-y-1">
-            {/* درباره اسپیس */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('about')}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiInformationLine className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>درباره اسپیس</span>
-            </button>
-
-            {/* تغییرات اخیر */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('changelog')}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiHashtag className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>تغییرات اخیر</span>
-            </button>
-
-            {/* ارسال بازخورد */}
-            <button
-              type="button"
-              onClick={() => setActiveSubPage('feedback')}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-secondary/60 text-foreground text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <RiHeart3Line className="w-4 h-4 text-foreground/80 shrink-0" />
-              <span>ارسال بازخورد</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Hidden File Input for Custom Background */}
       <input
         ref={customImageInputRef}
         type="file"

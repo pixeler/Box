@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import {
   PERSIAN_MONTH_NAMES,
   PERSIAN_FULL_WEEKDAY_NAMES,
@@ -352,7 +353,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
 
   const activeHolidayInfo = hoveredDate ? getHolidaysForDate(hoveredDate) : [];
 
-  const portalTarget = typeof document !== 'undefined' ? (document.getElementById('app-main') || document.body) : null;
+  const portalTarget = getOverlayPortalTarget();
   if (!portalTarget) return null;
 
   return createPortal(

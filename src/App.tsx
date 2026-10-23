@@ -6,8 +6,8 @@ import { DayStream } from './components/stream/DayStream';
 import { PinnedSection } from './components/stream/PinnedSection';
 import { NotebookView } from './components/notebook/NotebookView';
 import { NotebookProvider } from './components/notebook/NotebookContext';
-import { NotebookSecondarySidebarConnected } from './components/notebook/NotebookSecondarySidebar';
 import { ProfileView } from './components/profile/ProfileView';
+import { SettingsSidebar } from './components/profile/SettingsSidebar';
 import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
 import { DesktopSidebar } from './components/navigation/DesktopSidebar';
 import { DesktopSearchButton } from './components/navigation/DesktopSearchButton';
@@ -87,7 +87,19 @@ export function App() {
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
   const [_datesWithItems, setDatesWithItems] = useState<Set<string>>(new Set());
   const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !quickCaptureOpen && !searchOpen) {
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [settingsOpen, quickCaptureOpen, searchOpen]);
   const { user } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [_syncState, setSyncState] = useState<SyncState>('idle');
@@ -491,6 +503,23 @@ export function App() {
   const selectedJalali = parseJalaliKey(selectedDateKey);
   const selectedGregorianDate = jalaliToDate(selectedJalali.jy, selectedJalali.jm, selectedJalali.jd);
   const currentWeekdayName = getFullPersianWeekdayName(selectedGregorianDate);
+
+  const profileBaseProps = {
+    currentWallpaper: wallpaper,
+    onWallpaperChange: handleWallpaperChange,
+    currentTheme: theme,
+    onThemeChange: handleThemeChange,
+    glassBackground,
+    onGlassBackgroundChange: handleGlassBackgroundChange,
+    glassOpacity,
+    onGlassOpacityChange: handleGlassOpacityChange,
+    desktopPosition,
+    onDesktopPositionChange: handleDesktopPositionChange,
+    enableDaySections,
+    onEnableDaySectionsChange: handleEnableDaySectionsChange,
+    dailyTaskGoal,
+    onDailyTaskGoalChange: handleDailyTaskGoalChange,
+  };
   return (
     <NotebookProvider>
       <AppContainer
@@ -505,12 +534,29 @@ export function App() {
             activeTab={activeTab}
             onTabChange={(tab) => setActiveTab(tab)}
             onOpenAdd={() => setQuickCaptureOpen(true)}
+            onOpenSettings={() => setSettingsOpen((prev) => !prev)}
+            settingsOpen={settingsOpen}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={toggleSidebar}
           />
         }
         secondarySidebar={
-          activeTab === 'notebook' ? <NotebookSecondarySidebarConnected /> : undefined
+          settingsOpen ? (
+            <SettingsSidebar onClose={() => setSettingsOpen(false)}>
+              <ProfileView
+                {...profileBaseProps}
+                variant="panel"
+                onOpenAuthModal={() => {
+                  setSettingsOpen(false);
+                  setAuthModalOpen(true);
+                }}
+                onOpenSearch={() => {
+                  setSettingsOpen(false);
+                  setSearchOpen(true);
+                }}
+              />
+            </SettingsSidebar>
+          ) : undefined
         }
         desktopCorner={<DesktopSearchButton onClick={() => setSearchOpen(true)} />}
       isDark={isDarkMode(theme)}
@@ -536,16 +582,12 @@ export function App() {
             refreshTrigger={calendarRefreshKey}
             onSelectDate={(newDate) => {
               setSelectedDateKey(newDate);
-              setActiveTab('day');
             }}
             onOpenAddForDate={(dateKey) => {
               setSelectedDateKey(dateKey);
               setQuickCaptureOpen(true);
             }}
-            onBackToToday={() => {
-              setSelectedDateKey(getTodayJalaliKey());
-              setActiveTab('day');
-            }}
+            onExitCalendar={() => setActiveTab('day')}
             onTaskChanged={loadDayData}
           />
         </div>
@@ -645,6 +687,7 @@ export function App() {
               )}
             </div>
 
+
             {/* Stream Content Area sitting flush on the app container with full-width rows */}
             <div className="w-full flex-1 px-0 pt-3.5 sm:pt-4 pb-24 bg-transparent">
 
@@ -697,20 +740,7 @@ export function App() {
         {activeTab === 'focus' && <FocusView />}
         {activeTab === 'profile' && (
           <ProfileView
-            currentWallpaper={wallpaper}
-            onWallpaperChange={handleWallpaperChange}
-            currentTheme={theme}
-            onThemeChange={handleThemeChange}
-            glassBackground={glassBackground}
-            onGlassBackgroundChange={handleGlassBackgroundChange}
-            glassOpacity={glassOpacity}
-            onGlassOpacityChange={handleGlassOpacityChange}
-            desktopPosition={desktopPosition}
-            onDesktopPositionChange={handleDesktopPositionChange}
-            enableDaySections={enableDaySections}
-            onEnableDaySectionsChange={handleEnableDaySectionsChange}
-            dailyTaskGoal={dailyTaskGoal}
-            onDailyTaskGoalChange={handleDailyTaskGoalChange}
+            {...profileBaseProps}
             onOpenAuthModal={() => setAuthModalOpen(true)}
             onOpenSearch={() => setSearchOpen(true)}
             onBackToToday={() => setActiveTab('day')}

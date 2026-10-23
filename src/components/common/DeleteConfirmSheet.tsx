@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import { RiDeleteBinLine, RiCloseLine } from '@remixicon/react';
 
 interface DeleteConfirmSheetProps {
@@ -56,10 +57,7 @@ export const DeleteConfirmSheet: React.FC<DeleteConfirmSheetProps> = ({
     }
   };
 
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? document.getElementById('app-main') || document.body
-      : null;
+  const portalTarget = getOverlayPortalTarget();
   if (!portalTarget) return null;
 
   return createPortal(

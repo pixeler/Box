@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { getOverlayPortalTarget } from '@/lib/overlay';
 import type { Tag } from '@/types/models';
 import { tagRepo } from '@/repositories';
 import {
@@ -82,10 +83,7 @@ export const TagPickerSheet: React.FC<TagPickerSheetProps> = ({
 
   if (!isOpen && !isClosing) return null;
 
-  const portalTarget =
-    typeof document !== 'undefined'
-      ? document.getElementById('app-main') || document.body
-      : null;
+  const portalTarget = getOverlayPortalTarget();
 
   if (!portalTarget) return null;
 

@@ -136,7 +136,7 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       await noteRepo.update(noteId, { box_id: targetBoxId });
       const targetBox = targetBoxId ? boxes.find((b) => b.id === targetBoxId) : null;
-      const boxTitle = targetBox ? targetBox.title : 'شاخه اصلی';
+      const boxTitle = targetBox ? targetBox.title : 'ریشه';
       toast.show(`یادداشت به «${boxTitle}» منتقل شد`);
       loadData();
     } catch (err) {

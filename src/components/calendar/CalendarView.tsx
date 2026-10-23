@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Task, Tag, TimeOfDay } from '@/types/models';
 import { taskRepo, tagRepo } from '@/repositories';
 import {
@@ -8,54 +9,67 @@ import {
   getWeekDaysForDate,
   toPersianDigits,
   PERSIAN_MONTH_NAMES,
-  PERSIAN_WEEKDAY_NAMES,
   jalaliToDate,
   getJalaliMonthLength,
-  getJalaliMonthFirstDayOfWeek,
   extractDateOnly,
   getJalaliDate,
+  addJalaliDays,
+  formatJalaliDisplay,
+  getFullPersianWeekdayName,
+  formatTaskDateDisplay,
 } from '@/lib/jalali';
 import { isTaskOccurringOnDate } from '@/lib/recurrence';
-import { getHolidaysForDate, isOfficialHoliday } from '@/lib/holidays';
+import { getHolidaysForDate } from '@/lib/holidays';
 import { cn, getTaskPencilPattern } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 import { TaskItemRow } from '@/components/stream/TaskItemRow';
 import { TaskEditModal } from '@/components/task/TaskEditModal';
+import { QuickCaptureInput } from '@/components/capture/QuickCaptureInput';
 import { TIME_OF_DAY_SECTIONS } from '@/components/stream/timeOfDayConfig';
+import { useIsMobile } from '@/lib/device';
+import { CalendarHeader } from './CalendarHeader';
+import { CalendarAddRow } from './CalendarAddRow';
+import { CalendarDayView } from './CalendarDayView';
+import { CalendarMonthView } from './CalendarMonthView';
+import { CalendarYearView } from './CalendarYearView';
+import type { CalendarViewMode } from './calendarUtils';
 import {
-  RiAddLine,
-  RiArrowGoBackLine,
-  RiCalendar2Line,
-  RiGridLine,
-  RiLayoutGridLine,
-  RiCheckLine,
-  RiTimeLine,
-  RiArrowRightSLine,
+  formatWeekRange,
+  getTaskSection,
+  getWeekOfMonthLabel,
+  priorityDotClass,
+  sortTasksForAgenda,
+} from './calendarUtils';
+import {
   RiArrowLeftSLine,
+  RiCheckLine,
+  RiCloseLine,
+  RiHistoryLine,
+  RiSunLine,
+  RiTimeLine,
 } from '@remixicon/react';
 
 function formatDurationPersian(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h > 0 && m > 0) return `${h} ساعت و ${m} دقیقه`;
-  if (h > 0) return `${h} ساعت`;
-  return `${m} دقیقه`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours > 0 && rest > 0) return `${hours} ساعت و ${rest} دقیقه`;
+  if (hours > 0) return `${hours} ساعت`;
+  return `${rest} دقیقه`;
 }
 
 function formatTaskTimeRange(startTime?: string, durationMinutes?: number): string {
   if (!startTime) return '';
-  const [hStr, mStr] = startTime.split(':');
-  const h = parseInt(hStr, 10) || 0;
-  const m = parseInt(mStr, 10) || 0;
-  const dur = durationMinutes || 30;
-  const endMinutesTotal = h * 60 + m + dur;
-  const endH = Math.floor(endMinutesTotal / 60) % 24;
-  const endM = endMinutesTotal % 60;
-  const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-  return `${startTime} - ${endStr}`;
+  const [hours, minutes] = startTime.split(':');
+  const startHour = parseInt(hours, 10) || 0;
+  const startMinute = parseInt(minutes, 10) || 0;
+  const duration = durationMinutes || 30;
+  const endTotal = startHour * 60 + startMinute + duration;
+  const endHour = Math.floor(endTotal / 60) % 24;
+  const endMinute = endTotal % 60;
+  return `${startTime} - ${endHour.toString().padStart(2, '0')}:${endMinute
+    .toString()
+    .padStart(2, '0')}`;
 }
-
-type CalendarViewMode = 'week' | 'month' | 'year';
 
 interface CalendarViewProps {
   selectedDateKey: string;
@@ -63,12 +77,97 @@ interface CalendarViewProps {
   refreshTrigger?: any;
   onSelectDate: (dateKey: string) => void;
   onOpenAddForDate?: (dateKey: string) => void;
-  onBackToToday?: () => void;
+  onExitCalendar?: () => void;
   onTaskChanged?: () => void;
 }
 
-// 24-hour slots for timeline mode
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
+interface CalendarHistoryEntry {
+  mode: CalendarViewMode;
+  dateKey: string;
+}
+
+const HOURS = Array.from({ length: 24 }, (_, index) => index);
+const HOUR_HEIGHT = 64;
+
+// The add control belongs to the bottom of each week cell and only appears
+// while that cell is hovered or one of its controls has keyboard focus.
+const weekAddRevealClass =
+  'pointer-events-none opacity-0 transition-opacity duration-150 group-hover/cell:pointer-events-auto group-hover/cell:opacity-100 group-focus-within/cell:pointer-events-auto group-focus-within/cell:opacity-100';
+
+interface OverdueTaskRowProps {
+  task: Task;
+  todayKey: string;
+  draggable: boolean;
+  onOpen: () => void;
+  onMoveToToday: () => void;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+}
+
+const OverdueTaskRow: React.FC<OverdueTaskRowProps> = ({
+  task,
+  todayKey,
+  draggable,
+  onOpen,
+  onMoveToToday,
+  onDragStart,
+  onDragEnd,
+}) => (
+  <div
+    draggable={draggable}
+    onDragStart={onDragStart}
+    onDragEnd={onDragEnd}
+    onClick={onOpen}
+    onKeyDown={(e) => {
+      if (e.target !== e.currentTarget) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onOpen();
+      }
+    }}
+    role="button"
+    tabIndex={0}
+    className={cn(
+      'group/overdue flex w-full select-none items-start gap-2 rounded-xl px-2 py-2 text-right outline-none transition-colors hover:bg-secondary/50 focus-visible:ring-2 focus-visible:ring-ring',
+      draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+    )}
+  >
+    <span
+      className={cn(
+        'mt-1.5 size-1.5 shrink-0 rounded-full',
+        priorityDotClass(task.priority)
+      )}
+    />
+
+    <span className="min-w-0 flex-1">
+      <span className="line-clamp-2 block text-[11.5px] font-medium leading-snug text-foreground">
+        {task.title}
+      </span>
+      <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">
+        {formatTaskDateDisplay(
+          task.due_date,
+          todayKey,
+          true,
+          task.due_time,
+          task.duration_minutes
+        )}
+      </span>
+    </span>
+
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onMoveToToday();
+      }}
+      aria-label="انتقال به امروز"
+      title="انتقال به امروز"
+      className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/70 opacity-100 outline-none transition-opacity hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:opacity-0 sm:group-hover/overdue:opacity-100 sm:focus-visible:opacity-100"
+    >
+      <RiSunLine className="size-3.5" />
+    </button>
+  </div>
+);
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   selectedDateKey,
@@ -76,32 +175,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   refreshTrigger,
   onSelectDate,
   onOpenAddForDate,
-  onBackToToday,
+  onExitCalendar,
   onTaskChanged,
 }) => {
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
-  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
-  const [isYearPickerOpen, setIsYearPickerOpen] = useState(false);
+  const [currentDateKey, setCurrentDateKey] = useState<string>(
+    () => selectedDateKey || getTodayJalaliKey()
+  );
+  const [history, setHistory] = useState<CalendarHistoryEntry[]>([]);
 
-  // Active anchor date for calendar navigation
-  const [currentDateKey, setCurrentDateKey] = useState<string>(() => selectedDateKey || getTodayJalaliKey());
-
-  useEffect(() => {
-    if (selectedDateKey) {
-      setCurrentDateKey(selectedDateKey);
-    }
-  }, [selectedDateKey]);
-
-  // Tasks and tags state
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
   const [_isLoading, setIsLoading] = useState(false);
 
-  // Drag and Drop state
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
 
-  // Google Calendar style resizing and editing state
   const [resizingTask, setResizingTask] = useState<{
     id: string;
     startY: number;
@@ -109,74 +198,81 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     currentDuration: number;
   } | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [weekComposer, setWeekComposer] = useState<{
+    dateKey: string;
+    timeOfDay: TimeOfDay;
+  } | null>(null);
+  const [overdueOpen, setOverdueOpen] = useState(false);
+  const isMobile = useIsMobile();
 
-  // Live current time state (for red live indicator line)
-  const [currentTime, setCurrentTime] = useState<{ hour: number; minute: number }>(() => {
+  const [currentTime, setCurrentTime] = useState(() => {
     const now = new Date();
     return { hour: now.getHours(), minute: now.getMinutes() };
   });
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
-  const hasAutoScrolledRef = useRef(false);
 
-  // Update live time every minute
   useEffect(() => {
-    const timer = setInterval(() => {
+    if (!selectedDateKey) return;
+    setCurrentDateKey((previous) =>
+      previous === selectedDateKey ? previous : selectedDateKey
+    );
+  }, [selectedDateKey]);
+
+  useEffect(() => {
+    setWeekComposer(null);
+  }, [viewMode, currentDateKey]);
+
+  useEffect(() => {
+    if (viewMode !== 'week') setOverdueOpen(false);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (!overdueOpen || !isMobile) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOverdueOpen(false);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKey);
+    };
+  }, [overdueOpen, isMobile]);
+
+  useEffect(() => {
+    if (isMobile || viewMode !== 'week' || enableDaySections) return;
+    const timer = window.setInterval(() => {
       const now = new Date();
       setCurrentTime({ hour: now.getHours(), minute: now.getMinutes() });
     }, 60000);
-    return () => clearInterval(timer);
-  }, []);
+    return () => window.clearInterval(timer);
+  }, [isMobile, viewMode, enableDaySections]);
 
-  // Dropdown refs for click-outside
-  const monthDropdownRef = useRef<HTMLDivElement>(null);
-  const yearDropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (monthDropdownRef.current && !monthDropdownRef.current.contains(target)) {
-        setIsMonthPickerOpen(false);
-      }
-      if (yearDropdownRef.current && !yearDropdownRef.current.contains(target)) {
-        setIsYearPickerOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Load all tasks and tags
   const loadCalendarData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [allTasks, allTags] = await Promise.all([
-        taskRepo.list(),
-        tagRepo.listAll(),
-      ]);
+      const [allTasks, allTags] = await Promise.all([taskRepo.list(), tagRepo.listAll()]);
       setTasks(allTasks);
-
-      const tMap: Record<string, Tag> = {};
-      allTags.forEach((t) => (tMap[t.id] = t));
-      setTagsMap(tMap);
-    } catch (err) {
-      console.error('Failed to load calendar data', err);
+      const nextTagsMap: Record<string, Tag> = {};
+      allTags.forEach((tag) => {
+        nextTagsMap[tag.id] = tag;
+      });
+      setTagsMap(nextTagsMap);
+    } catch (error) {
+      console.error('Failed to load calendar data', error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Initial load and reload on refreshTrigger
   useEffect(() => {
     loadCalendarData();
   }, [loadCalendarData, refreshTrigger]);
 
-  // Global listener for task updates
   useEffect(() => {
-    const handleTaskUpdated = () => {
-      loadCalendarData();
-    };
+    const handleTaskUpdated = () => loadCalendarData();
     window.addEventListener('task-updated', handleTaskUpdated);
     window.addEventListener('focus', handleTaskUpdated);
     return () => {
@@ -185,32 +281,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     };
   }, [loadCalendarData]);
 
-  // Mouse listeners for resizing task duration in 15-minute increments (16px = 15 min)
   useEffect(() => {
     if (!resizingTask) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       const deltaY = e.clientY - resizingTask.startY;
-      // 16px is 15 minutes (64px = 60 min)
       const deltaMinutes = Math.round(deltaY / 16) * 15;
       const nextDuration = Math.max(15, resizingTask.initialDuration + deltaMinutes);
-      setResizingTask((prev) => (prev ? { ...prev, currentDuration: nextDuration } : null));
+      setResizingTask((previous) =>
+        previous ? { ...previous, currentDuration: nextDuration } : null
+      );
     };
 
     const handleMouseUp = async () => {
       const finalDuration = resizingTask.currentDuration;
       const taskId = resizingTask.id;
-      const initialDur = resizingTask.initialDuration;
+      const initialDuration = resizingTask.initialDuration;
       setResizingTask(null);
 
-      if (finalDuration !== initialDur) {
+      if (finalDuration !== initialDuration) {
         try {
           await taskRepo.update(taskId, { duration_minutes: finalDuration });
           await loadCalendarData();
-          if (onTaskChanged) onTaskChanged();
+          onTaskChanged?.();
           toast.show(`مدت زمان به ${toPersianDigits(formatDurationPersian(finalDuration))} تنظیم شد`);
-        } catch (err) {
-          console.error('Failed to update task duration', err);
+        } catch (error) {
+          console.error('Failed to update task duration', error);
           toast.show('خطا در تغییر مدت زمان تسک');
         }
       }
@@ -236,83 +332,288 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     });
   };
 
-  const toggleTaskDone = async (task: Task) => {
-    try {
-      const nextStatus = task.status === 'done' ? 'open' : 'done';
-      await taskRepo.update(task.id, { status: nextStatus });
-      await loadCalendarData();
-      if (onTaskChanged) onTaskChanged();
-    } catch (err) {
-      console.error('Failed to toggle task status', err);
-    }
-  };
+  const toggleTaskDone = useCallback(
+    async (task: Task, dateKey: string) => {
+      try {
+        await taskRepo.toggleDone(task.id, dateKey);
+        await loadCalendarData();
+        onTaskChanged?.();
+      } catch (error) {
+        console.error('Failed to toggle task status', error);
+      }
+    },
+    [loadCalendarData, onTaskChanged]
+  );
+
+  const handleStatusChanged = useCallback(() => {
+    loadCalendarData();
+    onTaskChanged?.();
+  }, [loadCalendarData, onTaskChanged]);
 
   const parsedCurrent = useMemo(() => parseJalaliKey(currentDateKey), [currentDateKey]);
   const todayKey = useMemo(() => getTodayJalaliKey(), []);
+  const todayParsed = useMemo(() => parseJalaliKey(todayKey), [todayKey]);
 
-  // Week days for weekly mode (7 days: Saturday to Friday)
   const weekDays = useMemo(() => {
-    const curDate = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
-    return getWeekDaysForDate(curDate);
+    const anchor = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
+    return getWeekDaysForDate(anchor);
   }, [parsedCurrent]);
 
-  // Auto-scroll to current time on week view mount or viewMode switch
-  useEffect(() => {
-    if (viewMode === 'week') {
-      const scrollTimer = setTimeout(() => {
-        if (timelineScrollRef.current) {
-          const currentHour = new Date().getHours();
-          const currentMinute = new Date().getMinutes();
-          const currentPixelTop = (currentHour + currentMinute / 60) * 64;
-          const targetScroll = Math.max(0, currentPixelTop - 64);
-          timelineScrollRef.current.scrollTop = targetScroll;
-          hasAutoScrolledRef.current = true;
-        }
-      }, 50);
-      return () => clearTimeout(scrollTimer);
-    }
-  }, [viewMode]);
+  const weekContainsToday = useMemo(
+    () => weekDays.some((day) => day.formattedDate === todayKey),
+    [weekDays, todayKey]
+  );
 
-  // Current month & year components
-  const currentMonthName = useMemo(() => {
-    return PERSIAN_MONTH_NAMES[parsedCurrent.jm - 1] || '';
-  }, [parsedCurrent]);
+  const getTasksForDate = useCallback(
+    (dateKey: string): Task[] => {
+      const targetDate = extractDateOnly(dateKey);
+      return tasks
+        .filter((task) => {
+          if (task.status === 'dropped') return false;
+          return isTaskOccurringOnDate(task, targetDate);
+        })
+        .map((task) => {
+          if (task.recurrence_rule && task.recurrence_rule !== 'none') {
+            const isDoneOnDate = (task.done_dates || [])
+              .map(extractDateOnly)
+              .includes(targetDate);
+            return { ...task, status: isDoneOnDate ? 'done' : 'open' } as Task;
+          }
+          return task;
+        });
+    },
+    [tasks]
+  );
 
-  const currentYearNumber = useMemo(() => {
-    return parsedCurrent.jy;
-  }, [parsedCurrent]);
+  const weekTasks = useMemo(
+    () =>
+      weekDays.map((day) => {
+        const dayTasks = getTasksForDate(day.formattedDate);
+        return {
+          day,
+          tasks: dayTasks,
+          sortedTasks: sortTasksForAgenda(dayTasks),
+        };
+      }),
+    [weekDays, getTasksForDate]
+  );
 
-  // Year options for Google Calendar style year picker (-5 to +5 years)
-  const yearOptions = useMemo(() => {
-    const baseYear = parsedCurrent.jy;
-    const years: number[] = [];
-    for (let y = baseYear - 5; y <= baseYear + 5; y++) {
-      years.push(y);
-    }
-    return years;
-  }, [parsedCurrent.jy]);
-
-  // Helper to get active tasks for a specific Jalali date
-  const getTasksForDate = useCallback((dateKey: string): Task[] => {
-    const targetDate = extractDateOnly(dateKey);
+  const overdueTasks = useMemo(() => {
+    const todayDate = extractDateOnly(todayKey);
     return tasks
       .filter((task) => {
-        if (task.status === 'dropped') return false;
-        return isTaskOccurringOnDate(task, targetDate);
-      })
-      .map((task) => {
-        if (task.recurrence_rule && task.recurrence_rule !== 'none') {
-          const isDoneOnDate = (task.done_dates || []).map(extractDateOnly).includes(targetDate);
-          return {
-            ...task,
-            status: isDoneOnDate ? 'done' : 'open',
-          };
+        if (task.status !== 'open') return false;
+        const due = extractDateOnly(task.due_date);
+        if (!due || due >= todayDate) return false;
+        if (
+          task.recurrence_rule &&
+          task.recurrence_rule !== 'none' &&
+          isTaskOccurringOnDate(task, todayDate)
+        ) {
+          return false;
         }
-        return task;
+        return true;
+      })
+      .sort((a, b) => {
+        const dateDiff = extractDateOnly(a.due_date).localeCompare(
+          extractDateOnly(b.due_date)
+        );
+        if (dateDiff !== 0) return dateDiff;
+        return (b.priority || 0) - (a.priority || 0);
       });
-  }, [tasks]);
+  }, [tasks, todayKey]);
 
-  // Drag and drop handlers
+  const monthTaskCount = useMemo(() => {
+    const monthLength = getJalaliMonthLength(parsedCurrent.jy, parsedCurrent.jm);
+    let count = 0;
+    for (let day = 1; day <= monthLength; day++) {
+      const key = formatJalaliKey({
+        jy: parsedCurrent.jy,
+        jm: parsedCurrent.jm,
+        jd: day,
+      });
+      count += getTasksForDate(key).length;
+    }
+    return count;
+  }, [parsedCurrent.jy, parsedCurrent.jm, getTasksForDate]);
+
+  const isOnToday = useMemo(() => {
+    if (viewMode === 'day') return currentDateKey === todayKey;
+    if (viewMode === 'week') return weekContainsToday;
+    if (viewMode === 'month') {
+      return parsedCurrent.jy === todayParsed.jy && parsedCurrent.jm === todayParsed.jm;
+    }
+    return parsedCurrent.jy === todayParsed.jy;
+  }, [viewMode, currentDateKey, todayKey, weekContainsToday, parsedCurrent, todayParsed]);
+
+  const scrollTimelineToNow = useCallback(() => {
+    if (!timelineScrollRef.current) return;
+    const hour = weekContainsToday ? currentTime.hour + currentTime.minute / 60 : 8;
+    timelineScrollRef.current.scrollTop = Math.max(0, hour * HOUR_HEIGHT - HOUR_HEIGHT);
+  }, [weekContainsToday, currentTime.hour, currentTime.minute]);
+
+  useEffect(() => {
+    if (isMobile || viewMode !== 'week' || enableDaySections) return;
+    const timer = window.setTimeout(() => {
+      if (!timelineScrollRef.current) return;
+      const now = new Date();
+      const hour = weekContainsToday
+        ? now.getHours() + now.getMinutes() / 60
+        : 8;
+      timelineScrollRef.current.scrollTop = Math.max(
+        0,
+        hour * HOUR_HEIGHT - HOUR_HEIGHT
+      );
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [isMobile, viewMode, enableDaySections, currentDateKey, weekContainsToday]);
+
+  const headerTitle = useMemo(() => {
+    if (viewMode === 'day') {
+      const date = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
+      return getFullPersianWeekdayName(date);
+    }
+    if (viewMode === 'week') {
+      return getWeekOfMonthLabel(weekDays);
+    }
+    if (viewMode === 'month') {
+      return `${PERSIAN_MONTH_NAMES[parsedCurrent.jm - 1]} ${toPersianDigits(
+        parsedCurrent.jy
+      )}`;
+    }
+    return toPersianDigits(parsedCurrent.jy);
+  }, [viewMode, parsedCurrent, weekDays]);
+
+  const headerSubtitle = useMemo(() => {
+    if (viewMode === 'day') {
+      const holiday = getHolidaysForDate(currentDateKey)[0];
+      return [
+        formatJalaliDisplay(parsedCurrent),
+        currentDateKey === todayKey ? 'امروز' : '',
+        holiday?.title || '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    }
+    if (viewMode === 'week') {
+      return formatWeekRange(weekDays);
+    }
+    if (viewMode === 'month') {
+      return `${toPersianDigits(
+        getJalaliMonthLength(parsedCurrent.jy, parsedCurrent.jm)
+      )} روز · ${toPersianDigits(monthTaskCount)} کار`;
+    }
+    return 'نمای سالانه';
+  }, [
+    viewMode,
+    currentDateKey,
+    todayKey,
+    parsedCurrent,
+    weekContainsToday,
+    monthTaskCount,
+  ]);
+
+  const pushHistory = useCallback(() => {
+    setHistory((previous) => [...previous, { mode: viewMode, dateKey: currentDateKey }]);
+  }, [viewMode, currentDateKey]);
+
+  const openDay = useCallback(
+    (dateKey: string) => {
+      if (viewMode !== 'day') pushHistory();
+      setCurrentDateKey(dateKey);
+      setViewMode('day');
+      onSelectDate(dateKey);
+    },
+    [viewMode, pushHistory, onSelectDate]
+  );
+
+  const openMonth = useCallback(
+    (jm: number) => {
+      pushHistory();
+      setViewMode('month');
+      setCurrentDateKey(formatJalaliKey({ jy: parsedCurrent.jy, jm, jd: 1 }));
+    },
+    [pushHistory, parsedCurrent.jy]
+  );
+
+  const handleBack = useCallback(() => {
+    if (history.length === 0) {
+      onExitCalendar?.();
+      return;
+    }
+    const previous = history[history.length - 1];
+    setHistory((entries) => entries.slice(0, -1));
+    setViewMode(previous.mode);
+    setCurrentDateKey(previous.dateKey);
+    if (previous.mode === 'day') onSelectDate(previous.dateKey);
+  }, [history, onExitCalendar, onSelectDate]);
+
+  const handleModeChange = useCallback(
+    (mode: CalendarViewMode) => {
+      setViewMode(mode);
+      setHistory([]);
+      if (mode === 'day') onSelectDate(currentDateKey);
+    },
+    [currentDateKey, onSelectDate]
+  );
+
+  const handlePickMonth = useCallback(
+    (jm: number, jy: number) => {
+      setViewMode('month');
+      setHistory([]);
+      setCurrentDateKey(formatJalaliKey({ jy, jm, jd: 1 }));
+    },
+    []
+  );
+
+  const handleNavigatePrev = useCallback(() => {
+    if (viewMode === 'day') {
+      const nextKey = addJalaliDays(currentDateKey, -1);
+      setCurrentDateKey(nextKey);
+      onSelectDate(nextKey);
+    } else if (viewMode === 'week') {
+      const date = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
+      date.setDate(date.getDate() - 7);
+      setCurrentDateKey(formatJalaliKey(getJalaliDate(date)));
+    } else if (viewMode === 'month') {
+      const previousMonth = parsedCurrent.jm === 1 ? 12 : parsedCurrent.jm - 1;
+      const previousYear = parsedCurrent.jm === 1 ? parsedCurrent.jy - 1 : parsedCurrent.jy;
+      setCurrentDateKey(formatJalaliKey({ jy: previousYear, jm: previousMonth, jd: 1 }));
+    } else {
+      setCurrentDateKey(
+        formatJalaliKey({ jy: parsedCurrent.jy - 1, jm: parsedCurrent.jm, jd: 1 })
+      );
+    }
+  }, [viewMode, currentDateKey, parsedCurrent, onSelectDate]);
+
+  const handleNavigateNext = useCallback(() => {
+    if (viewMode === 'day') {
+      const nextKey = addJalaliDays(currentDateKey, 1);
+      setCurrentDateKey(nextKey);
+      onSelectDate(nextKey);
+    } else if (viewMode === 'week') {
+      const date = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
+      date.setDate(date.getDate() + 7);
+      setCurrentDateKey(formatJalaliKey(getJalaliDate(date)));
+    } else if (viewMode === 'month') {
+      const nextMonth = parsedCurrent.jm === 12 ? 1 : parsedCurrent.jm + 1;
+      const nextYear = parsedCurrent.jm === 12 ? parsedCurrent.jy + 1 : parsedCurrent.jy;
+      setCurrentDateKey(formatJalaliKey({ jy: nextYear, jm: nextMonth, jd: 1 }));
+    } else {
+      setCurrentDateKey(
+        formatJalaliKey({ jy: parsedCurrent.jy + 1, jm: parsedCurrent.jm, jd: 1 })
+      );
+    }
+  }, [viewMode, currentDateKey, parsedCurrent, onSelectDate]);
+
+  const handleToday = useCallback(() => {
+    setCurrentDateKey(todayKey);
+    if (viewMode === 'day') onSelectDate(todayKey);
+    if (!isMobile && viewMode === 'week' && !enableDaySections) {
+      window.setTimeout(scrollTimelineToNow, 80);
+    }
+  }, [todayKey, viewMode, onSelectDate, scrollTimelineToNow, isMobile, enableDaySections]);
+
   const handleTaskDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
     e.dataTransfer.effectAllowed = 'move';
@@ -322,9 +623,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const handleCellDragOver = (e: React.DragEvent, cellId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (dragOverCell !== cellId) {
-      setDragOverCell(cellId);
-    }
+    if (dragOverCell !== cellId) setDragOverCell(cellId);
   };
 
   const handleCellDragLeave = () => {
@@ -344,29 +643,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     if (!taskId) return;
 
     try {
-      const task = tasks.find((t) => t.id === taskId);
+      const task = tasks.find((item) => item.id === taskId);
       if (!task) return;
 
-      const patch: Partial<Task> = {
-        due_date: targetDateKey,
-      };
+      const patch: Partial<Task> = { due_date: targetDateKey };
 
       if (options?.timeOfDay) {
         patch.time_of_day = options.timeOfDay;
-        if (options.timeOfDay === 'anytime') {
-          patch.due_time = undefined;
-        }
+        if (options.timeOfDay === 'anytime') patch.due_time = undefined;
       }
 
       if (options?.hour !== undefined) {
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const offsetY = Math.max(0, e.clientY - rect.top);
-        const quarter = Math.min(3, Math.max(0, Math.floor((offsetY / 64) * 4)));
-        const minutes = quarter * 15;
-        const hourStr = `${options.hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-        patch.due_time = hourStr;
+        const quarter = Math.min(3, Math.max(0, Math.floor((offsetY / HOUR_HEIGHT) * 4)));
+        patch.due_time = `${options.hour.toString().padStart(2, '0')}:${(quarter * 15)
+          .toString()
+          .padStart(2, '0')}`;
         if (!task.duration_minutes || task.duration_minutes < 15) {
-          patch.duration_minutes = 30; // default 30 min, minimum 15 min
+          patch.duration_minutes = 30;
         }
         patch.time_of_day = undefined;
       }
@@ -377,652 +672,589 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       await taskRepo.update(taskId, patch);
       await loadCalendarData();
-      if (onTaskChanged) onTaskChanged();
-
-      toast.show(`تسک به تاریخ ${toPersianDigits(targetDateKey)} منتقل شد`);
-    } catch (err) {
-      console.error('Failed to move task on drop', err);
-      toast.show('خطا در انتقال تسک');
+      onTaskChanged?.();
+      toast.show(`کار به تاریخ ${toPersianDigits(targetDateKey)} منتقل شد`);
+    } catch (error) {
+      console.error('Failed to move task on drop', error);
+      toast.show('خطا در انتقال کار');
     }
   };
 
-  const isNotToday = currentDateKey !== todayKey;
-
-  // Live indicator vertical position calculation: 64px per hour slot
-  const currentLiveTop = useMemo(() => {
-    return currentTime.hour * 64 + (currentTime.minute / 60) * 64;
-  }, [currentTime]);
-
-  const handleNavigatePrev = useCallback(() => {
-    if (viewMode === 'week') {
-      const d = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
-      d.setDate(d.getDate() - 7);
-      const prevJ = getJalaliDate(d);
-      setCurrentDateKey(formatJalaliKey(prevJ));
-    } else if (viewMode === 'month') {
-      let prevM = parsedCurrent.jm - 1;
-      let prevY = parsedCurrent.jy;
-      if (prevM < 1) {
-        prevM = 12;
-        prevY--;
+  const handleDropOnSection = useCallback(
+    async (taskId: string, timeOfDay: TimeOfDay) => {
+      try {
+        await taskRepo.update(taskId, {
+          time_of_day: timeOfDay,
+          due_date: currentDateKey,
+        });
+        await loadCalendarData();
+        onTaskChanged?.();
+        toast.show('بخش روز تغییر کرد');
+      } catch (error) {
+        console.error('Failed to change task section', error);
+        toast.show('خطا در انتقال کار');
       }
-      setCurrentDateKey(formatJalaliKey({ jy: prevY, jm: prevM, jd: 1 }));
-    } else {
-      setCurrentDateKey(formatJalaliKey({ jy: parsedCurrent.jy - 1, jm: parsedCurrent.jm, jd: 1 }));
-    }
-  }, [viewMode, parsedCurrent]);
+    },
+    [currentDateKey, loadCalendarData, onTaskChanged]
+  );
 
-  const handleNavigateNext = useCallback(() => {
-    if (viewMode === 'week') {
-      const d = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
-      d.setDate(d.getDate() + 7);
-      const nextJ = getJalaliDate(d);
-      setCurrentDateKey(formatJalaliKey(nextJ));
-    } else if (viewMode === 'month') {
-      let nextM = parsedCurrent.jm + 1;
-      let nextY = parsedCurrent.jy;
-      if (nextM > 12) {
-        nextM = 1;
-        nextY++;
+  const currentLiveTop = useMemo(
+    () => currentTime.hour * HOUR_HEIGHT + (currentTime.minute / 60) * HOUR_HEIGHT,
+    [currentTime]
+  );
+
+  const handleWeekItemCreated = useCallback(async () => {
+    await loadCalendarData();
+    onTaskChanged?.();
+  }, [loadCalendarData, onTaskChanged]);
+
+  const moveOverdueToToday = useCallback(
+    async (taskId: string) => {
+      try {
+        await taskRepo.update(taskId, { due_date: todayKey });
+        await loadCalendarData();
+        onTaskChanged?.();
+        toast.show('کار به امروز منتقل شد');
+      } catch (error) {
+        console.error('Failed to move overdue task', error);
+        toast.show('خطا در انتقال کار');
       }
-      setCurrentDateKey(formatJalaliKey({ jy: nextY, jm: nextM, jd: 1 }));
-    } else {
-      setCurrentDateKey(formatJalaliKey({ jy: parsedCurrent.jy + 1, jm: parsedCurrent.jm, jd: 1 }));
-    }
-  }, [viewMode, parsedCurrent]);
+    },
+    [todayKey, loadCalendarData, onTaskChanged]
+  );
+
+  const renderOverdueRows = (draggable: boolean) =>
+    overdueTasks.map((task) => (
+      <OverdueTaskRow
+        key={task.id}
+        task={task}
+        todayKey={todayKey}
+        draggable={draggable}
+        onOpen={() => setEditingTask(task)}
+        onMoveToToday={() => moveOverdueToToday(task.id)}
+        onDragStart={
+          draggable ? (e) => handleTaskDragStart(e, task.id) : undefined
+        }
+        onDragEnd={draggable ? () => setDraggedTaskId(null) : undefined}
+      />
+    ));
+
+  const renderWeekInlineComposer = (dateKey: string, timeOfDay: TimeOfDay) => (
+    <QuickCaptureInput
+      key={`${dateKey}-${timeOfDay}`}
+      variant="inline"
+      currentSelectedDateKey={dateKey}
+      initialTimeOfDay={timeOfDay}
+      onItemCreated={handleWeekItemCreated}
+      onClose={() => setWeekComposer(null)}
+    />
+  );
 
   return (
-    <div className="w-full h-full flex flex-col bg-background text-foreground overflow-hidden select-none calendar-smooth-open">
-      {/* 1. Header Bar:
-          - RIGHT SIDE (RTL): Month & Year Clickable side-by-side (NO arrows, NO dividing line underneath)
-          - LEFT SIDE (RTL): Mode Switcher dropdown (هفته ⌄ / ماه / سال)
-      */}
-      <header className="w-full relative flex items-center justify-between px-2 sm:px-6 pt-5 sm:pt-7 pb-4 sm:pb-5 shrink-0 border-b-0" dir="rtl">
-        {/* RIGHT SIDE in RTL: Return to today button (if viewing date other than today) */}
-        <div className="flex items-center min-w-[32px] sm:min-w-[120px] justify-start z-10">
-          {isNotToday && (
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentDateKey(todayKey);
-                if (viewMode === 'week' && timelineScrollRef.current) {
-                  const currentHour = new Date().getHours();
-                  const currentMinute = new Date().getMinutes();
-                  const currentPixelTop = (currentHour + currentMinute / 60) * 64;
-                  timelineScrollRef.current.scrollTop = Math.max(0, currentPixelTop - 64);
-                }
-                if (onBackToToday) onBackToToday();
-              }}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-secondary hover:bg-secondary/80 text-xs font-semibold text-foreground border border-border/50 transition-all cursor-pointer shadow-xs active:scale-95"
-              title="بازگشت به امروز"
-            >
-              <RiArrowGoBackLine className="size-3.5 text-muted-foreground" />
-              <span className="hidden sm:inline">بازگشت به امروز</span>
-            </button>
-          )}
-        </div>
+    <div
+      className="calendar-smooth-open flex h-full w-full select-none flex-col overflow-hidden text-foreground"
+      dir="rtl"
+    >
+      <CalendarHeader
+        mode={viewMode}
+        title={headerTitle}
+        subtitle={headerSubtitle}
+        canGoBack={history.length > 0}
+        isOnToday={isOnToday}
+        currentYear={parsedCurrent.jy}
+        currentMonth={parsedCurrent.jm}
+        onBack={handleBack}
+        onPrev={handleNavigatePrev}
+        onNext={handleNavigateNext}
+        onToday={handleToday}
+        onModeChange={handleModeChange}
+        onPickMonth={handlePickMonth}
+        onOpenAdd={
+          onOpenAddForDate ? () => onOpenAddForDate(currentDateKey) : undefined
+        }
+      />
 
-        {/* CENTER: Month & Year clickable text side-by-side with hover navigation arrows */}
-        <div className="group absolute left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-1.5 z-20">
-          {/* Previous Arrow (Right in RTL): هفته قبل / ماه قبل */}
-          <button
-            type="button"
-            onClick={handleNavigatePrev}
-            className="size-6 sm:size-7 rounded-full flex items-center justify-center bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/50 shadow-2xs transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer active:scale-90"
-            title={viewMode === 'week' ? 'هفته قبل' : viewMode === 'month' ? 'ماه قبل' : 'سال قبل'}
-          >
-            <RiArrowRightSLine className="size-4" />
-          </button>
-
-          <div className="flex items-center gap-0.5">
-            {/* Separate Month Dropdown Picker */}
-            <div className="relative" ref={monthDropdownRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsMonthPickerOpen(!isMonthPickerOpen);
-                setIsYearPickerOpen(false);
-              }}
-              className="font-darvish text-xl sm:text-2xl font-bold text-foreground hover:text-foreground/80 hover:bg-secondary/40 px-1 py-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
-              title="انتخاب ماه"
-            >
-              <span>{currentMonthName}</span>
-            </button>
-
-            {/* Google Calendar Style Month Dropdown */}
-            {isMonthPickerOpen && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-56 sm:w-64 bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl p-2.5 z-50 animate-in zoom-in-95 duration-150">
-                <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 mb-1">
-                  انتخاب ماه:
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {PERSIAN_MONTH_NAMES.map((mName, idx) => {
-                    const monthNum = idx + 1;
-                    const isSelected = parsedCurrent.jm === monthNum;
-                    return (
-                      <button
-                        key={mName}
-                        type="button"
-                        onClick={() => {
-                          setCurrentDateKey(
-                            formatJalaliKey({ jy: parsedCurrent.jy, jm: monthNum, jd: 1 })
-                          );
-                          setIsMonthPickerOpen(false);
-                        }}
-                        className={cn(
-                          'py-1.5 px-2 rounded-xl text-xs font-medium transition-all cursor-pointer text-center',
-                          isSelected
-                            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-bold shadow-sm'
-                            : 'bg-secondary/30 hover:bg-secondary/80 text-foreground'
-                        )}
-                      >
-                        {mName}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Separate Year Dropdown Picker */}
-          <div className="relative" ref={yearDropdownRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsYearPickerOpen(!isYearPickerOpen);
-                setIsMonthPickerOpen(false);
-              }}
-              className="font-darvish text-xl sm:text-2xl font-bold text-foreground hover:text-foreground/80 hover:bg-secondary/40 px-1 py-0.5 rounded-xl transition-all cursor-pointer active:scale-95"
-              title="انتخاب سال"
-            >
-              <span>{toPersianDigits(currentYearNumber)}</span>
-            </button>
-
-            {/* Google Calendar Style Year Dropdown */}
-            {isYearPickerOpen && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-44 bg-card/95 backdrop-blur-md border border-border/80 rounded-2xl shadow-2xl p-2 z-50 max-h-60 overflow-y-auto animate-in zoom-in-95 duration-150">
-                <div className="text-[11px] font-semibold text-muted-foreground px-2 py-1 mb-1">
-                  انتخاب سال:
-                </div>
-                <div className="flex flex-col gap-1">
-                  {yearOptions.map((yr) => {
-                    const isSelected = yr === parsedCurrent.jy;
-                    return (
-                      <button
-                        key={yr}
-                        type="button"
-                        onClick={() => {
-                          setCurrentDateKey(
-                            formatJalaliKey({ jy: yr, jm: parsedCurrent.jm, jd: 1 })
-                          );
-                          setIsYearPickerOpen(false);
-                        }}
-                        className={cn(
-                          'w-full text-right px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer',
-                          isSelected
-                            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-bold shadow-sm'
-                            : 'hover:bg-secondary/80 text-foreground'
-                        )}
-                      >
-                        {toPersianDigits(yr)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-          </div>
-
-          {/* Next Arrow (Left in RTL): هفته بعد / ماه بعد */}
-          <button
-            type="button"
-            onClick={handleNavigateNext}
-            className="size-6 sm:size-7 rounded-full flex items-center justify-center bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/50 shadow-2xs transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer active:scale-90"
-            title={viewMode === 'week' ? 'هفته بعد' : viewMode === 'month' ? 'ماه بعد' : 'سال بعد'}
-          >
-            <RiArrowLeftSLine className="size-4" />
-          </button>
-        </div>
-
-        {/* LEFT SIDE in RTL: View Mode Segment Selector (هفته / ماه / سال with icons) */}
-        <div className="flex items-center p-1 rounded-full bg-secondary/50 border border-border/70 backdrop-blur-xs shadow-xs z-10" dir="rtl">
-          <button
-            type="button"
-            onClick={() => setViewMode('week')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer',
-              viewMode === 'week'
-                ? 'bg-card text-foreground shadow-xs font-bold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title="نمای هفتگی"
-          >
-            <RiCalendar2Line className="size-3.5" />
-            <span>هفته</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('month')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer',
-              viewMode === 'month'
-                ? 'bg-card text-foreground shadow-xs font-bold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title="نمای ماهانه"
-          >
-            <RiGridLine className="size-3.5" />
-            <span>ماه</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('year')}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer',
-              viewMode === 'year'
-                ? 'bg-card text-foreground shadow-xs font-bold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title="نمای سالانه"
-          >
-            <RiLayoutGridLine className="size-3.5" />
-            <span>سال</span>
-          </button>
-        </div>
-      </header>
-
-      {/* 2. Main Views Area */}
-      <div
-        ref={viewMode !== 'week' ? scrollContainerRef : undefined}
-        className={cn(
-          'flex-1 w-full px-2 sm:px-6 pt-1 min-h-0',
-          viewMode === 'week' ? 'flex flex-col h-full overflow-hidden' : 'overflow-y-auto pb-24'
+      <div className="min-h-0 flex-1">
+        {viewMode === 'day' && (
+          <CalendarDayView
+            dateKey={currentDateKey}
+            tasks={getTasksForDate(currentDateKey)}
+            tagsMap={tagsMap}
+            isToday={currentDateKey === todayKey}
+            onStatusChanged={handleStatusChanged}
+            onDropTask={handleDropOnSection}
+            onDragStartTask={handleTaskDragStart}
+          />
         )}
-        dir="rtl"
-      >
-        {/* WEEKLY VIEW: Full 7-column continuous vertical layout with live time */}
+
         {viewMode === 'week' && (
-          <div className="w-full flex flex-col h-full min-h-0 flex-1 overflow-hidden">
-            {/* 1. FIXED TOP SECTION: Header + Anytime / Unscheduled tasks (Hugs content) */}
-            <div
-              onWheel={(e) => {
-                if (timelineScrollRef.current) {
-                  timelineScrollRef.current.scrollTop += e.deltaY;
-                }
-              }}
-              className="w-full shrink-0 flex flex-col bg-background/98 z-20"
-            >
-              {/* Week Columns Header: Day numbers and Weekday names */}
-              <div className="w-full flex cal-dashed-row">
-                {/* Spacer matching hour label width */}
-                <div className="w-12 sm:w-16 shrink-0 pt-2 sm:pt-2.5 pb-5 sm:pb-7" />
+          <div className="h-full min-h-0 w-full">
+            {isMobile ? (
+              <div className="h-full overflow-y-auto no-scrollbar px-3 pb-28 pt-2">
+              {overdueTasks.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setOverdueOpen(true)}
+                  className="mb-2 flex w-full items-center gap-2 rounded-2xl border border-border/50 bg-card/45 px-3 py-2 text-right outline-none transition-colors hover:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <RiHistoryLine className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 text-[11.5px] font-medium text-foreground">
+                    کارهای عقب‌افتاده
+                  </span>
+                  <span className="shrink-0 rounded-full bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                    {toPersianDigits(overdueTasks.length)}
+                  </span>
+                  <RiArrowLeftSLine className="size-3.5 shrink-0 text-muted-foreground/60" />
+                </button>
+              )}
+              {weekTasks.map(({ day, sortedTasks: dayTasks }) => {
+                const holidays = getHolidaysForDate(day.formattedDate);
+                const isToday = day.formattedDate === todayKey;
+                const isFriday = day.isFriday;
+                const isRedDay = isFriday || holidays.some((holiday) => holiday.isOfficial);
 
-                {/* 7 Columns Header */}
-                <div className="flex-1 grid grid-cols-7">
-                  {weekDays.map((day, dIdx) => {
-                    const isToday = day.formattedDate === todayKey;
-                    const isFriday = dIdx === 6;
-                    const isHoliday = isFriday || isOfficialHoliday(day.formattedDate);
-
-                    return (
-                      <div
-                        key={day.formattedDate}
-                        className={cn(
-                          'flex flex-col items-center px-1 sm:px-2 pt-2 sm:pt-2.5 pb-5 sm:pb-7 relative transition-colors h-full justify-start',
-                          dIdx > 0 && 'cal-dashed-col',
-                          isToday && 'bg-primary/[0.04] dark:bg-white/[0.04] rounded-t-2xl'
-                        )}
+                return (
+                  <div
+                    key={day.formattedDate}
+                    className={cn(
+                      'mb-2 overflow-hidden rounded-2xl border bg-card/40 transition-colors',
+                      isToday
+                        ? 'border-foreground/15 bg-secondary/30 dark:bg-black/25'
+                        : 'border-border/50'
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 px-2.5 py-2">
+                      <button
+                        type="button"
+                        onClick={() => openDay(day.formattedDate)}
+                        className="flex min-w-0 flex-1 items-center gap-2.5 text-right cursor-pointer"
                       >
-                        {/* Day Number + Full Weekday Name */}
-                        <div className="flex flex-col items-center justify-start">
-                          {/* Day Number: smaller number font inside circle */}
-                          <div
-                            className={cn(
-                              'size-8 sm:size-8.5 rounded-full flex items-center justify-center font-darvish text-base sm:text-lg font-bold transition-all',
-                              isToday
-                                ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-sm'
-                                : isHoliday
-                                ? 'text-rose-500 dark:text-rose-400 font-black'
-                                : 'text-foreground'
-                            )}
-                          >
+                        <span
+                          className={cn(
+                            'flex size-10 shrink-0 flex-col items-center justify-center rounded-xl border',
+                            isToday
+                              ? 'border-transparent bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                              : 'border-border/50 bg-secondary/40'
+                          )}
+                        >
+                          <span className="font-darvish text-base font-bold leading-none tabular-nums">
                             {toPersianDigits(day.dayNumber)}
-                          </div>
-
-                          {/* Full Weekday Name in Darvish Font */}
+                          </span>
                           <span
                             className={cn(
-                              'font-darvish text-xs mt-1 transition-colors',
-                              isHoliday && !isToday
-                                ? 'text-rose-500/90 dark:text-rose-400/90 font-medium'
+                              'mt-0.5 text-[9px] leading-none',
+                              isToday ? 'opacity-70' : 'text-muted-foreground'
+                            )}
+                          >
+                            {day.dayShortName}
+                          </span>
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                'truncate font-darvish text-sm font-bold',
+                                isRedDay && !isToday
+                                  ? 'text-rose-500 dark:text-rose-400'
+                                  : 'text-foreground'
+                              )}
+                            >
+                              {day.dayName}
+                            </span>
+                            {isToday && (
+                              <span className="shrink-0 rounded-full bg-foreground/[0.07] px-1.5 py-0.5 text-[9px] font-semibold text-foreground">
+                                امروز
+                              </span>
+                            )}
+                            {dayTasks.length > 0 && (
+                              <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                                {toPersianDigits(dayTasks.length)} کار
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={cn(
+                              'mt-0.5 block truncate text-[10.5px]',
+                              isRedDay
+                                ? 'text-rose-500/80 dark:text-rose-400/80'
                                 : 'text-muted-foreground'
                             )}
                           >
-                            {day.dayName}
+                            {holidays[0]?.title ||
+                              (isFriday ? 'تعطیل' : formatJalaliDisplay(day.jalali))}
                           </span>
-                        </div>
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openDay(day.formattedDate)}
+                        aria-label={`نمایش روز ${day.dayName}`}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors hover:bg-secondary hover:text-foreground cursor-pointer"
+                      >
+                        <RiArrowLeftSLine className="size-4" />
+                      </button>
+                    </div>
+
+                    {dayTasks.length > 0 && (
+                      <div className="border-t border-border/40">
+                        {dayTasks.map((task, index) => (
+                          <TaskItemRow
+                            key={task.id}
+                            task={task}
+                            tagsMap={tagsMap}
+                            currentDateKey={day.formattedDate}
+                            onStatusChanged={handleStatusChanged}
+                            compact
+                            isLast={index === dayTasks.length - 1}
+                          />
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
+                    )}
+
+                    <div className={cn('p-2', dayTasks.length > 0 && 'border-t border-border/40')}>
+                      {weekComposer?.dateKey === day.formattedDate ? (
+                        renderWeekInlineComposer(day.formattedDate, weekComposer.timeOfDay)
+                      ) : (
+                        <CalendarAddRow
+                          onClick={() =>
+                            setWeekComposer({ dateKey: day.formattedDate, timeOfDay: 'anytime' })
+                          }
+                          ariaLabel={`افزودن کار برای ${day.dayName}`}
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            ) : (
+            <div className="flex h-full min-h-0 flex-row">
+              {overdueOpen && (
+                <aside
+                  id="week-overdue-panel"
+                  aria-label="کارهای عقب‌افتاده"
+                  className="flex w-[264px] shrink-0 animate-in fade-in slide-in-from-right-2 flex-col border-e border-border/50 bg-card/45 duration-200"
+                >
+                  <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2.5">
+                    <RiHistoryLine className="size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11.5px] font-semibold text-foreground">
+                        کارهای عقب‌افتاده
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {overdueTasks.length > 0
+                          ? `${toPersianDigits(overdueTasks.length)} کار از قبل امروز`
+                          : 'چیزی عقب نیفتاده'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOverdueOpen(false)}
+                      aria-label="بستن کارهای عقب‌افتاده"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <RiCloseLine className="size-4" />
+                    </button>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar p-1.5">
+                    {overdueTasks.length === 0 ? (
+                      <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+                        <span className="flex size-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          <RiCheckLine className="size-4" />
+                        </span>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                          کاری از روزهای قبل باقی نمانده.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        {renderOverdueRows(true)}
+                      </div>
+                    )}
+                  </div>
+
+                  {overdueTasks.length > 0 && (
+                    <p className="border-t border-border/50 px-3 py-2 text-[9.5px] leading-relaxed text-muted-foreground">
+                      هر کار را بکشید و روی روزی در تقویم رها کنید.
+                    </p>
+                  )}
+                </aside>
+              )}
+
+              <div className="flex min-w-0 flex-1 flex-col">
+              {/* Desktop: week grid */}
+              <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px border-b border-border/40 bg-border/40">
+                <button
+                  type="button"
+                  onClick={() => setOverdueOpen((open) => !open)}
+                  aria-expanded={overdueOpen}
+                  aria-controls="week-overdue-panel"
+                  title="کارهای عقب‌افتاده"
+                  className={cn(
+                    'group flex flex-col items-center justify-center gap-1 px-1 text-muted-foreground outline-none transition-colors hover:bg-secondary/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+                    overdueOpen ? 'bg-secondary/40 text-foreground' : 'bg-card/55'
+                  )}
+                >
+                  <span className="relative flex items-center justify-center">
+                    <RiHistoryLine className="size-[15px]" />
+                    {overdueTasks.length > 0 && (
+                      <span className="absolute -end-2.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-rose-500 px-1 text-[8px] font-bold leading-none text-white">
+                        {toPersianDigits(overdueTasks.length)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[8.5px] font-medium leading-none">
+                    عقب‌افتاده
+                  </span>
+                </button>
+
+                {weekDays.map((day) => {
+                  const holidays = getHolidaysForDate(day.formattedDate);
+                  const isToday = day.formattedDate === todayKey;
+                  const isRedDay =
+                    day.isFriday || holidays.some((holiday) => holiday.isOfficial);
+
+                  return (
+                    <button
+                      key={day.formattedDate}
+                      type="button"
+                      onClick={() => openDay(day.formattedDate)}
+                      title={`نمایش ${day.dayName}`}
+                      className={cn(
+                        'group flex flex-col items-center gap-0.5 bg-card/55 px-1 pb-2 pt-2.5 transition-colors hover:bg-secondary/30 dark:hover:bg-black/20 cursor-pointer',
+                        isToday && 'bg-primary/[0.04] dark:bg-black/25'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'text-[10px]',
+                          isRedDay
+                            ? 'text-rose-500/80 dark:text-rose-400/80'
+                            : 'text-muted-foreground'
+                        )}
+                      >
+                        {day.dayName}
+                      </span>
+                      <span
+                        className={cn(
+                          'flex size-8 items-center justify-center rounded-full font-darvish text-base font-bold tabular-nums transition-colors',
+                          isToday
+                            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                            : isRedDay
+                            ? 'text-rose-500 dark:text-rose-400'
+                            : 'text-foreground group-hover:text-foreground'
+                        )}
+                      >
+                        {toPersianDigits(day.dayNumber)}
+                      </span>
+                      <span
+                        className={cn(
+                          'h-3.5 max-w-full truncate text-[9.5px] leading-[14px]',
+                          isRedDay
+                            ? 'text-rose-500/80 dark:text-rose-400/80'
+                            : 'text-muted-foreground/70'
+                        )}
+                      >
+                        {holidays[0]?.title || (day.isFriday ? 'تعطیل' : '')}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* When day sections is disabled, show SECTION 1 (Unscheduled) fixed at top */}
-              {!enableDaySections && (
-                <div className="w-full flex cal-dashed-row shrink-0">
-                  {/* Row Label */}
-                  <div className="w-12 sm:w-16 shrink-0 flex items-start justify-center pt-3 text-[10px] sm:text-[11px] font-semibold text-muted-foreground select-none">
-                    <span>هر زمان</span>
-                  </div>
-
-                  {/* 7 Columns for unscheduled tasks */}
-                  <div className="flex-1 grid grid-cols-7 auto-rows-fr">
-                    {weekDays.map((day, dIdx) => {
-                      const isToday = day.formattedDate === todayKey;
-                      const dayHolidays = getHolidaysForDate(day.formattedDate);
-                      const isFriday = dIdx === 6;
-                      const dayTasks = getTasksForDate(day.formattedDate);
-                      const unscheduledTasks = dayTasks.filter((t) => {
-                        if (t.due_time && t.due_time.trim()) return false;
-                        return true;
-                      });
-
-                      const cellKey = `unscheduled-${day.formattedDate}`;
-                      const isDragOver = dragOverCell === cellKey;
-
-                      return (
-                        <div
-                          key={cellKey}
-                          onDragOver={(e) => handleCellDragOver(e, cellKey)}
-                          onDragLeave={handleCellDragLeave}
-                          onDrop={(e) => handleCellDrop(e, day.formattedDate, { timeOfDay: 'anytime' })}
-                          className={cn(
-                            'min-h-[70px] p-1.5 pb-2.5 flex flex-col gap-1 transition-colors h-full',
-                            dIdx > 0 && 'cal-dashed-col',
-                            isToday && 'bg-primary/[0.04] dark:bg-white/[0.04]',
-                            isDragOver && 'bg-primary/5 ring-2 ring-primary/40'
-                          )}
-                        >
-                          {/* Occasions & Holidays as Bullet Points right below the dashed line */}
-                          {(dayHolidays.length > 0 || isFriday) && (
-                            <div className="w-full px-1.5 pt-0.5 pb-1 flex flex-col gap-1 select-none border-b border-border/25 mb-0.5">
-                              {dayHolidays.map((h, hIdx) => {
-                                const isRed = h.isOfficial;
-                                return (
-                                  <div
-                                    key={hIdx}
-                                    className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight"
-                                    title={h.title}
-                                  >
-                                    <span
-                                      className={cn(
-                                        'size-1.5 rounded-full mt-1 shrink-0',
-                                        isRed ? 'bg-rose-500 shadow-xs' : 'bg-primary/50 dark:bg-primary/70'
-                                      )}
-                                    />
-                                    <span
-                                      className={cn(
-                                        'break-words font-medium text-right leading-tight',
-                                        isRed
-                                          ? 'text-rose-500 dark:text-rose-400 font-semibold'
-                                          : 'text-muted-foreground'
-                                      )}
-                                    >
-                                      {h.title}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-
-                              {/* Friday label if Friday and no other official holiday */}
-                              {isFriday && !dayHolidays.some((h) => h.isOfficial) && (
-                                <div className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight">
-                                  <span className="size-1.5 rounded-full mt-1 shrink-0 bg-rose-500 shadow-xs" />
-                                  <span className="font-semibold text-rose-500 dark:text-rose-400">
-                                    تعطیل
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Tasks List */}
-                          {unscheduledTasks.map((task, idx) => (
-                            <div key={task.id} className="w-full">
-                              <TaskItemRow
-                                task={task}
-                                tagsMap={tagsMap}
-                                currentDateKey={day.formattedDate}
-                                onStatusChanged={() => {
-                                  loadCalendarData();
-                                  if (onTaskChanged) onTaskChanged();
-                                }}
-                                draggable={true}
-                                onDragStart={(e) => handleTaskDragStart(e, task.id)}
-                                isLast={idx === unscheduledTasks.length - 1}
-                                className="py-1.5 px-2 text-xs"
-                              />
-                            </div>
-                          ))}
-
-                          {/* Minimal "+ اضافه کردن کار" Button placed UNDER the last task */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (onOpenAddForDate) {
-                                onOpenAddForDate(day.formattedDate);
-                              } else {
-                                onSelectDate(day.formattedDate);
-                              }
-                            }}
-                            className="w-[calc(100%-8px)] mx-auto mt-1 mb-1 py-1 px-2 rounded-lg border border-dashed border-border/70 hover:border-foreground/30 bg-card/60 hover:bg-secondary/60 text-[10px] text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 group shrink-0"
-                            title={`افزودن کار برای ${day.dayName}`}
-                          >
-                            <RiAddLine className="size-3 text-muted-foreground group-hover:text-foreground shrink-0" />
-                            <span className="truncate">اضافه کردن کار</span>
-                          </button>
-                        </div>
-                      );
-                    })}
+              {weekComposer && (
+                <div className="shrink-0 border-b border-border/40 bg-secondary/15 px-3 py-2">
+                  <div className="mx-auto w-full max-w-[720px]">
+                    <div className="mb-1 flex items-center justify-between px-0.5">
+                      <span className="text-[11px] font-medium text-foreground">
+                        افزودن کار برای{' '}
+                        {formatJalaliDisplay(parseJalaliKey(weekComposer.dateKey))}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {
+                          TIME_OF_DAY_SECTIONS.find(
+                            (section) => section.key === weekComposer.timeOfDay
+                          )?.label
+                        }
+                      </span>
+                    </div>
+                    {renderWeekInlineComposer(weekComposer.dateKey, weekComposer.timeOfDay)}
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* 2. MAIN BODY: Day Sections (fills remaining container height equally) OR 24-Hour Timeline */}
-            <div
-              ref={timelineScrollRef}
-              className={cn(
-                'flex-1 w-full min-h-0 relative',
-                enableDaySections
-                  ? 'overflow-y-auto no-scrollbar pb-1.5 flex flex-col'
-                  : 'overflow-y-auto no-scrollbar pb-24'
-              )}
-            >
-              {enableDaySections ? (
-                /* 4 Day Sections (هر زمان, صبح, ظهر, عصر و شب): Equally distributed with flex-1 to fill all vertical container space! */
-                <div className="w-full flex flex-col flex-1 min-h-full">
-                  {TIME_OF_DAY_SECTIONS.map((sectionConfig, sIdx) => {
-                    const sectionKey = sectionConfig.key;
-                    const isAnytime = sectionKey === 'anytime';
-                    const isLastSection = sIdx === TIME_OF_DAY_SECTIONS.length - 1; // 'evening'
+              {!enableDaySections && (
+                <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px border-b border-border/40 bg-border/40">
+                  <div className="flex items-start justify-center bg-card/55 pt-2.5 text-[10px] font-semibold text-muted-foreground">
+                    هر زمان
+                  </div>
+
+                  {weekDays.map((day, dayIndex) => {
+                    const isToday = day.formattedDate === todayKey;
+                    const anytimeTasks = weekTasks[dayIndex].tasks.filter(
+                      (task) => !task.due_time?.trim()
+                    );
+                    const cellKey = `anytime-${day.formattedDate}`;
+                    const isDragOver = dragOverCell === cellKey;
+
                     return (
                       <div
-                        key={sectionKey}
-                        className="w-full flex cal-dashed-row flex-1 min-h-[95px] sm:min-h-[110px]"
+                        key={cellKey}
+                        onDragOver={(e) => handleCellDragOver(e, cellKey)}
+                        onDragLeave={handleCellDragLeave}
+                        onDrop={(e) =>
+                          handleCellDrop(e, day.formattedDate, { timeOfDay: 'anytime' })
+                        }
+                        className={cn(
+                          'group/cell flex min-h-[86px] flex-col gap-1 bg-card/55 p-1.5 transition-colors',
+                          isToday && 'bg-primary/[0.04] dark:bg-black/25',
+                          isDragOver && 'bg-primary/10 ring-2 ring-inset ring-primary/40'
+                        )}
                       >
-                        {/* Section Label on right */}
-                        <div className="w-12 sm:w-16 shrink-0 flex items-start justify-center pt-2.5 sm:pt-3 text-[10px] sm:text-[11px] font-semibold text-muted-foreground select-none">
-                          <span>{sectionConfig.label}</span>
-                        </div>
+                        {anytimeTasks.map((task, index) => (
+                          <div key={task.id} className="w-full">
+                            <TaskItemRow
+                              task={task}
+                              tagsMap={tagsMap}
+                              currentDateKey={day.formattedDate}
+                              onStatusChanged={handleStatusChanged}
+                              draggable
+                              onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                              compact
+                              isLast={index === anytimeTasks.length - 1}
+                              className="px-2 py-1.5"
+                            />
+                          </div>
+                        ))}
 
-                        {/* 7 Columns for this section */}
-                        <div className="flex-1 grid grid-cols-7 auto-rows-fr h-full">
-                          {weekDays.map((day, dIdx) => {
-                            const isToday = day.formattedDate === todayKey;
-                            const dayHolidays = getHolidaysForDate(day.formattedDate);
-                            const isFriday = dIdx === 6;
-                            const dayTasks = getTasksForDate(day.formattedDate);
-                            const sectionTasks = isAnytime
-                              ? dayTasks.filter((t) => {
-                                  if (t.due_time && t.due_time.trim()) return false;
-                                  return !t.time_of_day || t.time_of_day === 'anytime';
-                                })
-                              : dayTasks.filter((t) => t.time_of_day === sectionKey);
-
-                            const cellKey = `tod-${sectionKey}-${day.formattedDate}`;
-                            const isDragOver = dragOverCell === cellKey;
-
-                            return (
-                              <div
-                                key={cellKey}
-                                onDragOver={(e) => handleCellDragOver(e, cellKey)}
-                                onDragLeave={handleCellDragLeave}
-                                onDrop={(e) => handleCellDrop(e, day.formattedDate, { timeOfDay: sectionKey })}
-                                className={cn(
-                                  'min-h-[85px] sm:min-h-[100px] p-1.5 pb-2.5 flex flex-col gap-1 transition-colors h-full flex-1',
-                                  dIdx > 0 && 'cal-dashed-col',
-                                  isToday && 'bg-primary/[0.04] dark:bg-white/[0.04]',
-                                  isToday && isLastSection && 'rounded-b-2xl',
-                                  isDragOver && 'bg-primary/5 ring-2 ring-primary/40'
-                                )}
-                              >
-                                {/* Occasions & Holidays as Bullet Points right below the dashed line */}
-                                {isAnytime && (dayHolidays.length > 0 || isFriday) && (
-                                  <div className="w-full px-1.5 pt-0.5 pb-1 flex flex-col gap-1 select-none border-b border-border/25 mb-0.5">
-                                    {dayHolidays.map((h, hIdx) => {
-                                      const isRed = h.isOfficial;
-                                      return (
-                                        <div
-                                          key={hIdx}
-                                          className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight"
-                                          title={h.title}
-                                        >
-                                          <span
-                                            className={cn(
-                                              'size-1.5 rounded-full mt-1 shrink-0',
-                                              isRed ? 'bg-rose-500 shadow-xs' : 'bg-primary/50 dark:bg-primary/70'
-                                            )}
-                                          />
-                                          <span
-                                            className={cn(
-                                              'break-words font-medium text-right leading-tight',
-                                              isRed
-                                                ? 'text-rose-500 dark:text-rose-400 font-semibold'
-                                                : 'text-muted-foreground'
-                                            )}
-                                          >
-                                            {h.title}
-                                          </span>
-                                        </div>
-                                      );
-                                    })}
-
-                                    {/* Friday label if Friday and no other official holiday */}
-                                    {isFriday && !dayHolidays.some((h) => h.isOfficial) && (
-                                      <div className="flex items-start gap-1.5 text-[9.5px] sm:text-[10px] leading-tight">
-                                        <span className="size-1.5 rounded-full mt-1 shrink-0 bg-rose-500 shadow-xs" />
-                                        <span className="font-semibold text-rose-500 dark:text-rose-400">
-                                          تعطیل
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Tasks List */}
-                                {sectionTasks.map((task, idx) => (
-                                  <div key={task.id} className="w-full">
-                                    <TaskItemRow
-                                      task={task}
-                                      tagsMap={tagsMap}
-                                      currentDateKey={day.formattedDate}
-                                      onStatusChanged={() => {
-                                        loadCalendarData();
-                                        if (onTaskChanged) onTaskChanged();
-                                      }}
-                                      draggable={true}
-                                      onDragStart={(e) => handleTaskDragStart(e, task.id)}
-                                      isLast={idx === sectionTasks.length - 1}
-                                      className="py-1.5 px-2 text-xs"
-                                    />
-                                  </div>
-                                ))}
-
-                                {/* Minimal "+ اضافه کردن کار" Button placed UNDER the last task */}
-                                {isAnytime && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (onOpenAddForDate) {
-                                        onOpenAddForDate(day.formattedDate);
-                                      } else {
-                                        onSelectDate(day.formattedDate);
-                                      }
-                                    }}
-                                    className="w-[calc(100%-8px)] mx-auto mt-1 mb-1 py-1 px-2 rounded-lg border border-dashed border-border/70 hover:border-foreground/30 bg-card/60 hover:bg-secondary/60 text-[10px] text-muted-foreground hover:text-foreground transition-all flex items-center justify-center gap-1 cursor-pointer active:scale-95 group shrink-0"
-                                    title={`افزودن کار برای ${day.dayName}`}
-                                  >
-                                    <RiAddLine className="size-3 text-muted-foreground group-hover:text-foreground shrink-0" />
-                                    <span className="truncate">اضافه کردن کار</span>
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
+                        <div className={cn('mt-auto shrink-0 pt-0.5', weekAddRevealClass)}>
+                          <CalendarAddRow
+                            compact
+                            onClick={() =>
+                              setWeekComposer({ dateKey: day.formattedDate, timeOfDay: 'anytime' })
+                            }
+                            label={anytimeTasks.length === 0 ? 'افزودن کار' : ''}
+                            ariaLabel={`افزودن کار برای ${day.dayName}`}
+                          />
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              ) : (
-                /* Continuous 24-Hour Timeline with Live Red Horizontal Indicator & Google Calendar Task Blocks */
-                <div className="w-full flex relative select-none">
-                  {/* Live Current Time Line Indicator across the 7 columns */}
-                  <div
-                    className="absolute left-0 right-0 z-20 pointer-events-none flex items-center transition-all duration-300"
-                    style={{ top: `${currentLiveTop}px` }}
-                  >
-                    <div className="w-12 sm:w-16 shrink-0 flex justify-center">
-                      <span className="size-2 rounded-full bg-rose-500 shadow-sm" />
-                    </div>
-                    <div className="flex-1 h-[2px] bg-rose-500 shadow-sm opacity-85" />
-                  </div>
+              )}
 
-                  {/* Right side: 24 Hour Labels Column (00:00 to 23:00) */}
-                  <div className="w-12 sm:w-16 shrink-0 flex flex-col">
-                    {HOURS.map((hour) => {
-                      const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
-                      return (
+              {enableDaySections ? (
+                <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar pb-6">
+                  <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] items-stretch gap-px bg-border/40">
+                    {TIME_OF_DAY_SECTIONS.map((section) => (
+                      <React.Fragment key={section.key}>
+                        <div className="flex min-h-[110px] items-start justify-center bg-card/55 pt-3 text-[10px] font-semibold text-muted-foreground">
+                          {section.label}
+                        </div>
+
+                        {weekDays.map((day, dayIndex) => {
+                          const isToday = day.formattedDate === todayKey;
+                          const sectionTasks = weekTasks[dayIndex].tasks.filter(
+                            (task) => getTaskSection(task) === section.key
+                          );
+                          const cellKey = `${section.key}-${day.formattedDate}`;
+                          const isDragOver = dragOverCell === cellKey;
+
+                          return (
+                            <div
+                              key={cellKey}
+                              onClick={() => openDay(day.formattedDate)}
+                              onDragOver={(e) => handleCellDragOver(e, cellKey)}
+                              onDragLeave={handleCellDragLeave}
+                              onDrop={(e) =>
+                                handleCellDrop(e, day.formattedDate, {
+                                  timeOfDay: section.key,
+                                })
+                              }
+                              className={cn(
+                                'group/cell flex min-h-[110px] flex-col gap-1 bg-card/55 p-1.5 transition-colors cursor-pointer',
+                                isToday && 'bg-primary/[0.04] dark:bg-black/25',
+                                isDragOver && 'bg-primary/10 ring-2 ring-inset ring-primary/40'
+                              )}
+                            >
+                              {sectionTasks.map((task, index) => (
+                                <div
+                                  key={task.id}
+                                  className="w-full"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <TaskItemRow
+                                    task={task}
+                                    tagsMap={tagsMap}
+                                    currentDateKey={day.formattedDate}
+                                    onStatusChanged={handleStatusChanged}
+                                    draggable
+                                    onDragStart={(e) => handleTaskDragStart(e, task.id)}
+                                    compact
+                                    isLast={index === sectionTasks.length - 1}
+                                    className="px-2 py-1.5"
+                                  />
+                                </div>
+                              ))}
+
+                              <div className={cn('mt-auto shrink-0 pt-0.5', weekAddRevealClass)}>
+                                <CalendarAddRow
+                                  compact
+                                  onClick={() =>
+                                    setWeekComposer({
+                                      dateKey: day.formattedDate,
+                                      timeOfDay: section.key,
+                                    })
+                                  }
+                                  label={sectionTasks.length === 0 ? 'افزودن کار' : ''}
+                                  ariaLabel={`افزودن کار به ${section.label} برای ${day.dayName}`}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  ref={timelineScrollRef}
+                  className="min-h-0 flex-1 overflow-y-auto no-scrollbar pb-6"
+                >
+                  <div
+                    className="relative grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px bg-border/40"
+                    style={{ height: HOURS.length * HOUR_HEIGHT }}
+                  >
+                    <div className="flex flex-col bg-card/55">
+                      {HOURS.map((hour) => (
                         <div
                           key={hour}
-                          className="h-[64px] min-h-[64px] cal-dashed-row flex items-start justify-center pt-1.5 text-[10px] sm:text-[11px] font-medium text-muted-foreground select-none"
+                          className="flex h-16 shrink-0 items-start justify-center border-b border-border/20 pt-1.5 text-[10px] font-medium tabular-nums text-muted-foreground"
                         >
-                          <span>{toPersianDigits(hourLabel)}</span>
+                          {toPersianDigits(`${hour.toString().padStart(2, '0')}:00`)}
                         </div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
 
-                  {/* Left side in RTL: 7 Columns Grid */}
-                  <div className="flex-1 grid grid-cols-7 relative h-[1536px]">
-                    {weekDays.map((day, dIdx) => {
+                    {weekDays.map((day, dayIndex) => {
                       const isToday = day.formattedDate === todayKey;
-                      const dayTasks = getTasksForDate(day.formattedDate);
-                      const timedTasks = dayTasks.filter((t) => Boolean(t.due_time && t.due_time.trim()));
+                      const timedTasks = weekTasks[dayIndex].tasks.filter((task) =>
+                        Boolean(task.due_time?.trim())
+                      );
 
                       return (
                         <div
                           key={day.formattedDate}
                           className={cn(
-                            'relative h-[1536px]',
-                            dIdx > 0 && 'cal-dashed-col',
-                            isToday && 'bg-primary/[0.04] dark:bg-white/[0.04] rounded-b-2xl'
+                            'relative bg-card/55',
+                            isToday && 'bg-primary/[0.04] dark:bg-black/25'
                           )}
+                          style={{ height: HOURS.length * HOUR_HEIGHT }}
                         >
-                          {/* 24 Hour Drop Zones (Horizontal Dashed Grid Lines) */}
                           {HOURS.map((hour) => {
                             const cellKey = `hour-${hour}-${day.formattedDate}`;
                             const isDragOver = dragOverCell === cellKey;
@@ -1031,28 +1263,42 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 key={cellKey}
                                 onDragOver={(e) => handleCellDragOver(e, cellKey)}
                                 onDragLeave={handleCellDragLeave}
-                                onDrop={(e) => handleCellDrop(e, day.formattedDate, { hour })}
+                                onDrop={(e) =>
+                                  handleCellDrop(e, day.formattedDate, { hour })
+                                }
                                 className={cn(
-                                  'h-[64px] cal-dashed-row transition-colors',
-                                  isDragOver && 'bg-primary/10 ring-2 ring-primary/40'
+                                  'h-16 border-b border-border/25 transition-colors',
+                                  hour === HOURS.length - 1 && 'border-b-0',
+                                  isDragOver && 'bg-primary/10'
                                 )}
                               />
                             );
                           })}
 
-                          {/* Timed Task Blocks positioned at their start time with duration & resize handle */}
+                          {isToday && (
+                            <div
+                              className="pointer-events-none absolute inset-x-0 z-30"
+                              style={{ top: currentLiveTop }}
+                            >
+                              <span className="absolute -right-1 -top-[3px] size-2 rounded-full bg-rose-500 shadow-sm" />
+                              <div className="h-[2px] w-full bg-rose-500/90" />
+                            </div>
+                          )}
+
                           {timedTasks.map((task) => {
-                            const [hStr, mStr] = (task.due_time || '00:00').split(':');
-                            const hour = parseInt(hStr, 10) || 0;
-                            const minute = parseInt(mStr, 10) || 0;
-                            const topPx = hour * 64 + (minute / 60) * 64;
+                            const [hourText, minuteText] = (task.due_time || '00:00').split(':');
+                            const hour = parseInt(hourText, 10) || 0;
+                            const minute = parseInt(minuteText, 10) || 0;
+                            const topPx = hour * HOUR_HEIGHT + (minute / 60) * HOUR_HEIGHT;
 
                             const isResizingThis = resizingTask?.id === task.id;
                             const duration = isResizingThis
                               ? resizingTask.currentDuration
                               : Math.max(15, task.duration_minutes || 30);
-                            const heightPx = Math.max(16, (duration / 60) * 64 - 2);
-
+                            const heightPx = Math.max(
+                              18,
+                              (duration / 60) * HOUR_HEIGHT - 2
+                            );
                             const isDone = task.status === 'done';
 
                             return (
@@ -1061,96 +1307,105 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 draggable={!resizingTask}
                                 onDragStart={(e) => handleTaskDragStart(e, task.id)}
                                 onClick={() => setEditingTask(task)}
-                                style={{
-                                  top: `${topPx}px`,
-                                  height: `${heightPx}px`,
-                                }}
+                                style={{ top: `${topPx}px`, height: `${heightPx}px` }}
                                 className={cn(
-                                  'absolute inset-x-1 z-10 rounded-md border text-xs shadow-xs transition-shadow flex flex-col justify-between overflow-hidden cursor-pointer select-none group/task',
+                                  'group/task absolute inset-x-1 z-10 flex flex-col justify-between overflow-hidden rounded-md border text-xs shadow-xs transition-shadow cursor-pointer select-none',
                                   isDone
-                                    ? 'opacity-60 bg-muted/60 border-border text-muted-foreground'
+                                    ? 'border-border bg-muted/60 text-muted-foreground opacity-60'
                                     : task.priority === 3
-                                    ? 'bg-rose-500/15 border-rose-500/40 text-foreground hover:bg-rose-500/25'
+                                    ? 'border-rose-500/40 bg-rose-500/10 text-foreground hover:bg-rose-500/20'
                                     : task.priority === 2
-                                    ? 'bg-amber-500/15 border-amber-500/40 text-foreground hover:bg-amber-500/25'
+                                    ? 'border-amber-500/40 bg-amber-500/10 text-foreground hover:bg-amber-500/20'
                                     : task.priority === 1
-                                    ? 'bg-blue-500/15 border-blue-500/40 text-foreground hover:bg-blue-500/25'
-                                    : 'bg-card/90 border-border/80 hover:border-foreground/30 text-foreground hover:bg-card',
-                                  isResizingThis && 'ring-2 ring-primary shadow-md z-30'
+                                    ? 'border-blue-500/40 bg-blue-500/10 text-foreground hover:bg-blue-500/20'
+                                    : 'border-border/70 bg-card/90 text-foreground hover:border-foreground/30 hover:bg-card',
+                                  isResizingThis && 'z-30 shadow-md ring-2 ring-primary'
                                 )}
                               >
-                                {/* Task Content */}
-                                <div className="p-1 flex flex-col min-w-0 flex-1 overflow-hidden pointer-events-none">
-                                  <div className="flex items-center gap-1 min-w-0">
-                                    {/* Small Checkbox */}
+                                <div className="pointer-events-none flex min-w-0 flex-1 flex-col overflow-hidden p-1">
+                                  <div className="flex min-w-0 items-center gap-1">
                                     <button
                                       type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        toggleTaskDone(task);
+                                        toggleTaskDone(task, day.formattedDate);
                                       }}
+                                      aria-label={isDone ? 'بازگردانی کار' : 'انجام شد'}
                                       className={cn(
-                                        'size-3.5 rounded-full border flex items-center justify-center shrink-0 pointer-events-auto transition-colors cursor-pointer',
+                                        'pointer-events-auto flex size-3.5 shrink-0 items-center justify-center rounded-full border transition-colors cursor-pointer',
                                         isDone
-                                          ? 'bg-primary border-primary text-primary-foreground'
-                                          : 'border-muted-foreground/50 hover:border-foreground bg-background'
+                                          ? 'border-primary bg-primary text-primary-foreground'
+                                          : 'border-muted-foreground/50 bg-background hover:border-foreground'
                                       )}
                                     >
-                                      {isDone && <RiCheckLine className="size-2.5 stroke-[3]" />}
+                                      {isDone && (
+                                        <RiCheckLine className="size-2.5 stroke-[3]" />
+                                      )}
                                     </button>
 
-                                    {/* Title */}
                                     <span
                                       className={cn(
-                                        heightPx > 36 ? 'break-words line-clamp-2' : 'truncate',
-                                        'font-semibold text-[11px] leading-tight flex-1',
-                                        isDone && ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground']
+                                        'flex-1 font-semibold leading-tight',
+                                        heightPx > 36
+                                          ? 'line-clamp-2 break-words'
+                                          : 'truncate',
+                                        'text-[11px]',
+                                        isDone && [
+                                          'pencil-strike',
+                                          getTaskPencilPattern(task.id),
+                                          'text-muted-foreground',
+                                        ]
                                       )}
                                     >
                                       {task.title}
                                     </span>
 
-                                    {/* Compact time if card is short */}
                                     {heightPx <= 26 && (
-                                      <span className="text-[9px] text-muted-foreground shrink-0 font-medium">
+                                      <span className="shrink-0 text-[9px] font-medium text-muted-foreground">
                                         {toPersianDigits(task.due_time || '')}
                                       </span>
                                     )}
                                   </div>
 
-                                  {/* Time range (shown if height >= 28px) */}
                                   {heightPx > 28 && (
-                                    <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5 font-medium">
+                                    <div className="mt-0.5 flex items-center gap-1 text-[9px] font-medium text-muted-foreground">
                                       <RiTimeLine className="size-2.5 shrink-0" />
-                                      <span>{toPersianDigits(formatTaskTimeRange(task.due_time, duration))}</span>
+                                      <span className="tabular-nums">
+                                        {toPersianDigits(
+                                          formatTaskTimeRange(task.due_time, duration)
+                                        )}
+                                      </span>
                                     </div>
                                   )}
 
-                                  {/* Description (shown if height >= 52px) */}
                                   {heightPx >= 52 && task.description && (
-                                    <p className="text-[9px] text-muted-foreground/80 truncate mt-0.5 line-clamp-1">
+                                    <p className="mt-0.5 line-clamp-1 truncate text-[9px] text-muted-foreground/80">
                                       {task.description}
                                     </p>
                                   )}
                                 </div>
 
-                                {/* Floating Live Duration Tooltip during Resizing */}
                                 {isResizingThis && (
-                                  <div className="absolute -top-7 right-1 z-40 px-2 py-0.5 rounded-md bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 text-[10px] font-bold shadow-lg border border-border/50 animate-in fade-in duration-100 flex items-center gap-1 select-none pointer-events-none">
-                                    <span>{toPersianDigits(formatDurationPersian(duration))}</span>
-                                    <span className="opacity-75 text-[9px]">
-                                      ({toPersianDigits(formatTaskTimeRange(task.due_time, duration))})
+                                  <div className="pointer-events-none absolute -top-7 right-1 z-40 flex items-center gap-1 rounded-md border border-border/50 bg-neutral-900 px-2 py-0.5 text-[10px] font-bold text-white shadow-lg dark:bg-neutral-100 dark:text-neutral-900">
+                                    <span>
+                                      {toPersianDigits(formatDurationPersian(duration))}
+                                    </span>
+                                    <span className="text-[9px] opacity-75">
+                                      (
+                                      {toPersianDigits(
+                                        formatTaskTimeRange(task.due_time, duration)
+                                      )}
+                                      )
                                     </span>
                                   </div>
                                 )}
 
-                                {/* Bottom Resize Handle ("درگر") */}
                                 <div
                                   onMouseDown={(e) => handleResizeStart(e, task)}
-                                  className="h-2 w-full cursor-ns-resize group/resizer hover:bg-foreground/20 flex items-center justify-center rounded-b-md transition-colors shrink-0 z-20"
+                                  className="group/resizer z-20 flex h-2 w-full shrink-0 cursor-ns-resize items-center justify-center rounded-b-md transition-colors hover:bg-foreground/20"
                                   title="تغییر مدت زمان (گام‌های ۱۵ دقیقه‌ای)"
                                 >
-                                  <div className="w-5 h-0.5 rounded-full bg-foreground/30 group-hover/resizer:bg-foreground/70 transition-colors" />
+                                  <div className="h-0.5 w-5 rounded-full bg-foreground/30 transition-colors group-hover/resizer:bg-foreground/70" />
                                 </div>
                               </div>
                             );
@@ -1161,203 +1416,106 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </div>
                 </div>
               )}
+              </div>
             </div>
+            )}
           </div>
         )}
 
-        {/* MONTHLY VIEW: Full window grid with dashed separators */}
         {viewMode === 'month' && (
-          <div className="w-full h-full flex flex-col gap-2">
-            {/* Weekday headers across full container width */}
-            <div className="grid grid-cols-7 gap-2 text-center py-2 text-xs font-semibold text-muted-foreground cal-dashed-row shrink-0">
-              {PERSIAN_WEEKDAY_NAMES.map((name) => (
-                <div key={name} className="font-darvish text-sm sm:text-base">
-                  {name}
-                </div>
-              ))}
-            </div>
-
-            {/* Full-window Month grid */}
-            <div className="w-full flex-1 grid grid-cols-7 auto-rows-fr pt-1 pb-6">
-              {(() => {
-                const totalDays = getJalaliMonthLength(parsedCurrent.jy, parsedCurrent.jm);
-                const firstDayWeekday = getJalaliMonthFirstDayOfWeek(parsedCurrent.jy, parsedCurrent.jm);
-                const cells = [];
-
-                // Empty prefix cells
-                for (let i = 0; i < firstDayWeekday; i++) {
-                  cells.push(
-                    <div
-                      key={`empty-${i}`}
-                      className={cn(
-                        'min-h-[105px] p-2 bg-muted/10 opacity-25 cal-dashed-row',
-                        i % 7 !== 0 && 'cal-dashed-col'
-                      )}
-                    />
-                  );
-                }
-
-                  for (let d = 1; d <= totalDays; d++) {
-                    const dayKey = formatJalaliKey({
-                      jy: parsedCurrent.jy,
-                      jm: parsedCurrent.jm,
-                      jd: d,
-                    });
-                    const dayTasks = getTasksForDate(dayKey);
-                    const isToday = dayKey === todayKey;
-                    const cellIndex = firstDayWeekday + d - 1;
-                    const isDragOver = dragOverCell === dayKey;
-                    const dayHolidays = getHolidaysForDate(dayKey);
-                    const isFriday = cellIndex % 7 === 6;
-                    const isHoliday = isFriday || isOfficialHoliday(dayKey);
-
-                    cells.push(
-                      <div
-                        key={dayKey}
-                        onDragOver={(e) => handleCellDragOver(e, dayKey)}
-                        onDragLeave={handleCellDragLeave}
-                        onDrop={(e) => handleCellDrop(e, dayKey)}
-                        onClick={() => {
-                          onSelectDate(dayKey);
-                          setViewMode('week');
-                        }}
-                        className={cn(
-                          'min-h-[105px] p-2.5 cal-dashed-row hover:bg-secondary/40 transition-all flex flex-col justify-between cursor-pointer group',
-                          cellIndex % 7 !== 0 && 'cal-dashed-col',
-                          isToday && 'ring-2 ring-primary/70 bg-primary/5',
-                          isDragOver && 'bg-primary/10 ring-2 ring-primary scale-[1.01]'
-                        )}
-                      >
-                        {/* Day Number and count */}
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center justify-between">
-                            <span
-                              className={cn(
-                                'size-7 rounded-full flex items-center justify-center font-darvish text-sm sm:text-base font-bold',
-                                isToday
-                                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-xs'
-                                  : isHoliday
-                                  ? 'text-rose-500 dark:text-rose-400 font-black'
-                                  : 'text-foreground'
-                              )}
-                            >
-                              {toPersianDigits(d)}
-                            </span>
-                            {dayTasks.length > 0 && (
-                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-semibold">
-                                {toPersianDigits(dayTasks.length)}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Holiday / Occasion Name */}
-                          {dayHolidays.length > 0 && (
-                            <div
-                              className={cn(
-                                'text-[10px] truncate mt-0.5 select-none',
-                                isHoliday
-                                  ? 'text-rose-500 dark:text-rose-400 font-medium'
-                                  : 'text-muted-foreground/80 font-normal'
-                              )}
-                              title={dayHolidays.map((h) => h.title).join(' • ')}
-                            >
-                              {dayHolidays[0].title}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Snippet of tasks in monthly cell with drag support */}
-                        <div className="flex flex-col gap-1.5 mt-2 flex-1 overflow-hidden">
-                          {dayTasks.slice(0, 3).map((t) => (
-                            <div
-                              key={t.id}
-                              draggable
-                              onDragStart={(e) => {
-                                e.stopPropagation();
-                                handleTaskDragStart(e, t.id);
-                              }}
-                              className={cn(
-                                'text-[11px] truncate py-1 px-2 rounded-md bg-secondary/60 text-foreground font-medium cursor-grab active:cursor-grabbing hover:bg-secondary transition-colors',
-                                t.status === 'done' && ['pencil-strike', getTaskPencilPattern(t.id), 'opacity-60']
-                              )}
-                              title={t.title}
-                            >
-                              {t.title}
-                            </div>
-                          ))}
-                        {dayTasks.length > 3 && (
-                          <div className="text-[10px] text-muted-foreground/70 pr-1">
-                            +{toPersianDigits(dayTasks.length - 3)} مورد دیگر
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-
-                return cells;
-              })()}
-            </div>
-          </div>
+          <CalendarMonthView
+            jy={parsedCurrent.jy}
+            jm={parsedCurrent.jm}
+            todayKey={todayKey}
+            selectedDateKey={selectedDateKey}
+            tasksForDate={getTasksForDate}
+            tagsMap={tagsMap}
+            onStatusChanged={handleStatusChanged}
+            onOpenDay={openDay}
+            onOpenAddForDate={onOpenAddForDate}
+            dragOverCell={dragOverCell}
+            onCellDragOver={handleCellDragOver}
+            onCellDragLeave={handleCellDragLeave}
+            onCellDrop={handleCellDrop}
+            onTaskDragStart={handleTaskDragStart}
+          />
         )}
 
-        {/* YEARLY VIEW */}
         {viewMode === 'year' && (
-          <div className="w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-w-5xl mx-auto py-4">
-            {PERSIAN_MONTH_NAMES.map((mName, mIdx) => {
-              const monthNum = mIdx + 1;
-              const isCurMonth = parsedCurrent.jm === monthNum;
-              const monthLen = getJalaliMonthLength(parsedCurrent.jy, monthNum);
-
-              return (
-                <div
-                  key={mName}
-                  onClick={() => {
-                    setCurrentDateKey(
-                      formatJalaliKey({ jy: parsedCurrent.jy, jm: monthNum, jd: 1 })
-                    );
-                    setViewMode('month');
-                  }}
-                  className={cn(
-                    'p-4 rounded-3xl border border-border/50 bg-card hover:bg-secondary/40 transition-all cursor-pointer flex flex-col gap-2.5 group shadow-xs',
-                    isCurMonth && 'ring-2 ring-primary/60 border-transparent bg-primary/5'
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-darvish text-lg font-bold text-foreground group-hover:text-primary transition-colors">
-                      {mName}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {toPersianDigits(monthLen)} روز
-                    </span>
-                  </div>
-
-                  {/* Mini month days dots / preview */}
-                  <div className="grid grid-cols-7 gap-1.5 py-1.5 opacity-70">
-                    {Array.from({ length: Math.min(28, monthLen) }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="size-1.5 rounded-full bg-muted-foreground/30 mx-auto"
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <CalendarYearView
+            jy={parsedCurrent.jy}
+            todayKey={todayKey}
+            activeMonth={parsedCurrent.jm}
+            tasksForDate={getTasksForDate}
+            onOpenMonth={openMonth}
+          />
         )}
       </div>
 
-      {/* Task Edit Modal */}
+      {isMobile &&
+        overdueOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[170] flex items-end justify-center" dir="rtl">
+            <button
+              type="button"
+              aria-label="بستن کارهای عقب‌افتاده"
+              onClick={() => setOverdueOpen(false)}
+              className="absolute inset-0 animate-in bg-black/45 fade-in backdrop-blur-[2px] duration-150"
+            />
+
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="کارهای عقب‌افتاده"
+              className="relative flex max-h-[72dvh] w-full max-w-lg animate-in flex-col overflow-hidden rounded-t-3xl border border-border/60 bg-card shadow-2xl slide-in-from-bottom-4 duration-200"
+            >
+              <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted-foreground/25" />
+
+              <div className="flex items-center gap-2 px-4 pb-2.5 pt-3">
+                <RiHistoryLine className="size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">
+                    کارهای عقب‌افتاده
+                  </p>
+                  <p className="mt-0.5 text-[10.5px] text-muted-foreground">
+                    {toPersianDigits(overdueTasks.length)} کار از روزهای قبل
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOverdueOpen(false)}
+                  aria-label="بستن"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <RiCloseLine className="size-4" />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar border-t border-border/50 px-2 py-1.5 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+                {overdueTasks.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                    <span className="flex size-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <RiCheckLine className="size-4" />
+                    </span>
+                    <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+                      کاری از روزهای قبل باقی نمانده.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-0.5">{renderOverdueRows(false)}</div>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
       {editingTask && (
         <TaskEditModal
           task={editingTask}
           isOpen={Boolean(editingTask)}
           onClose={() => setEditingTask(null)}
-          onSaved={() => {
-            loadCalendarData();
-            if (onTaskChanged) onTaskChanged();
-          }}
+          onSaved={handleStatusChanged}
         />
       )}
     </div>
