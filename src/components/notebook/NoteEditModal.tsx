@@ -588,6 +588,13 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
     </PopoverContent>
   );
 
+  // Shared column for the title and the editor body: centred and a little
+  // wider in full screen, plain padded content in the windowed modes.
+  const contentColumnClass =
+    viewMode === 'fullscreen'
+      ? 'mx-auto w-full max-w-[900px] px-5 sm:px-12'
+      : 'px-5 sm:px-12';
+
   // Compute outer backdrop and inner container classes based on Notion view mode
   let backdropClasses = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs select-none transition-all duration-200';
   let containerClasses = 'bg-card text-card-foreground font-sans text-right flex flex-col transition-all duration-200 overflow-hidden';
@@ -801,13 +808,9 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div
-            className={`flex min-h-0 flex-1 flex-col ${
-              viewMode === 'fullscreen' ? 'mx-auto w-full max-w-[780px]' : ''
-            }`}
-          >
+          <div className="flex min-h-0 flex-1 flex-col">
             {/* Title block */}
-            <div className="shrink-0 px-5 sm:px-12">
+            <div className={`shrink-0 ${contentColumnClass}`}>
               {(!noteIcon || !hasCover) && (
                 <div className="-ms-1.5 mb-1 flex flex-wrap items-center gap-0.5">
                   {!noteIcon && (
@@ -888,8 +891,12 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
               />
             </div>
 
-            {/* BlockNote body */}
-            <div className="mt-1 min-h-[200px] flex-1 overflow-y-auto px-5 pb-8 sm:px-12">
+            {/* BlockNote body.
+                In full screen the scroller spans the whole window and only its
+                contents are narrowed/centred, so the scrollbar sits at the far
+                left edge of the browser instead of beside the text. */}
+            <div className="mt-1 min-h-[200px] flex-1 overflow-y-auto pb-8">
+              <div className={contentColumnClass}>
               <React.Suspense
                 fallback={
                   <div className="p-3 text-xs text-muted-foreground/60 animate-pulse">
@@ -913,6 +920,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   minHeight="220px"
                 />
               </React.Suspense>
+              </div>
             </div>
           </div>
         </form>

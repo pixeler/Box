@@ -833,7 +833,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           className={cn(
                             'flex size-10 shrink-0 flex-col items-center justify-center rounded-xl border',
                             isToday
-                              ? 'border-transparent bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                              ? isRedDay
+                                ? 'border-transparent bg-rose-500 text-white dark:bg-rose-500 dark:text-white'
+                                : 'border-transparent bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
                               : 'border-border/50 bg-secondary/40'
                           )}
                         >
@@ -1042,7 +1044,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         className={cn(
                           'flex size-8 items-center justify-center rounded-full font-darvish text-base font-bold tabular-nums transition-colors',
                           isToday
-                            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                            ? isRedDay
+                              ? 'bg-rose-500 text-white shadow-xs'
+                              : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
                             : isRedDay
                             ? 'text-rose-500 dark:text-rose-400'
                             : 'text-foreground group-hover:text-foreground'
@@ -1148,7 +1152,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
               {enableDaySections ? (
                 <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar pb-6">
-                  <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] items-stretch gap-px bg-border/40">
+                  <div className="grid min-h-full grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] items-stretch gap-px bg-border/40">
                     {TIME_OF_DAY_SECTIONS.map((section) => (
                       <React.Fragment key={section.key}>
                         <div className="flex min-h-[110px] items-start justify-center bg-card/55 pt-3 text-[10px] font-semibold text-muted-foreground">

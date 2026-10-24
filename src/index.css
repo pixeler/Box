@@ -827,6 +827,47 @@ button:active {
   will-change: transform;
 }
 
+/* View switching: compositor-only fade + tiny lift, short enough to feel instant.
+   No fill-mode and no will-change, so no permanent GPU layer is left behind. */
+@keyframes paneEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.tab-pane {
+  animation: paneEnter 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dayPaneEnter {
+  0% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.day-pane-enter {
+  animation: dayPaneEnter 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-pane,
+  .day-pane-enter,
+  .day-slide-transition,
+  .calendar-smooth-open,
+  .drop-preview-smooth {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Elegant calendar zoom/fade-in animation */
 @keyframes calendarSmoothOpen {
   0% {

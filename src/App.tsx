@@ -541,23 +541,22 @@ export function App() {
           />
         }
         secondarySidebar={
-          settingsOpen ? (
-            <SettingsSidebar onClose={() => setSettingsOpen(false)}>
-              <ProfileView
-                {...profileBaseProps}
-                variant="panel"
-                onOpenAuthModal={() => {
-                  setSettingsOpen(false);
-                  setAuthModalOpen(true);
-                }}
-                onOpenSearch={() => {
-                  setSettingsOpen(false);
-                  setSearchOpen(true);
-                }}
-              />
-            </SettingsSidebar>
-          ) : undefined
+          <SettingsSidebar active={settingsOpen} onClose={() => setSettingsOpen(false)}>
+            <ProfileView
+              {...profileBaseProps}
+              variant="panel"
+              onOpenAuthModal={() => {
+                setSettingsOpen(false);
+                setAuthModalOpen(true);
+              }}
+              onOpenSearch={() => {
+                setSettingsOpen(false);
+                setSearchOpen(true);
+              }}
+            />
+          </SettingsSidebar>
         }
+        secondarySidebarOpen={settingsOpen}
         desktopCorner={<DesktopSearchButton onClick={() => setSearchOpen(true)} />}
       isDark={isDarkMode(theme)}
       bottomDock={
@@ -573,7 +572,9 @@ export function App() {
       {/* Floating dynamic toast notification */}
       <ToastContainer />
 
-      {/* Content Area: CalendarView and NotebookView have their own fixed header & internal scroller, other tabs use MobileScrollArea */}
+      {/* Content Area: CalendarView and NotebookView have their own fixed header & internal scroller, other tabs use MobileScrollArea.
+          Keyed pane: only the incoming view mounts, so switching is a short compositor-only fade instead of a layout reflow. */}
+      <div key={activeTab} className="tab-pane flex min-h-0 w-full flex-1 flex-col">
       {activeTab === 'calendar' ? (
         <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex flex-col">
           <CalendarView
@@ -603,7 +604,7 @@ export function App() {
         {activeTab === 'day' && (
           <div
             key={displayedDateKey}
-            className="w-full flex-1 flex flex-col animate-in fade-in duration-300"
+            className="w-full flex-1 flex flex-col day-pane-enter"
           >
             {/* Top Greeting Header (Centered with arrows & Darvish font, WeeklyStrip removed) */}
             <div
@@ -748,6 +749,7 @@ export function App() {
         )}
       </MobileScrollArea>
       )}
+      </div>
 
 
       {/* Archived: Boxes Modal Sheet */}

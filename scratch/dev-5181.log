@@ -198,3 +198,43 @@
 [2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/notebook/noteMenu.ts[22m
 [2m۱۹:۳۸:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/lib/overlay.ts[22m
 [2m۱۹:۴۰:۱۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m۱۱:۲۲:۵۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx[22m
+[2m۱۱:۲۳:۱۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m۱۱:۲۳:۳۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css[22m
+[2m۱۱:۲۳:۵۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/MobileScrollArea.tsx[22m
+[2m۱۱:۲۴:۰۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/DynamicSkyBackground.tsx[22m
+[2m۱۱:۲۴:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/DesktopSidebar.tsx[22m
+[2m۱۱:۲۴:۱۴[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/navigation/BottomDock.tsx[22m
+[2m۱۱:۲۴:۲۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/notebook/NotebookView.tsx[22m
+[2m۱۱:۲۴:۳۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/boxes/BoxThumbnail.tsx[22m
+[2m۱۱:۲۶:۱۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/AppContainer.tsx[22m
+[2m۱۱:۳۰:۲۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/DynamicSkyBackground.tsx[22m
+[2m۱۱:۳۰:۳۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/DynamicSkyBackground.tsx[22m
+[2m۱۱:۳۱:۱۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/DynamicSkyBackground.tsx[22m
+[2m۱۱:۳۱:۲۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/DynamicSkyBackground.tsx[22m
+[2m۱۱:۳۱:۲۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/DynamicSkyBackground.tsx[22m
+[2m۱۱:۳۴:۰۹[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m۱۱:۳۴:۲۲[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m۱۱:۳۸:۰۱[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mandroid/app/src/main/assets/public/index.html[22m
+[2m۱۱:۳۸:۴۸[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mandroid/app/build/intermediates/assets/release/mergeReleaseAssets/public/index.html[22m
+[2m۱۱:۳۹:۳۶[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mandroid/build/reports/problems/problems-report.html[22m
+[2m۱۱:۴۲:۵۰[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/editor/BlockHoverHandles.tsx[22m
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: UNKNOWN: unknown error, scandir 'C:\Users\Pixel\Documents\antigravity\friendly-curie\android\capacitor-cordova-android-plugins'
+Emitted 'error' event on FSWatcher instance at:
+    at FSWatcher._handleError (file:///C:/Users/Pixel/Documents/antigravity/friendly-curie/node_modules/.pnpm/vite@6.4.3_@types+node@22.2_5d6ff957a807d9dc2b064d3e66cb91cd/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:23896:10)
+    at NodeFsHandler._boundHandleError (file:///C:/Users/Pixel/Documents/antigravity/friendly-curie/node_modules/.pnpm/vite@6.4.3_@types+node@22.2_5d6ff957a807d9dc2b064d3e66cb91cd/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:22369:43)
+    at ReaddirpStream.emit (node:events:518:28)
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'scandir',
+  path: 'C:\\Users\\Pixel\\Documents\\antigravity\\friendly-curie\\android\\capacitor-cordova-android-plugins'
+}
+
+Node.js v22.14.0

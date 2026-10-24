@@ -6,14 +6,24 @@ interface MobileScrollAreaProps {
   contentClassName?: string;
 }
 
+/**
+ * Scroll container with a custom floating thumb and drag-to-scroll.
+ *
+ * Thumb geometry is written straight to the DOM instead of through React
+ * state: scrolling must never re-render the (potentially large) children,
+ * which is what made long lists stutter.
+ */
 export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
   children,
   className = '',
   contentClassName = '',
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [thumbHeight, setThumbHeight] = useState(0);
-  const [thumbTop, setThumbTop] = useState(0);
+  const thumbRef = useRef<HTMLDivElement>(null);
+  const geometryRef = useRef({ height: 0, top: 0 });
+  const rafRef = useRef<number | null>(null);
+
+  const [hasThumb, setHasThumb] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isDraggingThumb, setIsDraggingThumb] = useState(false);
   const [isDraggingContent, setIsDraggingContent] = useState(false);
@@ -36,7 +46,8 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
 
     const { scrollTop, scrollHeight, clientHeight } = el;
     if (scrollHeight <= clientHeight + 2) {
-      setThumbHeight(0);
+      geometryRef.current = { height: 0, top: 0 };
+      setHasThumb((prev) => (prev ? false : prev));
       return;
     }
 
@@ -49,12 +60,28 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     const maxThumbTop = clientHeight - computedHeight;
     const computedTop = maxScroll > 0 ? (scrollTop / maxScroll) * maxThumbTop : 0;
 
-    setThumbHeight(computedHeight);
-    setThumbTop(computedTop);
+    geometryRef.current = { height: computedHeight, top: computedTop };
+
+    const thumb = thumbRef.current;
+    if (thumb) {
+      thumb.style.height = `${computedHeight}px`;
+      thumb.style.transform = `translateY(${computedTop}px)`;
+    } else {
+      // Mounted on the next paint with these values already in its inline style.
+      setHasThumb(true);
+    }
   }, []);
 
-  const triggerScrollVisibility = useCallback(() => {
-    updateThumb();
+  /** Coalesce geometry work into one measurement per animation frame. */
+  const scheduleThumbUpdate = useCallback(() => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      updateThumb();
+    });
+  }, [updateThumb]);
+
+  const showScrollbar = useCallback(() => {
     setIsVisible(true);
 
     if (hideTimerRef.current) {
@@ -66,10 +93,11 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
         setIsVisible(false);
       }
     }, 1200);
-  }, [updateThumb]);
+  }, []);
 
   const handleScroll = () => {
-    triggerScrollVisibility();
+    scheduleThumbUpdate();
+    showScrollbar();
   };
 
   // Recalculate on content change / resize
@@ -78,7 +106,7 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     if (!el) return;
 
     const observer = new ResizeObserver(() => {
-      updateThumb();
+      scheduleThumbUpdate();
     });
 
     observer.observe(el);
@@ -92,8 +120,9 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
       observer.disconnect();
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       if (momentumRafRef.current) cancelAnimationFrame(momentumRafRef.current);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [updateThumb]);
+  }, [scheduleThumbUpdate, updateThumb]);
 
   // --- 1. Thumb Dragging (Mouse & Touch) ---
   const handleThumbMouseDown = (e: React.MouseEvent) => {
@@ -111,7 +140,7 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     const startScrollTop = el.scrollTop;
     const { scrollHeight, clientHeight } = el;
     const maxScroll = scrollHeight - clientHeight;
-    const maxThumbTop = clientHeight - thumbHeight;
+    const maxThumbTop = clientHeight - geometryRef.current.height;
     const ratio = maxThumbTop > 0 ? maxScroll / maxThumbTop : 1;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -151,7 +180,7 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     const startScrollTop = el.scrollTop;
     const { scrollHeight, clientHeight } = el;
     const maxScroll = scrollHeight - clientHeight;
-    const maxThumbTop = clientHeight - thumbHeight;
+    const maxThumbTop = clientHeight - geometryRef.current.height;
     const ratio = maxThumbTop > 0 ? maxScroll / maxThumbTop : 1;
 
     const onTouchMove = (moveEvent: TouchEvent) => {
@@ -186,7 +215,7 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
 
     const { scrollHeight, clientHeight } = el;
     const maxScroll = scrollHeight - clientHeight;
-    const maxThumbTop = clientHeight - thumbHeight;
+    const maxThumbTop = clientHeight - geometryRef.current.height;
     const scrollTarget = maxThumbTop > 0 ? (clickY / maxThumbTop) * maxScroll : 0;
     el.scrollTo({ top: scrollTarget, behavior: 'smooth' });
   };
@@ -319,11 +348,11 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
     if (mouseY < topEdge && el.scrollTop > 0) {
       const ratio = Math.max(0.2, (topEdge - mouseY) / 60);
       el.scrollTop -= Math.round(ratio * 12);
-      triggerScrollVisibility();
+      showScrollbar();
     } else if (mouseY > bottomEdge && el.scrollTop < el.scrollHeight - el.clientHeight) {
       const ratio = Math.max(0.2, (mouseY - bottomEdge) / 60);
       el.scrollTop += Math.round(ratio * 12);
-      triggerScrollVisibility();
+      showScrollbar();
     }
   };
 
@@ -347,13 +376,13 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
         className={`w-full h-full overflow-y-auto overflow-x-hidden no-scrollbar select-none ${
           isDraggingContent ? 'cursor-grabbing select-none' : 'cursor-default'
         }`}
-        style={{ touchAction: 'pan-y' }}
+        style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
       >
         <div className={contentClassName}>{children}</div>
       </div>
 
       {/* Floating Scrollbar: 2px thickness, completely rounded, shifted -5px to the left */}
-      {thumbHeight > 0 && (
+      {hasThumb && (
         <div
           onClick={handleTrackClick}
           className={`absolute -left-1 top-0 bottom-0 w-[8px] z-30 transition-opacity duration-300 select-none ${
@@ -365,9 +394,10 @@ export const MobileScrollArea: React.FC<MobileScrollAreaProps> = ({
         >
           {/* Scroll Thumb: 2px width, completely rounded-full */}
           <div
+            ref={thumbRef}
             style={{
-              transform: `translateY(${thumbTop}px)`,
-              height: `${thumbHeight}px`,
+              transform: `translateY(${geometryRef.current.top}px)`,
+              height: `${geometryRef.current.height}px`,
             }}
             onMouseDown={handleThumbMouseDown}
             onTouchStart={handleThumbTouchStart}

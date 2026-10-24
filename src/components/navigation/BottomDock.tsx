@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   RiSunLine,
   RiCalendar2Line,
-  RiFileList3Line,
+  RiStickyNoteLine,
   RiSearchLine,
   RiUserLine,
   RiRefreshLine,
@@ -82,7 +82,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
         }`}
         title="یادداشت"
       >
-        <RiFileList3Line className="size-4.5 sm:size-5 shrink-0" />
+        <RiStickyNoteLine className="size-4.5 sm:size-5 shrink-0" />
         <span className="leading-none pt-0.5">یادداشت</span>
       </button>
 

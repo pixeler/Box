@@ -94,6 +94,15 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
     const charW = 10;
     const charH = 13;
 
+    // The character matrix is static artwork, so it is painted once into an
+    // offscreen canvas and re-used until the size or palette changes.
+    let glyphLayer: HTMLCanvasElement | null = null;
+    let glyphDirty = true;
+
+    let lastDraw = 0;
+    // Slow cloud drift: 30fps is visually identical and halves the painting cost.
+    const frameInterval = 1000 / 30;
+
     const handleResize = () => {
       if (!canvas || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
@@ -101,6 +110,7 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
       height = Math.floor(rect.height);
       canvas.width = width;
       canvas.height = height;
+      glyphDirty = true;
     };
 
     handleResize();
@@ -124,37 +134,12 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
       { originX: 0.92, originY: 0.54, rx: 0.24, ry: 0.19, strength: 0.8, swayPhase: 3.2 },
     ];
 
-    const render = (time: number) => {
-      animId = requestAnimationFrame(render);
-      if (document.hidden) return;
-
-      const dt = Math.min((time - lastTime) / 1000, 0.1);
-      lastTime = time;
-      simTime += dt;
-
-      // Mouse smooth interpolation
-      const mouse = mouseRef.current;
-      mouse.smoothNormX += (mouse.normX - mouse.smoothNormX) * 0.04;
-      mouse.smoothNormY += (mouse.normY - mouse.smoothNormY) * 0.04;
-
-      // SOFT IN-PLACE SWAY:
-      // Very slow, soothing breathing oscillation left & right that always returns to its place
-      // Speed is very slow (~18s full cycle), amplitude is subtle (±12px horizontal, ±6px vertical)
-      const swayX = Math.sin(simTime * 0.25) * 11 + Math.sin(simTime * 0.11) * 4;
-      const swayY = Math.cos(simTime * 0.2) * 5 + Math.sin(simTime * 0.09) * 2;
-
-      // Combined sway + smooth mouse parallax
-      const totalOffsetX = swayX - mouse.smoothNormX * 12;
-      const totalOffsetY = swayY - mouse.smoothNormY * 8;
-
-      // Apply the gentle in-place sway to the realistic base wallpaper image
-      if (bgImgRef.current) {
-        bgImgRef.current.style.transform = `translate3d(${totalOffsetX.toFixed(2)}px, ${totalOffsetY.toFixed(2)}px, 0) scale(1.05)`;
-      }
-
-      ctx.clearRect(0, 0, width, height);
-
-      // Select active glyph ramp
+    const paintGlyphs = (
+      target: CanvasRenderingContext2D,
+      simTime: number,
+      totalOffsetX: number,
+      totalOffsetY: number
+    ) => {
       const glyphs =
         overlayMode === 'mosaic'
           ? MOSAIC_CHARS
@@ -163,17 +148,13 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
           : HYBRID_CHARS;
       const glyphCount = glyphs.length;
 
-      ctx.font = '700 10.5px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      target.clearRect(0, 0, width, height);
+      target.font = '700 10.5px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace';
+      target.textAlign = 'center';
+      target.textBaseline = 'middle';
 
       const cols = Math.ceil(width / charW);
       const rows = Math.ceil(height / charH);
-
-      // Interactive mouse center
-      const mx = mouse.x;
-      const my = mouse.y;
-      const mouseActive = mouse.active;
 
       // Render ASCII / Mosaic Overlay across the cloud surfaces
       for (let r = 0; r < rows; r++) {
@@ -228,65 +209,104 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
 
           const clampedPresence = Math.min(1.0, cloudPresence);
 
-          // Interactive reaction: hovering mouse gently brightens and excites the ASCII characters
-          let hoverShimmer = 0;
-          if (mouseActive) {
-            const mDist = Math.hypot(x - mx, y - my);
-            if (mDist < 160) {
-              hoverShimmer = (1.0 - mDist / 160) * 0.4;
-            }
-          }
-
           // Map presence to glyph
           const glyphIdx = Math.min(
             glyphCount - 1,
-            Math.floor((clampedPresence * 0.85 + hoverShimmer * 0.3) * glyphCount)
+            Math.floor(clampedPresence * 0.85 * glyphCount)
           );
           const char = glyphs[glyphIdx];
 
-          // Color & transparency:
-          // Blends seamlessly over the realistic painterly cloud texture underneath!
+          // Color & transparency, matched to the painterly clouds underneath
           let rVal: number;
           let gVal: number;
           let bVal: number;
           let alpha: number;
 
           if (isDark) {
-            // Moonlight twilight palette
-            if (edgeGlow > 0.5 || hoverShimmer > 0.2) {
-              rVal = 250; gVal = 252; bVal = 255; // bright moonlit edge
+            if (edgeGlow > 0.5) {
+              rVal = 250; gVal = 252; bVal = 255;
               alpha = 0.85;
             } else if (clampedPresence > 0.5) {
-              rVal = 195; gVal = 210; bVal = 230; // silver-slate cloud body
+              rVal = 195; gVal = 210; bVal = 230;
               alpha = 0.6;
             } else {
-              rVal = 135; gVal = 150; bVal = 175; // shadow wisp
+              rVal = 135; gVal = 150; bVal = 175;
               alpha = 0.35;
             }
           } else {
-            // Warm golden-cream palette matching Wafer reference
-            if (edgeGlow > 0.4 || hoverShimmer > 0.15) {
-              rVal = 255; gVal = 253; bVal = 240; // sun-kissed golden crest
+            if (edgeGlow > 0.4) {
+              rVal = 255; gVal = 253; bVal = 240;
               alpha = 0.92;
             } else if (clampedPresence > 0.55) {
-              rVal = 250; gVal = 244; bVal = 225; // warm creamy cumulus
+              rVal = 250; gVal = 244; bVal = 225;
               alpha = 0.72;
             } else if (clampedPresence > 0.25) {
-              rVal = 235; gVal = 228; bVal = 205; // soft golden midtone
+              rVal = 235; gVal = 228; bVal = 205;
               alpha = 0.52;
             } else {
-              rVal = 185; gVal = 205; bVal = 198; // ambient sage-teal cloud edge
+              rVal = 185; gVal = 205; bVal = 198;
               alpha = 0.32;
             }
           }
 
-          ctx.fillStyle = `rgba(${rVal}, ${gVal}, ${bVal}, ${alpha.toFixed(2)})`;
-          ctx.fillText(char, x, y);
+          target.fillStyle = `rgba(${rVal}, ${gVal}, ${bVal}, ${alpha.toFixed(2)})`;
+          target.fillText(char, x, y);
         }
+      }
+    };
+
+    const buildGlyphLayer = () => {
+      if (width <= 0 || height <= 0) return;
+      const layer = document.createElement('canvas');
+      layer.width = width;
+      layer.height = height;
+      const layerCtx = layer.getContext('2d');
+      if (!layerCtx) return;
+      paintGlyphs(layerCtx, 0, 0, 0);
+      glyphLayer = layer;
+      glyphDirty = false;
+    };
+
+    const render = (time: number) => {
+      animId = requestAnimationFrame(render);
+      if (document.hidden) return;
+      if (time - lastDraw < frameInterval) return;
+      lastDraw = time;
+
+      const dt = Math.min((time - lastTime) / 1000, 0.1);
+      lastTime = time;
+      simTime += dt;
+
+      // Mouse smooth interpolation
+      const mouse = mouseRef.current;
+      mouse.smoothNormX += (mouse.normX - mouse.smoothNormX) * 0.04;
+      mouse.smoothNormY += (mouse.normY - mouse.smoothNormY) * 0.04;
+
+      // SOFT IN-PLACE SWAY: a very slow breathing drift
+      const swayX = Math.sin(simTime * 0.25) * 11 + Math.sin(simTime * 0.11) * 4;
+      const swayY = Math.cos(simTime * 0.2) * 5 + Math.sin(simTime * 0.09) * 2;
+
+      // Combined sway + smooth mouse parallax
+      const totalOffsetX = swayX - mouse.smoothNormX * 12;
+      const totalOffsetY = swayY - mouse.smoothNormY * 8;
+
+      // Apply the gentle in-place sway to the realistic base wallpaper image
+      if (bgImgRef.current) {
+        bgImgRef.current.style.transform = `translate3d(${totalOffsetX.toFixed(2)}px, ${totalOffsetY.toFixed(2)}px, 0) scale(1.05)`;
+      }
+
+      if (!glyphLayer || glyphDirty) buildGlyphLayer();
+
+      ctx.clearRect(0, 0, width, height);
+      if (glyphLayer) {
+        // One blit per frame; the glyphs themselves were already rasterized.
+        ctx.drawImage(glyphLayer, totalOffsetX * 0.7, totalOffsetY * 0.7);
       }
 
       // Subtle atmospheric mouse halo over the clouds
-      if (mouseActive) {
+      if (mouse.active) {
+        const mx = mouse.x;
+        const my = mouse.y;
         const radGrad = ctx.createRadialGradient(mx, my, 0, mx, my, 220);
         if (isDark) {
           radGrad.addColorStop(0, 'rgba(200, 225, 255, 0.08)');
@@ -300,6 +320,7 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
         ctx.fillRect(0, 0, width, height);
       }
     };
+
 
     animId = requestAnimationFrame(render);
 

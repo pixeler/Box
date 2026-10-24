@@ -117,7 +117,9 @@ export const CalendarYearView: React.FC<CalendarYearViewProps> = ({
                     className={cn(
                       'relative mx-auto flex h-[18px] w-full items-center justify-center rounded-full text-[9px] font-medium tabular-nums sm:text-[10px] lg:self-center lg:text-[11px]',
                       day.isToday
-                        ? 'bg-neutral-900 font-bold text-white dark:bg-white dark:text-neutral-900'
+                        ? day.isRedDay
+                          ? 'bg-rose-500 font-bold text-white shadow-xs'
+                          : 'bg-neutral-900 font-bold text-white dark:bg-white dark:text-neutral-900'
                         : day.isRedDay
                         ? 'text-rose-500 dark:text-rose-400'
                         : 'text-foreground/80'
@@ -128,7 +130,11 @@ export const CalendarYearView: React.FC<CalendarYearViewProps> = ({
                       <span
                         className={cn(
                           'absolute bottom-[1px] left-1/2 size-[3px] -translate-x-1/2 rounded-full',
-                          day.isToday ? 'bg-white/80 dark:bg-neutral-900/80' : 'bg-foreground/40'
+                          day.isToday
+                            ? day.isRedDay
+                              ? 'bg-white/90'
+                              : 'bg-white/80 dark:bg-neutral-900/80'
+                            : 'bg-foreground/40'
                         )}
                       />
                     )}

@@ -204,7 +204,9 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                       className={cn(
                         'flex size-6 items-center justify-center rounded-full font-darvish text-[13px] font-bold tabular-nums',
                         cell.isToday
-                          ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                          ? cell.isRedDay
+                            ? 'bg-rose-500 text-white shadow-xs'
+                            : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
                           : cell.isRedDay
                           ? 'text-rose-500 dark:text-rose-400'
                           : cell.inMonth
@@ -340,7 +342,9 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                   className={cn(
                     'flex size-6 items-center justify-center rounded-full font-darvish text-[13px] font-bold tabular-nums',
                     cell.isToday
-                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
+                      ? cell.isRedDay
+                        ? 'bg-rose-500 text-white shadow-xs'
+                        : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900'
                       : cell.isRedDay
                       ? 'text-rose-500 dark:text-rose-400'
                       : 'text-foreground'

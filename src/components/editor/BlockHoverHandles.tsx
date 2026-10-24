@@ -200,6 +200,13 @@ export const BlockHoverHandles: React.FC = () => {
     hideTimerRef.current = setTimeout(() => setHover(null), 150);
   };
 
+  /** One exit path for the menu: the highlight must never outlive it. */
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setSelection(null);
+    if (!dragActiveRef.current) setHover(null);
+  };
+
   const handleMenuOpenChange = (open: boolean) => {
     setMenuOpen(open);
     if (open) {
@@ -213,8 +220,7 @@ export const BlockHoverHandles: React.FC = () => {
         });
       }
     } else {
-      setSelection(null);
-      if (!dragActiveRef.current) setHover(null);
+      closeMenu();
     }
   };
 
@@ -247,7 +253,7 @@ export const BlockHoverHandles: React.FC = () => {
   const turnInto = (type: string, props?: Record<string, unknown>) => {
     if (!block) return;
     editor.updateBlock(block, { type, props } as any);
-    setMenuOpen(false);
+    closeMenu();
   };
 
   const setBlockColor = (kind: 'text' | 'background', color: string) => {
@@ -277,7 +283,7 @@ export const BlockHoverHandles: React.FC = () => {
     } catch (err) {
       console.error('Failed to duplicate block:', err);
     }
-    setMenuOpen(false);
+    closeMenu();
   };
 
   const copyLink = async () => {
@@ -290,14 +296,13 @@ export const BlockHoverHandles: React.FC = () => {
     } catch {
       toast.show('کپی لینک ممکن نشد');
     }
-    setMenuOpen(false);
+    closeMenu();
   };
 
   const removeBlock = () => {
     if (!block) return;
     editor.removeBlocks([block]);
-    setMenuOpen(false);
-    setHover(null);
+    closeMenu();
   };
 
   if (!hover || !block) return null;

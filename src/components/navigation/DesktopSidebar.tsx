@@ -4,8 +4,8 @@ import {
   RiSunFill,
   RiCalendar2Line,
   RiCalendar2Fill,
-  RiFileList3Line,
-  RiFileList3Fill,
+  RiStickyNoteLine,
+  RiStickyNoteFill,
   RiAddLine,
   RiSideBarLine,
   RiUserLine,
@@ -38,7 +38,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'day', label: 'امروز', icon: RiSunLine, activeIcon: RiSunFill },
   { id: 'calendar', label: 'تقویم', icon: RiCalendar2Line, activeIcon: RiCalendar2Fill },
-  { id: 'notebook', label: 'یادداشت', icon: RiFileList3Line, activeIcon: RiFileList3Fill },
+  { id: 'notebook', label: 'یادداشت', icon: RiStickyNoteLine, activeIcon: RiStickyNoteFill },
 ];
 
 /** Tooltip shown to the left of an icon (toward the canvas) when the sidebar is collapsed. */

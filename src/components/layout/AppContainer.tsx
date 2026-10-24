@@ -21,6 +21,8 @@ interface AppContainerProps {
   desktopSidebar?: React.ReactNode;
   /** Desktop-only: secondary sidebar (e.g. notebook tree navigation) next to main sidebar. */
   secondarySidebar?: React.ReactNode;
+  /** Desktop-only: whether the secondary sidebar is expanded. Its width animates so the canvas is pushed aside. */
+  secondarySidebarOpen?: boolean;
   /** Desktop-only: floating element in the canvas' top corner (e.g. glass search pill). */
   desktopCorner?: React.ReactNode;
   isDark?: boolean;
@@ -37,6 +39,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   bottomDock,
   desktopSidebar,
   secondarySidebar,
+  secondarySidebarOpen = false,
   desktopCorner,
   isDark = false,
   children,
@@ -166,12 +169,12 @@ export const AppContainer: React.FC<AppContainerProps> = ({
       ? 'w-full h-full max-w-[1600px]'
       : isNotebookExpanded
       ? 'w-full min-w-0 max-w-[1040px] h-[820px] max-h-full'
-      : 'w-[460px] max-w-full h-[750px] max-h-full'
+      : 'w-[420px] max-w-full h-[750px] max-h-full'
     : isCalendarExpanded
-    ? 'sm:w-full h-dvh sm:h-[890px] sm:min-h-[890px] sm:max-h-[94vh]'
+    ? 'w-full sm:w-full h-dvh sm:h-[890px] sm:min-h-[890px] sm:max-h-[94vh]'
     : isNotebookExpanded
-    ? 'sm:w-[calc(100vw-320px)] sm:min-w-[680px] sm:max-w-[1040px] h-dvh sm:h-[820px] sm:min-h-[780px] sm:max-h-[92vh]'
-    : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px] h-dvh sm:h-[750px] sm:min-h-[750px] sm:max-h-[750px]';
+    ? 'w-full sm:w-[calc(100vw-320px)] sm:min-w-[680px] sm:max-w-[1040px] h-dvh sm:h-[820px] sm:min-h-[780px] sm:max-h-[92vh]'
+    : 'w-full sm:w-[420px] sm:min-w-[420px] sm:max-w-[420px] h-dvh sm:h-[750px] sm:min-h-[750px] sm:max-h-[750px]';
 
   const svgFilters = !isMobile && activeMap && (
           <svg
@@ -367,7 +370,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
         <main
           ref={cardRef}
           id="app-main"
-          className={`w-full text-card-foreground rounded-none sm:rounded-[24px] flex flex-col justify-between relative overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${cardSizeClass} ${
+          className={`text-card-foreground rounded-none sm:rounded-[24px] flex flex-col justify-between relative overflow-hidden transition-[width,min-width,max-width,height,min-height,max-height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${cardSizeClass} ${
             glassBackground
               ? 'figma-glass-card'
               : 'bg-card border-0 sm:border border-border shadow-none sm:shadow-2xl sm:shadow-black/25'
@@ -430,7 +433,25 @@ export const AppContainer: React.FC<AppContainerProps> = ({
     return (
       <div className="desktop-shell h-dvh w-full flex overflow-hidden font-sans" dir="rtl">
         {desktopSidebar}
-        {secondarySidebar}
+
+        {/* The pane opens by growing its own width, so the canvas keeps its
+            layout and is physically pushed aside instead of snapping. */}
+        {secondarySidebar && (
+          <div
+            className={`relative h-full shrink-0 overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              secondarySidebarOpen ? 'w-[300px]' : 'w-0'
+            }`}
+            aria-hidden={!secondarySidebarOpen}
+          >
+            <div
+              className={`h-full w-[300px] transition-[opacity,transform] duration-200 ease-out ${
+                secondarySidebarOpen ? 'translate-x-0 opacity-100' : 'translate-x-3 opacity-0'
+              }`}
+            >
+              {secondarySidebar}
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 min-w-0 h-full py-2 pl-2">
           <div
@@ -446,7 +467,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
             {desktopCorner && <div className="absolute top-4 left-4 z-30">{desktopCorner}</div>}
 
             <div
-              className={`absolute inset-0 flex items-center transition-all duration-500 ease-out z-10 ${
+              className={`absolute inset-0 flex items-center transition-[padding] duration-300 ease-out z-10 ${
                 isCalendarExpanded
                   ? 'pt-16 pb-6 px-6'
                   : isNotebookExpanded
@@ -474,7 +495,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({
   return (
     <div
       style={isLiveSkyWallpaper(wallpaper) ? undefined : getBackgroundStyle()}
-      className={`min-h-screen w-full flex items-center p-0 sm:p-4 md:px-10 font-sans transition-all duration-500 ease-out relative overflow-hidden ${
+      className={`min-h-screen w-full flex items-center p-0 sm:p-4 md:px-10 font-sans transition-[background-color] duration-300 ease-out relative overflow-hidden ${
         isCalendarExpanded
           ? 'justify-center'
           : desktopPosition === 'right'
@@ -489,12 +510,12 @@ export const AppContainer: React.FC<AppContainerProps> = ({
       {wallpaper === 'wafer-sky' && <DynamicSkyBackground isDark={isDark} />}
       {wallpaper === 'morning-live' && <MorningSkyBackground isDark={isDark} />}
 
-      <div className={`flex flex-col items-center w-full relative z-1 transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+      <div className={`flex flex-col items-center w-full relative z-1 transition-[width,min-width,max-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCalendarExpanded
           ? 'sm:w-[98vw] sm:max-w-[1600px]'
           : isNotebookExpanded
           ? 'sm:w-[calc(100vw-320px)] sm:min-w-[680px] sm:max-w-[1040px]'
-          : 'sm:w-[460px] sm:min-w-[460px] sm:max-w-[460px]'
+          : 'sm:w-[420px] sm:min-w-[420px] sm:max-w-[420px]'
       }`}>
         {/* SVG Chromatic Dispersion & Refraction Filter for Main Card (Desktop/Tablet) */}
         {svgFilters}

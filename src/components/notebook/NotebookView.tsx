@@ -854,18 +854,7 @@ export const NotebookView: React.FC = () => {
             </section>
           )}
 
-          {/* NOTES */}
-          <section className="flex flex-col gap-2">
-            <SectionHeading title="یادداشت‌ها" count={displayedNotes.length} />
-
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-3">
-              {displayedNotes.map(renderNoteCard)}
-
-              <NewNoteCard onClick={handleCreateNewNote} />
-            </div>
-          </section>
-
-          {/* LATEST NOTES: only on the first page, folded or not */}
+          {/* LATEST NOTES: only on the first page, above the folderless notes */}
           {currentFolderId === null && latestNotes.length > 0 && (
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between px-0.5">
@@ -884,6 +873,18 @@ export const NotebookView: React.FC = () => {
               </div>
             </section>
           )}
+
+          {/* NOTES */}
+          <section className="flex flex-col gap-2">
+            <SectionHeading title="یادداشت‌ها" count={displayedNotes.length} />
+
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-3">
+              {displayedNotes.map(renderNoteCard)}
+
+              <NewNoteCard onClick={handleCreateNewNote} />
+            </div>
+          </section>
+
         </div>
           </div>
         </ContextMenuTrigger>
