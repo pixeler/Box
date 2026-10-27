@@ -430,7 +430,7 @@ export const MorningSkyBackground: React.FC<MorningSkyBackgroundProps> = ({
   }, [isDark]);
 
   const pillBtn = (active: boolean) =>
-    `px-2.5 py-0.5 rounded-full transition-all cursor-pointer font-medium ${
+    `px-2.5 py-0.5 rounded-full transition cursor-pointer font-medium ${
       active ? 'bg-white/25 text-white font-bold shadow-xs' : 'text-white/60 hover:text-white'
     }`;
 

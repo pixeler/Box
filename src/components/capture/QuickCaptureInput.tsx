@@ -6,7 +6,7 @@ import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories'
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { cn } from '@/lib/utils';
 import { extractQuickTokens } from '@/lib/quick-parser';
-import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
+import { JalaliDatePicker } from '../calendar/LazyJalaliDatePicker';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
 import { TimeOfDayPickerSheet } from '../pickers/TimeOfDayPickerSheet';
@@ -804,7 +804,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                     ? 'چی کاره‌ای؟ (فردا، #تگ، p1، یا / را تایپ کنید)'
                     : 'چی تو ذهنته؟'
                 }
-                className={`relative z-10 w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition-all resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] px-0 ${
+                className={`relative z-10 w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] px-0 ${
                   isFullscreen && activeTab === 'note'
                     ? 'text-2xl md:text-3xl'
                     : 'text-xl'
@@ -881,7 +881,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsPinned(!isPinned)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     isPinned
                       ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 font-bold shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -899,7 +899,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setDatePickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     dueDate
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -915,7 +915,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setTagPickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -937,7 +937,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setBoxPickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     selectedBox
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -1007,7 +1007,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsPinned(!isPinned)}
-                  className="p-1.5 flex items-center justify-center transition-all cursor-pointer active:scale-90 shrink-0"
+                  className="p-1.5 flex items-center justify-center transition cursor-pointer active:scale-90 shrink-0"
                   title={isPinned ? 'پین‌شده (حذف پین)' : 'پین کردن'}
                 >
                   {isPinned ? (
@@ -1021,7 +1021,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setDatePickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     dueDate
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -1037,7 +1037,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setPriorityPickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     priority === 3
                       ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold shadow-2xs'
                       : priority === 2
@@ -1071,7 +1071,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setTimeOfDayPickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     timeOfDay && timeOfDay !== 'anytime'
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -1105,7 +1105,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setTagPickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -1127,7 +1127,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <button
                   type="button"
                   onClick={() => setReminderPickerOpen(true)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer border active:scale-95 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     reminder
                       ? 'bg-primary/15 border-primary/40 text-primary font-bold shadow-2xs'
                       : 'bg-muted/40 dark:bg-white/5 border-border/60 dark:border-white/10 text-muted-foreground hover:text-foreground'

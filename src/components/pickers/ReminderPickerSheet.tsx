@@ -154,7 +154,7 @@ export const ReminderPickerSheet: React.FC<ReminderPickerSheetProps> = ({
                 key={preset.id}
                 type="button"
                 onClick={() => handleSelect(preset.label)}
-                className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] text-right group ${
+                className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition cursor-pointer active:scale-[0.98] text-right group ${
                   isSelected
                     ? 'border-primary/50 bg-primary/10 dark:bg-primary/15'
                     : 'border-border/60 dark:border-white/10 hover:border-primary/30 hover:bg-muted/40 dark:hover:bg-white/5'
@@ -221,7 +221,7 @@ export const ReminderPickerSheet: React.FC<ReminderPickerSheetProps> = ({
                   type="button"
                   onClick={handleApplyCustom}
                   disabled={!customTime}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground disabled:opacity-40 cursor-pointer transition-all active:scale-95 shadow-xs"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground disabled:opacity-40 cursor-pointer transition active:scale-95 shadow-xs"
                 >
                   ثبت
                 </button>
@@ -231,7 +231,7 @@ export const ReminderPickerSheet: React.FC<ReminderPickerSheetProps> = ({
             <button
               type="button"
               onClick={() => setShowCustomInput(true)}
-              className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-dashed border-border/80 dark:border-white/15 hover:border-primary/40 hover:bg-muted/30 transition-all cursor-pointer text-right group mt-1"
+              className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-dashed border-border/80 dark:border-white/15 hover:border-primary/40 hover:bg-muted/30 transition cursor-pointer text-right group mt-1"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-muted/40 dark:bg-white/5 flex items-center justify-center text-muted-foreground group-hover:text-foreground shrink-0">

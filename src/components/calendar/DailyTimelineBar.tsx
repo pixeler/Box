@@ -603,7 +603,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
                         {/* Red Progressed Segment from left to right */}
                         {activeFocusInterval.elapsedMinutes > 0 && (
                           <div
-                            className="absolute top-0 left-0 h-full bg-red-600 dark:bg-red-500 rounded-none shadow-xs transition-all duration-500"
+                            className="absolute top-0 left-0 h-full bg-red-600 dark:bg-red-500 rounded-none shadow-xs transition duration-500"
                             style={{
                               width: `${Math.min(
                                 activeFocusInterval.durationMinutes * PX_PER_MINUTE,
@@ -622,7 +622,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
                     {/* Live Drag-and-Drop Scheduling Preview */}
                     {taskDragOverInfo && taskDragOverInfo.dayIndex === dayOffset && (
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 h-[6px] bg-primary/90 dark:bg-primary rounded-full border border-primary pointer-events-none shadow-md shadow-primary/40 animate-pulse z-30 transition-all duration-75"
+                        className="absolute top-1/2 -translate-y-1/2 h-[6px] bg-primary/90 dark:bg-primary rounded-full border border-primary pointer-events-none shadow-md shadow-primary/40 animate-pulse z-30 transition duration-75"
                         style={{
                           left: `${taskDragOverInfo.snappedMinute * PX_PER_MINUTE}px`,
                           width: `${taskDragOverInfo.durationMinutes * PX_PER_MINUTE}px`,
@@ -654,7 +654,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
                           }}
                           onMouseLeave={() => setHoveredPeriod(null)}
                         >
-                          <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[9px] font-medium leading-none bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 whitespace-nowrap transition-all duration-150 group-hover:scale-105 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-600">
+                          <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[9px] font-medium leading-none bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 whitespace-nowrap transition duration-150 group-hover:scale-105 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-600">
                             {period.label}
                           </span>
                         </div>
@@ -678,7 +678,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
                     }}
                     onMouseLeave={() => setHoveredPeriod(null)}
                   >
-                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[9px] font-medium leading-none bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 whitespace-nowrap transition-all duration-150 group-hover:scale-105 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-600">
+                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-[9px] font-medium leading-none bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 whitespace-nowrap transition duration-150 group-hover:scale-105 group-hover:bg-zinc-400 dark:group-hover:bg-zinc-600">
                       {MIDNIGHT_PERIOD.label}
                     </span>
                   </div>
@@ -706,7 +706,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
               e.stopPropagation();
               handleResetToNow(e);
             }}
-            className="absolute right-full mr-1.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full flex items-center justify-center bg-zinc-800/90 dark:bg-zinc-700/90 hover:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-300 hover:text-white border border-white/10 shadow-xs transition-all duration-200 hover:scale-110 active:scale-90 cursor-pointer shrink-0 animate-in fade-in zoom-in-95 duration-150 z-40"
+            className="absolute right-full mr-1.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full flex items-center justify-center bg-zinc-800/90 dark:bg-zinc-700/90 hover:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-300 hover:text-white border border-white/10 shadow-xs transition duration-200 hover:scale-110 active:scale-90 cursor-pointer shrink-0 animate-in fade-in zoom-in-95 duration-150 z-40"
             title="بازگشت به امروز و زمان حال"
           >
             <RiArrowGoBackLine className="w-2.5 h-2.5 pointer-events-none" />
@@ -719,7 +719,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
             setIsClockHovered(true);
           }}
           onMouseLeave={() => setIsClockHovered(false)}
-          className={`group/clock h-[23px] rounded-full text-white text-[11px] font-normal leading-none shadow-[0_1px_3px_rgba(0,0,0,0.3)] flex items-center justify-center border border-white/10 bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#18181b)] dark:bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#2a2b30)] cursor-default select-none transition-all duration-300 ease-out hover:border-white/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.35)] tracking-normal ${
+          className={`group/clock h-[23px] rounded-full text-white text-[11px] font-normal leading-none shadow-[0_1px_3px_rgba(0,0,0,0.3)] flex items-center justify-center border border-white/10 bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#18181b)] dark:bg-[color-mix(in_srgb,hsl(var(--primary))_14%,#2a2b30)] cursor-default select-none transition duration-300 ease-out hover:border-white/20 hover:shadow-[0_2px_8px_rgba(0,0,0,0.35)] tracking-normal ${
             isClockHovered && activeTime.dayIndex === 0
               ? 'pl-1 pr-1.5'
               : 'px-3'
@@ -741,7 +741,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
 
           {/* Smooth expanding "اکنون" label on hover when on today (red theme matching فردا, zero height impact) */}
           <span
-            className={`overflow-hidden transition-all duration-300 ease-out whitespace-nowrap text-[9px] font-medium rounded-full shrink-0 flex items-center justify-center leading-none ${
+            className={`overflow-hidden transition duration-300 ease-out whitespace-nowrap text-[9px] font-medium rounded-full shrink-0 flex items-center justify-center leading-none ${
               isClockHovered && activeTime.dayIndex === 0
                 ? 'max-w-[48px] h-[16px] opacity-100 me-1.5 px-1.5 bg-rose-500/20 text-rose-300 dark:text-rose-400 border border-rose-500/30'
                 : 'max-w-0 h-[16px] opacity-0 me-0 px-0 border-0'
@@ -754,7 +754,7 @@ export const DailyTimelineBar: React.FC<DailyTimelineBarProps> = ({
             {clockDisplay}
           </span>
           <span
-            className={`overflow-hidden transition-all duration-300 ease-out whitespace-nowrap text-[11px] text-zinc-300 font-normal leading-none flex items-center m-0 p-0 tracking-normal ${
+            className={`overflow-hidden transition duration-300 ease-out whitespace-nowrap text-[11px] text-zinc-300 font-normal leading-none flex items-center m-0 p-0 tracking-normal ${
               isClockHovered
                 ? 'max-w-[36px] opacity-100'
                 : 'max-w-0 opacity-0'

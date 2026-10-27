@@ -1,35 +1,58 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppContainer } from './components/layout/AppContainer';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { AppShell } from './components/shell/AppShell';
 import { MobileScrollArea } from './components/layout/MobileScrollArea';
 import { QuickCaptureInput } from './components/capture/QuickCaptureInput';
 import { DayStream } from './components/stream/DayStream';
 import { PinnedSection } from './components/stream/PinnedSection';
-import { NotebookView } from './components/notebook/NotebookView';
 import { NotebookProvider } from './components/notebook/NotebookContext';
-import { ProfileView } from './components/profile/ProfileView';
-import { SettingsSidebar } from './components/profile/SettingsSidebar';
-import { BottomDock, type ActiveTab } from './components/navigation/BottomDock';
-import { DesktopSidebar } from './components/navigation/DesktopSidebar';
-import { DesktopSearchButton } from './components/navigation/DesktopSearchButton';
-import { SearchModal } from './components/search/SearchModal';
-import { TodoView } from './components/todo/TodoView';
-import { FocusView } from './components/focus/FocusView';
-import { CalendarView } from './components/calendar/CalendarView';
-// Archived: import { BoxesModal } from './components/boxes/BoxesModal';
+import type { SettingsSection } from './components/profile/ProfileView';
+import type { ActiveTab } from './components/navigation/BottomDock';
 import { ToastContainer } from './components/ui/Toast';
-import { LoginModal } from './components/auth/LoginModal';
+
+// Heavy, non-first-screen views are split out of the boot bundle. They are
+// prefetched while the app is idle, so switching tabs still feels instant.
+const NotebookView = lazy(() =>
+  import('./components/notebook/NotebookView').then((m) => ({ default: m.NotebookView }))
+);
+const TodoView = lazy(() =>
+  import('./components/todo/TodoView').then((m) => ({ default: m.TodoView }))
+);
+const FocusView = lazy(() =>
+  import('./components/focus/FocusView').then((m) => ({ default: m.FocusView }))
+);
+const CalendarView = lazy(() =>
+  import('./components/calendar/CalendarView').then((m) => ({ default: m.CalendarView }))
+);
+
+/**
+ * Overlays carry a lot of weight (the settings screen, the MiniSearch index,
+ * the auth forms) and none of it is needed for the first paint, so each one
+ * loads the first time it is opened.
+ */
+const SettingsDialog = lazy(() =>
+  import('./components/settings/SettingsDialog').then((m) => ({ default: m.SettingsDialog }))
+);
+const SearchModal = lazy(() =>
+  import('./components/search/SearchModal').then((m) => ({ default: m.SearchModal }))
+);
+const LoginModal = lazy(() =>
+  import('./components/auth/LoginModal').then((m) => ({ default: m.LoginModal }))
+);
+
 import { useAuth } from './lib/auth';
 import { syncManager, type SyncState } from './lib/sync';
-import { RiArrowLeftSLine, RiArrowRightSLine, RiArrowGoBackLine } from '@remixicon/react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PartyIcon } from '@hugeicons/core-free-icons';
+import { ChevronLeft, ChevronRight, Plus, RotateCcw } from 'lucide-react';
 import { getDailyQuote } from './lib/quotes';
+import { useMediaQuery } from './lib/device';
+import { runWhenIdle } from './lib/idle';
+import { ResurfacingSection } from './components/stream/ResurfacingSection';
 
 import { taskRepo, noteRepo, eventRepo, tagRepo } from './repositories';
 import { syncWidgetData } from './lib/widget';
 import {
   getTodayJalaliKey,
   formatJalaliKey,
+  formatJalaliDisplay,
   getJalaliDate,
   parseJalaliKey,
   jalaliToDate,
@@ -40,7 +63,7 @@ import {
 } from './lib/jalali';
 import { isTaskOccurringOnDate } from './lib/recurrence';
 import { checkAndSeedDesignDemoData } from './lib/seed';
-import { type ThemeId, getStoredTheme, applyTheme, isDarkMode } from './lib/theme';
+import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
 import type { Task, EventItem, Note, Tag, TimeOfDay } from './types/models';
 import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
 
@@ -88,25 +111,41 @@ export function App() {
   const [_datesWithItems, setDatesWithItems] = useState<Set<string>>(new Set());
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('main');
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
 
+  /**
+   * Overlays are mounted on first use and then kept mounted, so their exit
+   * animations still play while their code stays out of the boot bundle.
+   */
+  const [settingsMounted, setSettingsMounted] = useState(false);
+  const [searchMounted, setSearchMounted] = useState(false);
+  const [authMounted, setAuthMounted] = useState(false);
+
   useEffect(() => {
-    if (!settingsOpen) return;
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !quickCaptureOpen && !searchOpen) {
-        setSettingsOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [settingsOpen, quickCaptureOpen, searchOpen]);
+    if (settingsOpen) setSettingsMounted(true);
+  }, [settingsOpen]);
+  useEffect(() => {
+    if (searchOpen) setSearchMounted(true);
+  }, [searchOpen]);
+
   const { user } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (authModalOpen) setAuthMounted(true);
+  }, [authModalOpen]);
   const [_syncState, setSyncState] = useState<SyncState>('idle');
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
   const [quickCaptureTimeOfDay, setQuickCaptureTimeOfDay] = useState<TimeOfDay | undefined>(undefined);
   const [newlyAddedTaskId, setNewlyAddedTaskId] = useState<string | null>(null);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState<number>(0);
+
+  // Always-current date key, so deferred (idle) work never reads a stale value.
+  const selectedDateKeyRef = useRef(selectedDateKey);
+  useEffect(() => {
+    selectedDateKeyRef.current = selectedDateKey;
+  }, [selectedDateKey]);
 
   // Daily Tasks Target state (Karma / Goal celebration)
   const [dailyTaskGoal, setDailyTaskGoal] = useState<number>(() => {
@@ -126,9 +165,11 @@ export function App() {
 
   const [todayDoneCount, setTodayDoneCount] = useState<number>(0);
   const [celebrationCoords, setCelebrationCoords] = useState<{ x: number; y: number } | null>(null);
-  const goalPillRef = useRef<HTMLDivElement | null>(null);
+  const goalPillRef = useRef<HTMLParagraphElement | null>(null);
   const isInitialLoadRef = useRef(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  // Two-column "today + overdue" layout only where both columns have room.
+  const isWideDayLayout = useMediaQuery('(min-width: 1200px)');
 
   // Listen to cloud sync state
   useEffect(() => {
@@ -176,19 +217,6 @@ export function App() {
     localStorage.setItem('second_brain_desktop_position', pos);
   };
 
-  // Desktop sidebar collapsed state with persistence
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('second_brain_sidebar_collapsed') === 'true';
-  });
-
-  const toggleSidebar = useCallback(() => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem('second_brain_sidebar_collapsed', String(next));
-      return next;
-    });
-  }, []);
-
   // Global keyboard shortcuts (supports both English and Persian layouts)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -200,6 +228,14 @@ export function App() {
           target.tagName === 'SELECT' ||
           target.isContentEditable ||
           Boolean(target.closest?.('[contenteditable="true"]')));
+
+      // Settings: Ctrl/Cmd + comma, the desktop convention.
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        setSettingsSection('main');
+        setSettingsOpen(true);
+        return;
+      }
 
       // 1. Search shortcut: Ctrl+P / Cmd+P / Persian Ctrl+ح (supports English and Persian layout)
       if (
@@ -220,13 +256,6 @@ export function App() {
 
       // If user is inside an input field, do not trigger single-key navigation shortcuts
       if (isInput) return;
-
-      // Toggle desktop sidebar: Ctrl+B / Cmd+B (Persian layout: ذ)
-      if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyB' || e.key === 'b' || e.key === 'B' || e.key === 'ذ')) {
-        e.preventDefault();
-        toggleSidebar();
-        return;
-      }
 
       // 2. Add / Quick Capture shortcut: 'N' or Persian 'د' (KeyN)
       if (
@@ -270,7 +299,7 @@ export function App() {
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [quickCaptureOpen, searchOpen, toggleSidebar]);
+  }, [quickCaptureOpen, searchOpen]);
 
 
   // High-performance parallelized fetch for day data (only 4 consolidated IndexedDB queries)
@@ -470,17 +499,20 @@ export function App() {
     });
   }, [fetchDayData, selectedDateKey]);
 
+  // One-off demo bootstrap + maintenance. This used to run *before* the first
+  // database read and awaited a Supabase auth round-trip, which is why a cold
+  // start showed a loading state for seconds. It now runs only when idle.
   useEffect(() => {
-    const init = async () => {
+    runWhenIdle(async () => {
       try {
-        await checkAndSeedDesignDemoData();
-        await fetchDayData(selectedDateKey);
-      } finally {
-        setIsInitialLoading(false);
+        const changed = await checkAndSeedDesignDemoData();
+        // Only re-read when the bootstrap actually touched the database.
+        if (changed) fetchDayData(selectedDateKeyRef.current);
+      } catch (err) {
+        console.warn('Deferred bootstrap failed:', err);
       }
-    };
-    init();
-  }, []);
+    }, 2000);
+  }, [fetchDayData]);
 
   // Migrate task to current selected date
   const handleMigrateTask = async (taskId: string, targetDate?: string) => {
@@ -500,9 +532,11 @@ export function App() {
     await loadDayData();
   };
 
-  const selectedJalali = parseJalaliKey(selectedDateKey);
-  const selectedGregorianDate = jalaliToDate(selectedJalali.jy, selectedJalali.jm, selectedJalali.jd);
-  const currentWeekdayName = getFullPersianWeekdayName(selectedGregorianDate);
+  const displayedJalali = parseJalaliKey(displayedDateKey);
+  const currentWeekdayName = getFullPersianWeekdayName(
+    jalaliToDate(displayedJalali.jy, displayedJalali.jm, displayedJalali.jd)
+  );
+  const isSelectedToday = displayedDateKey === getTodayJalaliKey();
 
   const profileBaseProps = {
     currentWallpaper: wallpaper,
@@ -520,63 +554,17 @@ export function App() {
     dailyTaskGoal,
     onDailyTaskGoalChange: handleDailyTaskGoalChange,
   };
-  return (
-    <NotebookProvider>
-      <AppContainer
-        wallpaper={wallpaper}
-        glassBackground={glassBackground}
-        glassOpacity={glassOpacity}
-        desktopPosition={desktopPosition}
-        isCalendarExpanded={activeTab === 'calendar'}
-        isNotebookExpanded={activeTab === 'notebook'}
-        desktopSidebar={
-          <DesktopSidebar
-            activeTab={activeTab}
-            onTabChange={(tab) => setActiveTab(tab)}
-            onOpenAdd={() => setQuickCaptureOpen(true)}
-            onOpenSettings={() => setSettingsOpen((prev) => !prev)}
-            settingsOpen={settingsOpen}
-            collapsed={sidebarCollapsed}
-            onToggleCollapsed={toggleSidebar}
-          />
-        }
-        secondarySidebar={
-          <SettingsSidebar active={settingsOpen} onClose={() => setSettingsOpen(false)}>
-            <ProfileView
-              {...profileBaseProps}
-              variant="panel"
-              onOpenAuthModal={() => {
-                setSettingsOpen(false);
-                setAuthModalOpen(true);
-              }}
-              onOpenSearch={() => {
-                setSettingsOpen(false);
-                setSearchOpen(true);
-              }}
-            />
-          </SettingsSidebar>
-        }
-        secondarySidebarOpen={settingsOpen}
-        desktopCorner={<DesktopSearchButton onClick={() => setSearchOpen(true)} />}
-      isDark={isDarkMode(theme)}
-      bottomDock={
-        <BottomDock
-          activeTab={activeTab}
-          onTabChange={(tab) => setActiveTab(tab)}
-          onOpenSearch={() => setSearchOpen(true)}
-          onOpenAdd={() => setQuickCaptureOpen(true)}
-          glassOpacity={glassOpacity}
-        />
-      }
-    >
-      {/* Floating dynamic toast notification */}
-      <ToastContainer />
 
-      {/* Content Area: CalendarView and NotebookView have their own fixed header & internal scroller, other tabs use MobileScrollArea.
-          Keyed pane: only the incoming view mounts, so switching is a short compositor-only fade instead of a layout reflow. */}
-      <div key={activeTab} className="tab-pane flex min-h-0 w-full flex-1 flex-col">
+  const handleOpenRecentTask = (task: Task) => {
+    const dateKey = extractDateOnly(task.due_date || '');
+    if (dateKey) setSelectedDateKey(dateKey);
+    setActiveTab('day');
+  };
+
+  const contentPane = (
+    <div key={activeTab} className="tab-pane flex min-h-0 w-full flex-1 flex-col">
       {activeTab === 'calendar' ? (
-        <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex flex-col">
+        <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
           <CalendarView
             selectedDateKey={selectedDateKey}
             enableDaySections={enableDaySections}
@@ -593,181 +581,220 @@ export function App() {
           />
         </div>
       ) : activeTab === 'notebook' ? (
-        <div className="flex-1 min-h-0 w-full h-full overflow-hidden flex flex-col">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-[1000px] flex-1 flex-col overflow-hidden">
           <NotebookView />
         </div>
       ) : (
         <MobileScrollArea
           className="flex-1 min-h-0"
-          contentClassName="pt-0 pb-0 flex flex-col min-h-full"
+          contentClassName={`mx-auto w-full ${
+            activeTab === 'day' ? 'max-w-[1000px]' : 'max-w-[var(--content-max)]'
+          } pb-0 pt-0 flex min-h-full flex-col`}
         >
-        {activeTab === 'day' && (
-          <div
-            key={displayedDateKey}
-            className="w-full flex-1 flex flex-col day-pane-enter"
-          >
-            {/* Top Greeting Header (Centered with arrows & Darvish font, WeeklyStrip removed) */}
+          {activeTab === 'day' && (
             <div
-              data-no-drag-scroll="true"
-              className="w-full shrink-0 select-none pb-1.5 pt-9 sm:pt-11 overflow-hidden"
+              key={displayedDateKey}
+              className="w-full flex-1 flex flex-col day-pane-enter"
             >
-              {/* Row with < Weekday Name > and optional Return-to-Today button */}
-              <div className="w-full px-6 flex items-center justify-between select-none relative" dir="rtl">
-                {/* Arrow Right (>) for Previous Day in RTL */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
-                  className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer active:scale-95"
-                  title="روز قبل"
-                >
-                  <RiArrowRightSLine className="size-6" />
-                </button>
-
-                {/* Weekday Name in Darvish Font */}
-                <h1 className="font-darvish text-lg sm:text-xl font-bold text-foreground tracking-normal select-none leading-snug">
-                  {currentWeekdayName}
+              {/* Page row: the day title, then the daily quote with the page actions beside it */}
+              <div className="w-full px-5 pt-10 sm:px-6 sm:pt-12">
+                <h1 className="font-darvish text-[26px] font-bold tracking-normal text-foreground sm:text-[30px]">
+                  امروز
                 </h1>
 
-                {/* Arrow Left (<) for Next Day in RTL */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
-                  className="size-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer active:scale-95"
-                  title="روز بعد"
-                >
-                  <RiArrowLeftSLine className="size-6" />
-                </button>
-              </div>
-
-              {/* Motivational quote in Darvish Font (dynamic per day) */}
-              <p className="font-darvish text-xs sm:text-sm text-muted-foreground font-normal mt-2 text-center select-none px-4">
-                {getDailyQuote(selectedDateKey)}
-              </p>
-
-              {/* Daily Tasks Progress Bar with generous top and bottom spacing */}
-              <div
-                ref={goalPillRef}
-                className="w-full px-6 mt-6 sm:mt-7 mb-4 sm:mb-5 flex items-center gap-3 select-none"
-                dir="rtl"
-              >
-                {/* Counter + Popper icon on the FAR RIGHT */}
-                <div
-                  className="flex items-center gap-1.5 shrink-0 text-muted-foreground select-none"
-                  title={`هدف روزانه: ${toPersianDigits(dailyTaskGoal)} تسک (${toPersianDigits(todayDoneCount)} از ${toPersianDigits(dailyTaskGoal)} انجام شد)`}
-                >
-                  <span className="text-xs font-semibold tabular-nums text-muted-foreground">
-                    {toPersianDigits(todayDoneCount)}/{toPersianDigits(dailyTaskGoal)}
-                  </span>
-                  <HugeiconsIcon icon={PartyIcon} size={15} strokeWidth={1.8} className="text-muted-foreground/80 shrink-0" />
-                </div>
-
-                {/* Progress Bar Track on the LEFT */}
-                <div className="flex-1 h-1.5 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden flex items-center" dir="ltr">
-                  <div
-                    className="h-full bg-neutral-600 dark:bg-neutral-300 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${Math.min(100, Math.round((todayDoneCount / dailyTaskGoal) * 100))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Return to today button: directly below progress bar and above tasks list */}
-              {selectedDateKey !== getTodayJalaliKey() && (
-                <div className="w-full flex justify-center mt-1 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedDateKey(getTodayJalaliKey())}
-                    className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/80 hover:bg-secondary text-xs font-semibold text-foreground border border-border/40 shadow-xs transition-all cursor-pointer active:scale-95"
-                    title="بازگشت به امروز"
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 select-none">
+                  <p
+                    ref={goalPillRef}
+                    className="min-w-[12rem] flex-1 text-[12.5px] leading-6 text-subtle"
                   >
-                    <RiArrowGoBackLine className="size-3.5 text-muted-foreground" />
-                    <span>بازگشت به امروز</span>
-                  </button>
+                    {getDailyQuote(displayedDateKey)}
+                  </p>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {!isSelectedToday && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDateKey(getTodayJalaliKey())}
+                        title="بازگشت به امروز"
+                        className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground sm:flex"
+                      >
+                        <RotateCcw className="size-3.5" />
+                        <span>امروز</span>
+                      </button>
+                    )}
+
+                    <div className="flex items-center rounded-md border border-border/60">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
+                        title="روز قبل"
+                        aria-label="روز قبل"
+                        className="flex size-8 items-center justify-center rounded-s-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
+                      >
+                        <ChevronRight className="size-4" />
+                      </button>
+                      <span className="h-4 w-px bg-border/70" aria-hidden="true" />
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
+                        title="روز بعد"
+                        aria-label="روز بعد"
+                        className="flex size-8 items-center justify-center rounded-e-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
+                      >
+                        <ChevronLeft className="size-4" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickCaptureTimeOfDay('anytime');
+                        setQuickCaptureOpen(true);
+                      }}
+                      title="افزودن کار (N)"
+                      className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      <Plus className="size-4" />
+                      <span>افزودن کار</span>
+                    </button>
+                  </div>
                 </div>
-              )}
+              </div>
+
+              <div className="grid w-full items-start gap-x-10 px-5 pb-24 pt-6 sm:px-6 sm:pt-7 min-[1200px]:grid-cols-[minmax(0,498px)_minmax(0,1fr)]">
+                {/* Today column */}
+                <div className="flex w-full min-w-0 flex-col">
+                  <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pb-2 select-none">
+                    <h2 className="text-[14.5px] font-semibold tracking-tight text-foreground">
+                      {formatJalaliDisplay(parseJalaliKey(displayedDateKey))}
+                    </h2>
+                    <span className="text-[11.5px] leading-5 text-muted-foreground">
+                      {currentWeekdayName} · {toPersianDigits(tasks.length)} کار
+                    </span>
+                  </div>
+
+                  {/* Stream Content Area */}
+                  <div className="w-full flex-1 pt-1">
+                    {/* Pinned Items Section (سنجاق شده) */}
+                    {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
+                      <PinnedSection
+                        pinnedTasks={pinnedTasks}
+                        pinnedNotes={pinnedNotes}
+                        tagsMap={tagsMap}
+                        currentDateKey={displayedDateKey}
+                        onStatusChanged={loadDayData}
+                      />
+                    )}
+
+                    {/* Day stream */}
+                    <DayStream
+                      key={displayedDateKey}
+                      selectedDateKey={displayedDateKey}
+                      tasks={tasks}
+                      notes={notes}
+                      events={events}
+                      overdueTasks={overdueTasks}
+                      futureTasks={futureTasks}
+                      futureEvents={futureEvents}
+                      tagsMap={tagsMap}
+                      onStatusChanged={loadDayData}
+                      onMigrateTask={handleMigrateTask}
+                      onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
+                      onOpenAdd={(tod) => {
+                        setQuickCaptureTimeOfDay(tod || 'anytime');
+                        setQuickCaptureOpen(true);
+                      }}
+                      newlyAddedTaskId={newlyAddedTaskId}
+                      isLoading={isInitialLoading}
+                      todayDoneCount={todayDoneCount}
+                      dailyTaskGoal={dailyTaskGoal}
+                      enableDaySections={enableDaySections}
+                      goalPillRef={goalPillRef}
+                      hideOverdue={isWideDayLayout}
+                    />
+                  </div>
+                </div>
+
+                {/* Overdue column (desktop only) */}
+                {isWideDayLayout && (
+                  <aside className="w-full min-w-0">
+                    <ResurfacingSection
+                      overdueTasks={overdueTasks}
+                      futureTasks={[]}
+                      futureEvents={[]}
+                      tagsMap={tagsMap}
+                      selectedDateKey={displayedDateKey}
+                      onMigrateToCurrentDate={(id) => handleMigrateTask(id, displayedDateKey)}
+                      onStatusChanged={loadDayData}
+                      variant="overdue"
+                      overdueTitle="عقب‌افتاده"
+                    />
+                  </aside>
+                )}
+              </div>
             </div>
+          )}
 
-
-            {/* Stream Content Area sitting flush on the app container with full-width rows */}
-            <div className="w-full flex-1 px-0 pt-3.5 sm:pt-4 pb-24 bg-transparent">
-
-              {/* Pinned Items Section (سنجاق شده) - Below WeeklyStrip and above DayStream */}
-              {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
-                <PinnedSection
-                  pinnedTasks={pinnedTasks}
-                  pinnedNotes={pinnedNotes}
-                  tagsMap={tagsMap}
-                  currentDateKey={displayedDateKey}
-                  onStatusChanged={loadDayData}
-                />
-              )}
-
-              {/* Day stream */}
-              <DayStream
-                key={displayedDateKey}
-                selectedDateKey={displayedDateKey}
-                tasks={tasks}
-                notes={notes}
-                events={events}
-                overdueTasks={overdueTasks}
-                futureTasks={futureTasks}
-                futureEvents={futureEvents}
-                tagsMap={tagsMap}
-                onStatusChanged={loadDayData}
-                onMigrateTask={handleMigrateTask}
-                onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
-                onOpenAdd={(tod) => {
-                  setQuickCaptureTimeOfDay(tod || 'anytime');
-                  setQuickCaptureOpen(true);
-                }}
-                newlyAddedTaskId={newlyAddedTaskId}
-                isLoading={isInitialLoading}
-                todayDoneCount={todayDoneCount}
-                dailyTaskGoal={dailyTaskGoal}
-                enableDaySections={enableDaySections}
-                goalPillRef={goalPillRef}
-              />
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'todo' && (
-          <TodoView
-            onBackToToday={() => setActiveTab('day')}
-            onTaskChanged={loadDayData}
-          />
-        )}
-        {activeTab === 'focus' && <FocusView />}
-        {activeTab === 'profile' && (
-          <ProfileView
-            {...profileBaseProps}
-            onOpenAuthModal={() => setAuthModalOpen(true)}
-            onOpenSearch={() => setSearchOpen(true)}
-            onBackToToday={() => setActiveTab('day')}
-          />
-        )}
-      </MobileScrollArea>
+          {activeTab === 'todo' && (
+            <TodoView
+              onBackToToday={() => setActiveTab('day')}
+              onTaskChanged={loadDayData}
+            />
+          )}
+          {activeTab === 'focus' && <FocusView />}
+        </MobileScrollArea>
       )}
-      </div>
+    </div>
+  );
 
-
-      {/* Archived: Boxes Modal Sheet */}
-      {/* <BoxesModal
-        isOpen={boxesOpen}
-        onClose={() => setBoxesOpen(false)}
-        onOpenAddForBox={(boxId) => {
-          setDefaultBoxForAdd(boxId);
-          setQuickCaptureOpen(true);
+  return (
+    <NotebookProvider>
+      <AppShell
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onOpenAdd={() => setQuickCaptureOpen(true)}
+        onOpenSettings={(section = 'main') => {
+          setSettingsSection(section);
+          setSettingsOpen(true);
         }}
-        tagsMap={tagsMap}
-      /> */}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onOpenTask={handleOpenRecentTask}
+      >
+        <Suspense fallback={null}>{contentPane}</Suspense>
+      </AppShell>
+
+      {/* Floating dynamic toast notification */}
+      <ToastContainer />
+
+      {/* Settings is a focused window; the legacy side panel is no longer rendered. */}
+      <Suspense fallback={null}>
+        {settingsMounted && (
+          <SettingsDialog
+            {...profileBaseProps}
+            initialSection={settingsSection}
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            onOpenAuthModal={() => {
+              setSettingsOpen(false);
+              setAuthModalOpen(true);
+            }}
+            onOpenSearch={() => {
+              setSettingsOpen(false);
+              setSearchOpen(true);
+            }}
+          />
+        )}
+      </Suspense>
 
       {/* Supabase Login / Auth Modal */}
-      <LoginModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-      />
+      <Suspense fallback={null}>
+        {authMounted && (
+          <LoginModal
+            isOpen={authModalOpen}
+            onClose={() => setAuthModalOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* Quick Capture Modal */}
       <QuickCaptureInput
@@ -785,14 +812,18 @@ export function App() {
       />
 
       {/* Search Modal */}
-      <SearchModal
-        isOpen={searchOpen}
-        onClose={() => setSearchOpen(false)}
-        onSelectDate={(date) => {
-          setSelectedDateKey(date);
-          setActiveTab('day');
-        }}
-      />
+      <Suspense fallback={null}>
+        {searchMounted && (
+          <SearchModal
+            isOpen={searchOpen}
+            onClose={() => setSearchOpen(false)}
+            onSelectDate={(date) => {
+              setSelectedDateKey(date);
+              setActiveTab('day');
+            }}
+          />
+        )}
+      </Suspense>
 
       {/* Celebration particle burst when reaching 5 daily tasks */}
       {celebrationCoords && (
@@ -803,7 +834,6 @@ export function App() {
           onComplete={() => setCelebrationCoords(null)}
         />
       )}
-      </AppContainer>
     </NotebookProvider>
   );
 }

@@ -5,23 +5,19 @@ import { NoteCard } from './NoteCard';
 import { FolderTile } from './FolderTile';
 import { MoveNoteModal } from './MoveNoteModal';
 import { NoteEditModal } from './NoteEditModal';
-import { NotebookSecondarySidebarConnected } from './NotebookSecondarySidebar';
 import { CreateBoxSheet } from '@/components/boxes/CreateBoxSheet';
 import { BoxThumbnail } from '@/components/boxes/BoxThumbnail';
 import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
 import { boxRepo } from '@/repositories';
 import { toast } from '@/lib/toast';
 import { toPersianDigits } from '@/lib/jalali';
-import { useIsDesktop, useIsMobile } from '@/lib/device';
 import {
   RiAddLine,
-  RiArrowLeftSLine,
   RiArrowRightLine,
   RiCheckLine,
   RiDeleteBinLine,
   RiEditLine,
   RiFolderAddLine,
-  RiFolderLine,
   RiMoreLine,
   RiPaletteLine,
   RiFolderOpenLine,
@@ -29,7 +25,6 @@ import {
   RiFileCopyLine,
   RiPushpinLine,
   RiPushpinFill,
-  RiSideBarLine,
   RiSortAsc,
 } from '@remixicon/react';
 import {
@@ -99,99 +94,6 @@ const ancestorTrail = (box: Box | null, boxesMap: Record<string, Box>): Box[] =>
   return chain;
 };
 
-/**
- * The path to the current folder, like a file manager. The current folder is a
- * plain heading and every ancestor is a link. On a phone the ancestors fold into
- * one menu so the current folder keeps a readable width; on desktop they show.
- */
-const Breadcrumbs: React.FC<{
-  trail: TrailItem[];
-  onNavigate: (id: string | null | 'all_notes') => void;
-}> = ({ trail, onNavigate }) => {
-  const isMobile = useIsMobile();
-  const current = trail[trail.length - 1];
-
-  let leading: TrailItem[] = [];
-  let folded: TrailItem[] = [];
-
-  if (!isMobile) {
-    if (trail.length <= 4) {
-      leading = trail.slice(0, -1);
-    } else {
-      leading = [trail[0]];
-      folded = trail.slice(1, -1);
-    }
-  } else if (trail.length === 2) {
-    leading = [trail[0]];
-  } else if (trail.length > 2) {
-    folded = trail.slice(0, -1);
-  }
-
-  const ancestorClass =
-    'max-w-[92px] shrink truncate rounded px-1 py-0.5 text-[11.5px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-[150px]';
-
-  const separator = (
-    <RiArrowLeftSLine className="size-3.5 shrink-0 text-muted-foreground/40" />
-  );
-
-  return (
-    <nav aria-label="مسیر پوشه" className="min-w-0 flex-1">
-      <ol className="flex min-w-0 items-center gap-0.5" dir="rtl">
-        {leading.map((item) => (
-          <li key={item.id ?? 'root'} className="flex min-w-0 items-center gap-0.5">
-            {separator}
-            <button
-              type="button"
-              onClick={() => onNavigate(item.id)}
-              className={ancestorClass}
-              title={item.title}
-            >
-              {item.title}
-            </button>
-          </li>
-        ))}
-
-        {folded.length > 0 && (
-          <li className="flex min-w-0 items-center gap-0.5">
-            {separator}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="پوشه‌های بالاتر"
-                  title="پوشه‌های بالاتر"
-                  className="flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <RiMoreLine className="size-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" sideOffset={6} className={noteMenuContentClass}>
-                {folded.map((item) => (
-                  <DropdownMenuItem
-                    key={item.id ?? 'root'}
-                    className={noteMenuItemClass}
-                    onClick={() => onNavigate(item.id)}
-                  >
-                    <RiFolderLine className="size-3.5 text-muted-foreground" />
-                    <span className="truncate">{item.title}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </li>
-        )}
-
-        <li className="flex min-w-0 items-center gap-0.5">
-          {trail.length > 1 && separator}
-          <h1 className="max-w-[150px] truncate px-1 text-[16px] font-semibold leading-tight text-foreground sm:max-w-[240px] sm:text-[17px]">
-            {current.title}
-          </h1>
-        </li>
-      </ol>
-    </nav>
-  );
-};
-
 const SectionHeading: React.FC<{ title: string; count: number }> = ({ title, count }) => (
   <div className="flex items-baseline gap-1.5 px-0.5">
     <h2 className="text-[12.5px] font-semibold text-foreground">{title}</h2>
@@ -228,6 +130,8 @@ export const NotebookView: React.FC = () => {
     setEditingNote,
     noteEditModalOpen,
     setNoteEditModalOpen,
+    noteViewModeOverride,
+    setNoteViewModeOverride,
     createBoxOpen,
     setCreateBoxOpen,
     boxToEdit,
@@ -244,16 +148,6 @@ export const NotebookView: React.FC = () => {
   const [moveNoteModalOpen, setMoveNoteModalOpen] = useState(false);
   const [noteToMove, setNoteToMove] = useState<Note | null>(null);
   const [boxToDelete, setBoxToDelete] = useState<Box | null>(null);
-  const isDesktop = useIsDesktop();
-
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return window.localStorage.getItem('notebook.sidebarOpen') === 'true';
-    } catch {
-      return false;
-    }
-  });
 
   const [noteSort, setNoteSort] = useState<NoteSort>(() =>
     readStored('notebook.noteSort', ['newest', 'oldest', 'updated', 'title'], 'newest')
@@ -279,18 +173,6 @@ export const NotebookView: React.FC = () => {
     } catch {
       // storage unavailable: sorting still works for this session
     }
-  };
-
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem('notebook.sidebarOpen', String(next));
-      } catch {
-        // storage unavailable: the toggle still works for this session
-      }
-      return next;
-    });
   };
 
   const boxesMap = useMemo(() => {
@@ -340,6 +222,10 @@ export const NotebookView: React.FC = () => {
     }
     return [{ id: null, title: 'یادداشت‌ها' }];
   }, [currentFolderId, currentBox, boxesMap]);
+
+  /** The page title and its ancestor path, mirroring the Today view header. */
+  const currentTitle = trail[trail.length - 1].title;
+  const ancestorTrailItems = trail.slice(0, -1);
 
   /**
    * Item count per folder: the notes directly inside it plus its subfolders,
@@ -602,48 +488,49 @@ export const NotebookView: React.FC = () => {
       className="flex h-full w-full select-none overflow-hidden font-sans text-foreground"
       dir="rtl"
     >
-      {isDesktop && (
-        <div
-          className={`shrink-0 overflow-hidden transition-all duration-200 ease-out ${
-            sidebarOpen ? 'w-[196px] opacity-100' : 'w-0 opacity-0'
-          }`}
-        >
-          <NotebookSecondarySidebarConnected onCollapse={() => setSidebarOpen(false)} />
-        </div>
-      )}
-
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* TOOLBAR: back, breadcrumb, folder and note actions */}
-      <header className="flex h-14 w-full shrink-0 items-center gap-1 border-b border-border/60 px-2.5 sm:px-4">
-        {isDesktop && (
+        {/* PAGE HEADER: the same title treatment as the Today view */}
+      <div className="w-full shrink-0 px-5 pt-10 sm:px-6 sm:pt-12">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
-            onClick={toggleSidebar}
-            aria-label={sidebarOpen ? 'بستن سایدبار' : 'باز کردن سایدبار'}
-            title={sidebarOpen ? 'بستن سایدبار' : 'باز کردن سایدبار'}
-            aria-expanded={sidebarOpen}
-            className={`flex size-8 shrink-0 items-center justify-center rounded-lg outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring ${
-              sidebarOpen ? 'text-foreground' : 'text-muted-foreground'
-            }`}
+            onClick={goUp}
+            disabled={currentFolderId === null}
+            aria-label="بازگشت به پوشه بالاتر"
+            title="بازگشت به پوشه بالاتر"
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-25 sm:size-10"
           >
-            <RiSideBarLine className="size-[18px]" />
+            <RiArrowRightLine className="size-[22px] sm:size-[24px]" />
           </button>
-        )}
 
-        <button
-          type="button"
-          onClick={goUp}
-          disabled={currentFolderId === null}
-          aria-label="بازگشت به پوشه بالاتر"
-          title="بازگشت به پوشه بالاتر"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30"
-        >
-          <RiArrowRightLine className="size-[18px]" />
-        </button>
+          <h1 className="truncate font-darvish text-[26px] font-bold tracking-normal text-foreground sm:text-[30px]">
+            {currentTitle}
+          </h1>
+        </div>
 
-        <Breadcrumbs trail={trail} onNavigate={setCurrentFolderId} />
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 select-none">
+          <div className="flex min-w-[12rem] flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] leading-6 text-subtle">
+            <span className="tabular-nums">
+              {toPersianDigits(displayedNotes.length)} یادداشت
+            </span>
+            {ancestorTrailItems.map((item) => (
+              <React.Fragment key={item.id ?? 'root'}>
+                <span aria-hidden="true" className="text-muted-foreground/30">
+                  ‹
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentFolderId(item.id)}
+                  title={item.title}
+                  className="max-w-[160px] truncate rounded px-0.5 transition-colors hover:text-foreground"
+                >
+                  {item.title}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
 
-        <div className="ms-1 flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1.5">
           {currentBox ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -651,7 +538,7 @@ export const NotebookView: React.FC = () => {
                   type="button"
                   aria-label="گزینه‌های این پوشه"
                   title="گزینه‌های این پوشه"
-                  className="flex size-8 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <RiMoreLine className="size-[18px]" />
                 </button>
@@ -695,7 +582,7 @@ export const NotebookView: React.FC = () => {
                 onClick={() => handleOpenCreateBox(null)}
                 aria-label="پوشه جدید"
                 title="پوشه جدید"
-                className="flex h-8 items-center gap-1.5 rounded-lg px-1.5 text-[11.5px] font-medium text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-2"
+                className="flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[12px] font-medium text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-2.5"
               >
                 <RiFolderAddLine className="size-[18px]" />
                 <span className="hidden sm:inline">پوشه</span>
@@ -709,7 +596,7 @@ export const NotebookView: React.FC = () => {
                 type="button"
                 aria-label="مرتب‌سازی"
                 title="مرتب‌سازی"
-                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <RiSortAsc className="size-[18px]" />
               </button>
@@ -757,19 +644,20 @@ export const NotebookView: React.FC = () => {
             onClick={handleCreateNewNote}
             aria-label="یادداشت جدید"
             title="یادداشت جدید"
-            className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-[11px] font-medium text-background outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:text-[11.5px]"
+            className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
           >
             <RiAddLine className="size-4" />
             <span>یادداشت</span>
           </button>
+          </div>
         </div>
-      </header>
+      </div>
 
       {/* BODY */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar" data-note-scroll>
-        <div className="mx-auto flex w-full flex-col gap-6 px-3 pb-24 pt-4 sm:px-6 sm:pb-8 lg:px-8">
+        <div className="mx-auto flex w-full flex-col gap-6 px-5 pb-24 pt-6 sm:px-6 sm:pb-10">
           {/* FOLDERS */}
           {currentFolderId !== 'all_notes' && (currentFolderId === null || folderBoxes.length > 0) && (
             <section className="flex flex-col gap-2">
@@ -958,9 +846,11 @@ export const NotebookView: React.FC = () => {
       <NoteEditModal
         note={editingNote}
         isOpen={noteEditModalOpen}
+        initialViewMode={noteViewModeOverride ?? undefined}
         onClose={() => {
           setNoteEditModalOpen(false);
           setEditingNote(null);
+          setNoteViewModeOverride(null);
         }}
         onSaved={loadData}
       />

@@ -37,7 +37,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
 
   return (
     <nav
-      className="relative flex items-center gap-1.5 sm:gap-2 h-[52px] sm:h-[54px] px-2 sm:px-2.5 py-1.5 rounded-full bg-white/95 dark:bg-neutral-900/95 border border-black/[0.08] dark:border-white/[0.1] shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] backdrop-blur-md select-none pointer-events-auto transition-all duration-200"
+      className="relative flex items-center gap-1.5 sm:gap-2 h-[52px] sm:h-[54px] px-2 sm:px-2.5 py-1.5 rounded-full bg-white/95 dark:bg-neutral-900/95 border border-black/[0.08] dark:border-white/[0.1] shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.35)] backdrop-blur-md select-none pointer-events-auto transition duration-200"
       dir="rtl"
       aria-label="منوی ناوبری اصلی"
     >
@@ -45,7 +45,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       <button
         type="button"
         onClick={() => onTabChange('day')}
-        className={`group/today h-9 sm:h-10 px-3.5 sm:px-4 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-medium shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+        className={`group/today h-9 sm:h-10 px-3.5 sm:px-4 rounded-full transition duration-200 cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-medium shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
           activeTab === 'day'
             ? 'bg-[#2B2B2B] text-white dark:bg-white dark:text-neutral-900 shadow-sm'
             : 'text-neutral-700 dark:text-neutral-300 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-95'
@@ -60,7 +60,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       <button
         type="button"
         onClick={() => onTabChange('calendar')}
-        className={`group/calendar h-9 sm:h-10 px-3 sm:px-3.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-medium shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+        className={`group/calendar h-9 sm:h-10 px-3 sm:px-3.5 rounded-full transition duration-200 cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-medium shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
           activeTab === 'calendar'
             ? 'bg-[#2B2B2B] text-white dark:bg-white dark:text-neutral-900 shadow-sm'
             : 'text-neutral-700 dark:text-neutral-300 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-95'
@@ -75,7 +75,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       <button
         type="button"
         onClick={() => onTabChange('notebook')}
-        className={`group/notes h-9 sm:h-10 px-3 sm:px-3.5 rounded-full transition-all duration-200 cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-medium shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+        className={`group/notes h-9 sm:h-10 px-3 sm:px-3.5 rounded-full transition duration-200 cursor-pointer flex items-center gap-1.5 text-xs sm:text-sm font-medium shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
           activeTab === 'notebook'
             ? 'bg-[#2B2B2B] text-white dark:bg-white dark:text-neutral-900 shadow-sm'
             : 'text-neutral-700 dark:text-neutral-300 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-95'
@@ -93,7 +93,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       <button
         type="button"
         onClick={onOpenSearch}
-        className="size-8.5 sm:size-9 rounded-full text-neutral-700 dark:text-neutral-300 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0 active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="size-8.5 sm:size-9 rounded-full text-neutral-700 dark:text-neutral-300 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center justify-center transition duration-200 cursor-pointer shrink-0 active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         title="جستجو (Ctrl+P)"
       >
         <RiSearchLine className="size-4.5 sm:size-5 shrink-0" />
@@ -103,7 +103,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
       <button
         type="button"
         onClick={() => onTabChange(activeTab === 'profile' ? 'day' : 'profile')}
-        className={`group/profile relative size-8.5 sm:size-9 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center shrink-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        className={`group/profile relative size-8.5 sm:size-9 rounded-full transition duration-200 cursor-pointer flex items-center justify-center shrink-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           activeTab === 'profile' ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
         }`}
         title="پروفایل و تنظیمات"

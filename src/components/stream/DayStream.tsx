@@ -6,10 +6,12 @@ import { EventItemRow } from './EventItemRow';
 import { ResurfacingSection } from './ResurfacingSection';
 import { setupDragCardGhost } from '@/lib/drag';
 import { CardDropPreview } from './CardDropPreview';
-import { toPersianDigits, getTodayJalaliKey, formatJalaliDisplay, parseJalaliKey, getDescriptiveDayLabel } from '@/lib/jalali';
+import { toPersianDigits, getTodayJalaliKey } from '@/lib/jalali';
+import { cn } from '@/lib/utils';
 import { triggerHaptic } from '@/lib/capacitor';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { RiArrowDownSLine, RiArrowUpSLine, RiAddLine } from '@remixicon/react';
+import { ChevronDown } from 'lucide-react';
+import { RiAddLine } from '@remixicon/react';
 import { taskRepo } from '@/repositories';
 
 export type UnifiedStreamItem =
@@ -35,7 +37,9 @@ interface DayStreamProps {
   todayDoneCount?: number;
   dailyTaskGoal?: number;
   enableDaySections?: boolean;
-  goalPillRef?: React.Ref<HTMLDivElement>;
+  goalPillRef?: React.Ref<HTMLElement>;
+  /** Set on desktop, where overdue items render in their own column. */
+  hideOverdue?: boolean;
 }
 
 function getPriorityScore(item: UnifiedStreamItem): number {
@@ -163,6 +167,7 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
   dailyTaskGoal: _dailyTaskGoal = 5,
   enableDaySections = false,
   goalPillRef: _goalPillRef,
+  hideOverdue = false,
 }) => {
   const [filterType] = useState<'all' | 'task' | 'note' | 'event'>('all');
   const [sortBy] = useState<'priority' | 'created' | 'alpha'>('priority');
@@ -171,7 +176,6 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
 
   const todayKey = getTodayJalaliKey();
   const isToday = selectedDateKey === todayKey;
-  const dayTitle = getDescriptiveDayLabel(selectedDateKey, todayKey);
 
   // Unified items list
   const rawItems: UnifiedStreamItem[] = useMemo(() => {
@@ -203,27 +207,23 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
     setStreamItems(sortStreamItems(rawItems, sortBy));
   }, [rawItems, sortBy]);
 
-  // Time of Day sections state (open/close)
-  const [openSections, setOpenSections] = useState<Record<TimeOfDay, boolean>>(() => {
+  // Time of Day sections state (open/close). Only explicit user choices are stored;
+  // otherwise a section is open exactly when it has something in it.
+  const [sectionOverrides, setSectionOverrides] = useState<Partial<Record<TimeOfDay, boolean>>>(() => {
     try {
-      const saved = localStorage.getItem('second_brain_time_of_day_sections');
+      const saved = localStorage.getItem('second_brain_time_of_day_sections_v2');
       if (saved) {
         return JSON.parse(saved);
       }
     } catch {}
-    return {
-      anytime: true,
-      morning: true,
-      day: true,
-      evening: true,
-    };
+    return {};
   });
 
-  const toggleSection = (key: TimeOfDay) => {
-    setOpenSections((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
+  const setSectionOpen = (key: TimeOfDay, open: boolean) => {
+    setSectionOverrides((prev) => {
+      const next = { ...prev, [key]: open };
       try {
-        localStorage.setItem('second_brain_time_of_day_sections', JSON.stringify(next));
+        localStorage.setItem('second_brain_time_of_day_sections_v2', JSON.stringify(next));
       } catch {}
       return next;
     });
@@ -237,6 +237,10 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
     e.dataTransfer.dropEffect = 'move';
     if (dragOverSection !== sectionKey) {
       setDragOverSection(sectionKey);
+      // Reveal a collapsed section the moment a card hovers it, so it becomes a real target.
+      const isOpen =
+        sectionOverrides[sectionKey] ?? itemsBySection[sectionKey].length > 0;
+      if (!isOpen) setSectionOpen(sectionKey, true);
     }
   };
 
@@ -807,62 +811,20 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
   return (
     <div className="w-full flex-1 flex flex-col justify-between">
       <div>
-        {/* هدر بخش روز با دکمه مینیمال اضافه کردن کار */}
-        <div className="w-full flex items-center justify-between py-2 px-6 text-right select-none" dir="rtl">
-          {/* سمت راست: عنوان توصیفی روز و تاریخ */}
-          <h2 className="text-sm font-medium text-muted-foreground tracking-tight select-none leading-none">
-            {dayTitle} {formatJalaliDisplay(parseJalaliKey(selectedDateKey))}
-          </h2>
-
-          {/* سمت چپ: دکمه مینیمال و میوت اضافه کردن کار */}
-          <button
-            type="button"
-            onClick={() => onOpenAdd?.('anytime')}
-            className="border border-neutral-200 dark:border-neutral-800 text-muted-foreground hover:text-foreground hover:bg-secondary/40 text-xs px-3 py-1 rounded-full flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 select-none"
-            title="اضافه کردن کار (میانبر / یا N)"
-          >
-            <span className="text-sm font-light leading-none">+</span>
-            <span className="font-normal text-[11px] sm:text-xs">اضافه کردن کار</span>
-            <span className="opacity-40 text-[11px] font-mono leading-none">/</span>
-          </button>
-        </div>
-
-        {/* Skeleton loading state on initial load */}
+        {/* Local data resolves in a few milliseconds, so there is no loading
+            skeleton: we render nothing for that instant instead of flashing
+            placeholder rows or an empty state. */}
         {isLoading ? (
-          <div className="w-full flex flex-col py-1 select-none animate-in fade-in duration-200">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={`skeleton-${i}`}
-                className="w-full flex items-center justify-between py-3 px-3 animate-pulse"
-                style={{
-                  borderBottom: i < 4 ? '1px dashed rgba(161, 161, 170, 0.25)' : 'none',
-                }}
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  {/* Checkbox skeleton circle */}
-                  <div className="w-5 h-5 rounded-full border border-border/70 bg-muted/50 shrink-0" />
-                  {/* Title skeleton pill */}
-                  <div
-                    className="h-3.5 bg-muted/70 rounded-md"
-                    style={{
-                      width: i === 1 ? '64%' : i === 2 ? '44%' : i === 3 ? '78%' : '52%',
-                    }}
-                  />
-                </div>
-                {/* Tag / metadata chip skeleton */}
-                <div className="w-12 h-4 rounded-full bg-muted/40 shrink-0" />
-              </div>
-            ))}
-          </div>
+          <div className="w-full" aria-hidden="true" />
         ) : enableDaySections ? (
           /* 4 Time-of-Day Sections matching Tiimo & TodoView styles */
           <div
             ref={streamContainerRef}
-            className="w-full min-h-[70px] space-y-4"
+            className="w-full min-h-[70px] space-y-1"
           >
             {TIME_OF_DAY_SECTIONS.map((sec) => {
               const secItems = itemsBySection[sec.key];
-              const isOpen = openSections[sec.key];
+              const isOpen = sectionOverrides[sec.key] ?? secItems.length > 0;
               const activeDragIndex = draggedIndex !== null ? draggedIndex : touchDragIndex;
               const isExternalDragging = externalTouchDragInfo !== null;
               const isDraggingActive = activeDragIndex !== null || isExternalDragging;
@@ -874,32 +836,36 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                   onDragOver={(e) => handleSectionDragOver(e, sec.key)}
                   onDragLeave={(e) => handleSectionDragLeave(e, sec.key)}
                   onDrop={(e) => handleDropOnSection(e, sec.key)}
-                  className={`w-full transition-colors duration-150 ${
-                    isSectionDragOver ? 'bg-primary/5' : ''
+                  className={`group/section w-full rounded-lg transition-colors duration-150 ${
+                    isSectionDragOver ? 'bg-foreground/[0.03]' : ''
                   }`}
                 >
-                  {/* Section Header: Pill badge matching TodoView / Tiimo */}
-                  <div className="flex items-center justify-between px-6 pt-2 pb-1.5 select-none">
+                  {/* Section Header: quiet title, count and add action */}
+                  <div className="flex items-center justify-between pb-1 pt-3 select-none">
                     <button
                       type="button"
-                      onClick={() => toggleSection(sec.key)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer active:scale-95 select-none transition-colors ${sec.pillClasses}`}
+                      onClick={() => setSectionOpen(sec.key, !isOpen)}
+                      className="group/sec inline-flex items-center gap-1.5 rounded-sm text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <HugeiconsIcon icon={sec.icon} size={16} className="text-current opacity-70 shrink-0" />
                       <span className="tracking-tight">{sec.label}</span>
-                      <span className="opacity-75 font-normal tabular-nums">({toPersianDigits(secItems.length)})</span>
-                      {isOpen ? (
-                        <RiArrowDownSLine className="size-3.5 opacity-60" />
-                      ) : (
-                        <RiArrowUpSLine className="size-3.5 opacity-60" />
-                      )}
+                      <span className="tabular-nums text-subtle">
+                        {toPersianDigits(secItems.length)}
+                      </span>
+                      <HugeiconsIcon icon={sec.icon} size={14} className="shrink-0 opacity-60" />
+                      <ChevronDown
+                        className={cn(
+                          'size-3.5 opacity-0 transition-[transform,opacity] duration-150',
+                          'group-hover/sec:opacity-60 group-focus-visible/sec:opacity-60',
+                          !isOpen && 'rotate-90'
+                        )}
+                      />
                     </button>
 
                     {secItems.length > 0 && (
                       <button
                         type="button"
                         onClick={() => onOpenAdd?.(sec.key)}
-                        className="size-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer active:scale-95"
+                        className="flex size-6 items-center justify-center rounded-md text-subtle opacity-0 transition-[opacity,color,background-color] hover:bg-foreground/[0.05] hover:text-foreground focus-visible:opacity-100 group-hover/section:opacity-100"
                         title={`افزودن کار به ${sec.label}`}
                       >
                         <RiAddLine className="size-4" />
@@ -911,14 +877,15 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                   {isOpen && (
                     <div className="w-full flex flex-col">
                       {secItems.length === 0 ? (
-                        <div className="px-6 py-1.5">
+                        <div className="pb-1">
+                          {isSectionDragOver && <CardDropPreview />}
                           <button
                             type="button"
                             onClick={() => onOpenAdd?.(sec.key)}
-                            className="w-full py-2.5 px-3.5 rounded-xl border border-dashed border-border hover:border-primary/40 bg-secondary/20 hover:bg-secondary/40 flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer group select-none"
+                            title={`افزودن کار به ${sec.label}`}
+                            className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                           >
-                            <span>{sec.emptyHint}</span>
-                            <RiAddLine className="size-4 text-muted-foreground/60 group-hover:text-primary transition-colors" />
+                            <RiAddLine className="size-4" />
                           </button>
                         </div>
                       ) : (
@@ -979,7 +946,7 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                                     tagsMap={tagsMap}
                                     currentDateKey={selectedDateKey}
                                     onStatusChanged={onStatusChanged}
-                                    onMigrate={(id) => onMigrateTask(id)}
+                                    onMigrate={onMigrateTask}
                                     draggable
                                     onDragStart={(e) => handleDragStart(e, idx)}
                                     onDragEnd={handleDragEnd}
@@ -1118,7 +1085,7 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                               tagsMap={tagsMap}
                               currentDateKey={selectedDateKey}
                               onStatusChanged={onStatusChanged}
-                              onMigrate={(id) => onMigrateTask(id)}
+                              onMigrate={onMigrateTask}
                               draggable
                               onDragStart={(e) => handleDragStart(e, idx)}
                               onDragEnd={handleDragEnd}
@@ -1192,40 +1159,35 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                   setIsDragOverEmpty(false);
                   handleDropAtSlot(e, 0);
                 }}
-                className={`w-full py-6 flex flex-col items-center justify-center text-center transition-all duration-200 select-none rounded-2xl ${
-                  isDragOverEmpty ? 'bg-gray-50/70 dark:bg-white/5 scale-[1.01]' : 'bg-transparent'
+                className={`my-2 flex w-auto select-none flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center transition-colors duration-200 ${
+                  isDragOverEmpty
+                    ? 'border-border bg-foreground/[0.03]'
+                    : 'border-border/60 bg-transparent'
                 }`}
               >
-                <img
-                  src="/empty-today.png"
-                  alt={isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده'}
-                  className="w-36 h-36 sm:w-40 sm:h-40 object-contain -mb-1 select-none pointer-events-none drop-shadow-sm transition-transform duration-200"
-                  draggable={false}
-                />
-
                 {isDragOverEmpty ? (
-                  <p className="text-xs text-muted-foreground font-normal leading-relaxed max-w-[340px] mx-auto animate-in fade-in duration-150">
+                  <p className="text-[12.5px] text-muted-foreground animate-in fade-in duration-150">
                     {isToday
                       ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
                       : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
                   </p>
                 ) : (
-                  <div className="flex flex-col items-center select-none">
-                    <p className="text-sm font-medium text-muted-foreground leading-relaxed">
-                      {isToday ? 'امروز کاری برای انجام دادن نیست' : 'کاری برای این روز تعریف نشده است'}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <p className="text-[13px] font-medium text-foreground">
+                      {isToday ? 'امروز خالی است' : 'برای این روز کاری ثبت نشده'}
                     </p>
-                    <p className="text-xs text-muted-foreground/70 font-normal leading-relaxed mt-1 max-w-[340px] mx-auto">
+                    <p className="text-[12px] leading-6 text-subtle">
                       <button
                         type="button"
                         onClick={() => onOpenAdd?.()}
-                        className="underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-foreground hover:text-foreground transition-colors cursor-pointer inline font-medium"
+                        className="font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
                       >
-                        کاری اضافه کنید
+                        یک کار اضافه کن
                       </button>
                       <span>
                         {isToday
-                          ? ' یا کارهای قبلی را درگ کنید روی امروز!'
-                          : ' یا کارهای دیگر را درگ کنید روی این روز!'}
+                          ? ' یا کارهای عقب‌افتاده را روی امروز بکش.'
+                          : ' یا کارهای دیگر را روی این روز بکش.'}
                       </span>
                     </p>
                   </div>
@@ -1245,6 +1207,7 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
             selectedDateKey={selectedDateKey}
             onMigrateToCurrentDate={(id) => onMigrateTask(id, selectedDateKey)}
             onStatusChanged={onStatusChanged}
+            variant={hideOverdue ? 'future' : 'all'}
             onExternalTouchStart={handleExternalTouchStart}
             onExternalTouchMove={handleExternalTouchMove}
             onExternalTouchEnd={handleExternalTouchEnd}

@@ -161,7 +161,7 @@ export const TagPickerSheet: React.FC<TagPickerSheetProps> = ({
             <button
               type="button"
               onClick={handleCreateNewTag}
-              className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all cursor-pointer text-right group mb-2"
+              className="w-full flex items-center justify-between p-2.5 rounded-2xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 transition cursor-pointer text-right group mb-2"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center text-primary shrink-0">
@@ -182,7 +182,7 @@ export const TagPickerSheet: React.FC<TagPickerSheetProps> = ({
                 key={tag.id}
                 type="button"
                 onClick={() => onToggleTag(tag.id)}
-                className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer active:scale-[0.98] text-right group ${
+                className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition cursor-pointer active:scale-[0.98] text-right group ${
                   isSelected
                     ? 'border-primary/50 bg-primary/10 dark:bg-primary/15'
                     : 'border-border/60 dark:border-white/10 hover:border-primary/30 hover:bg-muted/40 dark:hover:bg-white/5'
@@ -228,7 +228,7 @@ export const TagPickerSheet: React.FC<TagPickerSheetProps> = ({
           <button
             type="button"
             onClick={handleClose}
-            className="w-full py-2.5 rounded-2xl bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 text-xs font-bold transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+            className="w-full py-2.5 rounded-2xl bg-zinc-900 text-white hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 text-xs font-bold transition active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 shadow-xs"
           >
             <RiCheckLine className="w-4 h-4 stroke-[2.5]" />
             <span>تأیید و بازگشت</span>

@@ -116,7 +116,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
       }}
       onClick={onClick}
       onKeyDown={onCardKeyDown}
-      className={`note-tile group/note relative flex aspect-[4/5] w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl border p-3 text-right shadow-[0_6px_18px_rgba(15,15,13,0.07)] transition-all duration-200 outline-none select-none hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(15,15,13,0.16)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:shadow-none dark:hover:shadow-none ${cardThemeClass}`}
+      className={`note-tile group/note relative flex aspect-[4/5] w-full min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl border p-3 text-right shadow-[0_6px_18px_rgba(15,15,13,0.07)] transition duration-200 outline-none select-none hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(15,15,13,0.16)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:shadow-none dark:hover:shadow-none ${cardThemeClass}`}
       dir="rtl"
     >
       {coverImage && (

@@ -201,7 +201,7 @@ export const BoxEditModal: React.FC<BoxEditModalProps> = ({
                     key={p.id}
                     type="button"
                     onClick={() => setSelectedColor(p.dot)}
-                    className={`size-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    className={`size-7 rounded-full flex items-center justify-center transition cursor-pointer ${
                       isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-card scale-110 shadow-xs' : 'hover:scale-105'
                     }`}
                     style={{ backgroundColor: p.dot }}
@@ -228,7 +228,7 @@ export const BoxEditModal: React.FC<BoxEditModalProps> = ({
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedIcon(item.id)}
-                    className={`size-9 rounded-xl flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                    className={`size-9 rounded-xl flex items-center justify-center transition shrink-0 cursor-pointer ${
                       isSelected
                         ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                         : 'bg-secondary/70 text-muted-foreground hover:text-foreground hover:bg-secondary'

@@ -251,7 +251,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-3 left-3 z-30 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer backdrop-blur-md shadow-md active:scale-95"
+          className="absolute top-3 left-3 z-30 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-md active:scale-95"
           title="بازگشت به برنامه"
         >
           <RiCloseLine className="w-5 h-5 stroke-[2.5]" />
@@ -280,7 +280,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                   syncManager.performSync();
                   onClose();
                 }}
-                className="w-full py-3 px-4 rounded-xl bg-foreground text-background font-bold text-sm transition-all cursor-pointer shadow-sm hover:opacity-90 active:scale-[0.99]"
+                className="w-full py-3 px-4 rounded-xl bg-foreground text-background font-bold text-sm transition cursor-pointer shadow-sm hover:opacity-90 active:scale-[0.99]"
               >
                 همگام‌سازی و بازگشت به برنامه
               </button>
@@ -361,7 +361,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@example.com"
-                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition-all disabled:opacity-60"
+                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
                       />
                     </div>
 
@@ -393,7 +393,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="حداقل ۶ کاراکتر"
-                          className="w-full h-11 pr-3.5 pl-10 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition-all disabled:opacity-60"
+                          className="w-full h-11 pr-3.5 pl-10 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
                         />
                         <button
                           type="button"
@@ -410,7 +410,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full h-11 mt-2 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-75 disabled:cursor-wait"
+                      className="w-full h-11 mt-2 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-75 disabled:cursor-wait"
                     >
                       {loading ? (
                         <>
@@ -430,7 +430,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                       type="button"
                       onClick={handleGoogleLogin}
                       disabled={loading}
-                      className="w-full h-11 rounded-xl bg-card hover:bg-secondary/70 border border-border text-foreground text-sm font-semibold flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-xs active:scale-[0.99] disabled:opacity-50"
+                      className="w-full h-11 rounded-xl bg-card hover:bg-secondary/70 border border-border text-foreground text-sm font-semibold flex items-center justify-center gap-2.5 transition cursor-pointer shadow-xs active:scale-[0.99] disabled:opacity-50"
                     >
                       <span>ورود با گوگل</span>
                       <svg
@@ -502,14 +502,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@example.com"
-                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition-all disabled:opacity-60"
+                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full h-11 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-50"
+                      className="w-full h-11 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-50"
                     >
                       {loading ? 'در حال ارسال ایمیل بازیابی...' : 'ارسال لینک تغییر رمز'}
                     </button>
@@ -556,14 +556,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="name@example.com"
-                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition-all disabled:opacity-60"
+                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full h-11 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-50"
+                      className="w-full h-11 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-50"
                     >
                       {loading ? 'در حال ارسال لینک...' : 'ارسال لینک ورود'}
                     </button>
@@ -614,13 +614,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         value={otpToken}
                         onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
                         placeholder="• • • • • •"
-                        className="w-full h-11 px-4 rounded-xl bg-background border border-border text-foreground text-center font-mono tracking-widest text-lg placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition-all"
+                        className="w-full h-11 px-4 rounded-xl bg-background border border-border text-foreground text-center font-mono tracking-widest text-lg placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition"
                         autoFocus
                       />
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-10 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                        className="w-full h-10 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-50"
                       >
                         {loading ? 'در حال بررسی...' : 'تایید کد و ورود'}
                       </button>

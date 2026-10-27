@@ -1069,7 +1069,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
                 e.stopPropagation();
                 goToPrevWeek();
               }}
-              className="calendar-nav-chevron flex absolute right-0.5 top-1/2 -translate-y-1/2 z-30 size-7 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
+              className="calendar-nav-chevron flex absolute right-0.5 top-1/2 -translate-y-1/2 z-30 size-7 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
               title="هفته قبل"
             >
               <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0" />
@@ -1084,7 +1084,7 @@ export const WeeklyStrip: React.FC<WeeklyStripProps> = React.memo(({
                 e.stopPropagation();
                 goToNextWeek();
               }}
-              className="calendar-nav-chevron flex absolute left-0.5 top-1/2 -translate-y-1/2 z-30 size-7 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition-all duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
+              className="calendar-nav-chevron flex absolute left-0.5 top-1/2 -translate-y-1/2 z-30 size-7 items-center justify-center rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-accent/50 cursor-pointer opacity-0 group-hover/strip:opacity-100 transition duration-200 pointer-events-none group-hover/strip:pointer-events-auto select-none"
               title="هفته بعد"
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4 shrink-0" />

@@ -26,7 +26,12 @@ export const PinnedSection: React.FC<PinnedSectionProps> = React.memo(({
   if (pinnedItems.length === 0) return null;
 
   return (
-    <div className="w-full mt-2 mb-2 select-none">
+    <section className="mb-5 w-full select-none" aria-labelledby="pinned-today-heading">
+      <div className="flex h-7 items-center">
+        <h2 id="pinned-today-heading" className="text-[11px] font-medium text-subtle">
+          سنجاق‌شده
+        </h2>
+      </div>
       <div className="w-full">
         {pinnedItems.map((item, idx) => {
           const isLast = idx === pinnedItems.length - 1;
@@ -55,6 +60,6 @@ export const PinnedSection: React.FC<PinnedSectionProps> = React.memo(({
           );
         })}
       </div>
-    </div>
+    </section>
   );
 });

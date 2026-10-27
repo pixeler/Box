@@ -65,7 +65,7 @@ export const CalendarYearView: React.FC<CalendarYearViewProps> = ({
 
   return (
     <div
-      className="h-full overflow-y-auto no-scrollbar px-3 pb-28 pt-3 sm:px-6 sm:pt-4 lg:overflow-hidden lg:pb-4"
+      className="h-full overflow-y-auto no-scrollbar pb-28 pt-3 lg:overflow-hidden lg:pb-4"
       dir="rtl"
     >
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:h-full lg:max-w-none lg:grid-cols-4 lg:grid-rows-3">
@@ -82,7 +82,7 @@ export const CalendarYearView: React.FC<CalendarYearViewProps> = ({
                 'group flex min-h-0 flex-col gap-2 rounded-2xl border bg-card/40 p-2.5 text-right transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-3.5',
                 isActive
                   ? 'border-foreground/15 bg-secondary/40 dark:border-white/10 dark:bg-black/25'
-                  : 'border-border/50 hover:border-border hover:bg-secondary/30 dark:hover:bg-black/20'
+                  : 'border-border/25 hover:border-border/60 hover:bg-secondary/30 dark:hover:bg-black/20'
               )}
             >
               <div className="flex items-center justify-between gap-2">
@@ -115,7 +115,7 @@ export const CalendarYearView: React.FC<CalendarYearViewProps> = ({
                   <span
                     key={day.dateKey}
                     className={cn(
-                      'relative mx-auto flex h-[18px] w-full items-center justify-center rounded-full text-[9px] font-medium tabular-nums sm:text-[10px] lg:self-center lg:text-[11px]',
+                      'relative mx-auto flex size-[18px] shrink-0 items-center justify-center rounded-full text-[9px] font-medium tabular-nums sm:text-[10px] lg:self-center lg:text-[11px]',
                       day.isToday
                         ? day.isRedDay
                           ? 'bg-rose-500 font-bold text-white shadow-xs'

@@ -56,14 +56,18 @@ export async function checkAndSeedDemoBoxes() {
 }
 
 
-export async function checkAndSeedDesignDemoData() {
+/**
+ * One-off demo bootstrap. Returns `true` when it actually changed local data,
+ * so callers can decide whether a re-read is needed.
+ */
+export async function checkAndSeedDesignDemoData(): Promise<boolean> {
   const { supabase } = await import('./supabase');
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     // If user is logged into Supabase, their data comes from cloud server. Do not seed demo tasks!
     const { deduplicateLocalDatabase } = await import('./sync');
     await deduplicateLocalDatabase().catch(() => {});
-    return;
+    return true;
   }
 
   await checkAndSeedDemoBoxes();
@@ -84,20 +88,24 @@ export async function checkAndSeedDesignDemoData() {
   const futureKey = formatJalaliKey(getJalaliDate(futureDate));
 
   // Migration for previously seeded data using hardcoded 1404/10/30
+  let migratedAny = false;
   const migratedKey = 'second_brain_demo_migrated_to_dynamic_v1';
   if (!localStorage.getItem(migratedKey)) {
     try {
       const oldTodayTasks = await taskRepo.list({ due_date: '1404/10/30' });
       for (const t of oldTodayTasks) {
         await taskRepo.update(t.id, { due_date: todayKey });
+        migratedAny = true;
       }
       const oldOverdueTasks = await taskRepo.list({ due_date: '1404/10/28' });
       for (const t of oldOverdueTasks) {
         await taskRepo.update(t.id, { due_date: overdueKey });
+        migratedAny = true;
       }
       const oldFutureTasks = await taskRepo.list({ due_date: '1404/11/05' });
       for (const t of oldFutureTasks) {
         await taskRepo.update(t.id, { due_date: futureKey });
+        migratedAny = true;
       }
     } catch (e) {
       console.warn('Seed migration error:', e);
@@ -106,11 +114,11 @@ export async function checkAndSeedDesignDemoData() {
   }
 
   const seeded = localStorage.getItem('second_brain_demo_seeded');
-  if (seeded) return;
+  if (seeded) return migratedAny;
 
   try {
     const existingTasks = await taskRepo.list();
-    if (existingTasks.length > 0) return;
+    if (existingTasks.length > 0) return false;
 
     // 1. Create Tag
     const tag = await tagRepo.getOrCreate('دیزاین', 'manual');
@@ -179,8 +187,10 @@ export async function checkAndSeedDesignDemoData() {
     });
 
     localStorage.setItem('second_brain_demo_seeded', 'true');
+    return true;
   } catch (err) {
     console.warn('Failed to seed design demo data:', err);
+    return false;
   } finally {
     await cleanupDuplicatesAndObsoleteItems();
   }

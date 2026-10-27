@@ -13,9 +13,7 @@ import {
   getJalaliMonthLength,
   extractDateOnly,
   getJalaliDate,
-  addJalaliDays,
   formatJalaliDisplay,
-  getFullPersianWeekdayName,
   formatTaskDateDisplay,
 } from '@/lib/jalali';
 import { isTaskOccurringOnDate } from '@/lib/recurrence';
@@ -29,7 +27,6 @@ import { TIME_OF_DAY_SECTIONS } from '@/components/stream/timeOfDayConfig';
 import { useIsMobile } from '@/lib/device';
 import { CalendarHeader } from './CalendarHeader';
 import { CalendarAddRow } from './CalendarAddRow';
-import { CalendarDayView } from './CalendarDayView';
 import { CalendarMonthView } from './CalendarMonthView';
 import { CalendarYearView } from './CalendarYearView';
 import type { CalendarViewMode } from './calendarUtils';
@@ -81,13 +78,39 @@ interface CalendarViewProps {
   onTaskChanged?: () => void;
 }
 
-interface CalendarHistoryEntry {
-  mode: CalendarViewMode;
-  dateKey: string;
-}
-
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
 const HOUR_HEIGHT = 64;
+
+// The 1px rules are drawn by the cells themselves instead of by the grid's own
+// background, so the grid surface can stay the page colour and the selected
+// day's rounded corners reveal the page rather than a border-coloured wedge.
+const cellRuleX = 'shadow-[-1px_0_0_0_var(--grid-line)]';
+const cellRuleXY = 'shadow-[0_-1px_0_0_var(--grid-line),-1px_0_0_0_var(--grid-line)]';
+
+/**
+ * Paints the selected day across the timeline viewport rather than across the
+ * scrolling content, so both of its rounded ends stay visible at any scroll
+ * position. The columns match the grid template of the content it sits behind.
+ */
+const SelectedDayViewportFill: React.FC<{
+  days: Array<{ formattedDate: string }>;
+  selectedDateKey: string;
+}> = ({ days, selectedDateKey }) => (
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 -z-10 grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] grid-rows-[100%] gap-px"
+  >
+    <div />
+    {days.map((day) => (
+      <div
+        key={day.formattedDate}
+        className={cn(
+          day.formattedDate === selectedDateKey && 'rounded-b-xl bg-cell-selected'
+        )}
+      />
+    ))}
+  </div>
+);
 
 // The add control belongs to the bottom of each week cell and only appears
 // while that cell is hovered or one of its controls has keyboard focus.
@@ -175,15 +198,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   refreshTrigger,
   onSelectDate,
   onOpenAddForDate,
-  onExitCalendar,
+  onExitCalendar: _onExitCalendar,
   onTaskChanged,
 }) => {
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
   const [currentDateKey, setCurrentDateKey] = useState<string>(
     () => selectedDateKey || getTodayJalaliKey()
   );
-  const [history, setHistory] = useState<CalendarHistoryEntry[]>([]);
-
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
   const [_isLoading, setIsLoading] = useState(false);
@@ -211,6 +232,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   });
 
   const timelineScrollRef = useRef<HTMLDivElement>(null);
+  const periodAnimRef = useRef<HTMLDivElement>(null);
+
+  // A short, direction-aware slide when the period steps forward or back. Runs
+  // through the Web Animations API so the grid is never remounted and the
+  // timeline keeps its scroll position.
+  const animatePeriodShift = useCallback((direction: 'prev' | 'next') => {
+    const node = periodAnimRef.current;
+    if (!node || typeof node.animate !== 'function') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const offset = direction === 'next' ? -18 : 18;
+    node.animate(
+      [
+        { opacity: 0.35, transform: `translate3d(${offset}px, 0, 0)` },
+        { opacity: 1, transform: 'translate3d(0, 0, 0)' },
+      ],
+      { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+  }, []);
 
   useEffect(() => {
     if (!selectedDateKey) return;
@@ -438,7 +477,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }, [parsedCurrent.jy, parsedCurrent.jm, getTasksForDate]);
 
   const isOnToday = useMemo(() => {
-    if (viewMode === 'day') return currentDateKey === todayKey;
     if (viewMode === 'week') return weekContainsToday;
     if (viewMode === 'month') {
       return parsedCurrent.jy === todayParsed.jy && parsedCurrent.jm === todayParsed.jm;
@@ -469,12 +507,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }, [isMobile, viewMode, enableDaySections, currentDateKey, weekContainsToday]);
 
   const headerTitle = useMemo(() => {
-    if (viewMode === 'day') {
-      const date = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
-      return getFullPersianWeekdayName(date);
-    }
     if (viewMode === 'week') {
-      return getWeekOfMonthLabel(weekDays);
+      return formatWeekRange(weekDays);
     }
     if (viewMode === 'month') {
       return `${PERSIAN_MONTH_NAMES[parsedCurrent.jm - 1]} ${toPersianDigits(
@@ -485,18 +519,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   }, [viewMode, parsedCurrent, weekDays]);
 
   const headerSubtitle = useMemo(() => {
-    if (viewMode === 'day') {
-      const holiday = getHolidaysForDate(currentDateKey)[0];
-      return [
-        formatJalaliDisplay(parsedCurrent),
-        currentDateKey === todayKey ? 'امروز' : '',
-        holiday?.title || '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-    }
     if (viewMode === 'week') {
-      return formatWeekRange(weekDays);
+      return getWeekOfMonthLabel(weekDays);
     }
     if (viewMode === 'month') {
       return `${toPersianDigits(
@@ -513,65 +537,34 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     monthTaskCount,
   ]);
 
-  const pushHistory = useCallback(() => {
-    setHistory((previous) => [...previous, { mode: viewMode, dateKey: currentDateKey }]);
-  }, [viewMode, currentDateKey]);
-
   const openDay = useCallback(
     (dateKey: string) => {
-      if (viewMode !== 'day') pushHistory();
       setCurrentDateKey(dateKey);
-      setViewMode('day');
       onSelectDate(dateKey);
     },
-    [viewMode, pushHistory, onSelectDate]
+    [onSelectDate]
   );
 
   const openMonth = useCallback(
     (jm: number) => {
-      pushHistory();
       setViewMode('month');
       setCurrentDateKey(formatJalaliKey({ jy: parsedCurrent.jy, jm, jd: 1 }));
     },
-    [pushHistory, parsedCurrent.jy]
+    [parsedCurrent.jy]
   );
 
-  const handleBack = useCallback(() => {
-    if (history.length === 0) {
-      onExitCalendar?.();
-      return;
-    }
-    const previous = history[history.length - 1];
-    setHistory((entries) => entries.slice(0, -1));
-    setViewMode(previous.mode);
-    setCurrentDateKey(previous.dateKey);
-    if (previous.mode === 'day') onSelectDate(previous.dateKey);
-  }, [history, onExitCalendar, onSelectDate]);
+  const handleModeChange = useCallback((mode: CalendarViewMode) => {
+    setViewMode(mode);
+  }, []);
 
-  const handleModeChange = useCallback(
-    (mode: CalendarViewMode) => {
-      setViewMode(mode);
-      setHistory([]);
-      if (mode === 'day') onSelectDate(currentDateKey);
-    },
-    [currentDateKey, onSelectDate]
-  );
-
-  const handlePickMonth = useCallback(
-    (jm: number, jy: number) => {
-      setViewMode('month');
-      setHistory([]);
-      setCurrentDateKey(formatJalaliKey({ jy, jm, jd: 1 }));
-    },
-    []
-  );
+  const handlePickMonth = useCallback((jm: number, jy: number) => {
+    setViewMode('month');
+    setCurrentDateKey(formatJalaliKey({ jy, jm, jd: 1 }));
+  }, []);
 
   const handleNavigatePrev = useCallback(() => {
-    if (viewMode === 'day') {
-      const nextKey = addJalaliDays(currentDateKey, -1);
-      setCurrentDateKey(nextKey);
-      onSelectDate(nextKey);
-    } else if (viewMode === 'week') {
+    animatePeriodShift('prev');
+    if (viewMode === 'week') {
       const date = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
       date.setDate(date.getDate() - 7);
       setCurrentDateKey(formatJalaliKey(getJalaliDate(date)));
@@ -584,14 +577,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         formatJalaliKey({ jy: parsedCurrent.jy - 1, jm: parsedCurrent.jm, jd: 1 })
       );
     }
-  }, [viewMode, currentDateKey, parsedCurrent, onSelectDate]);
+  }, [viewMode, parsedCurrent, animatePeriodShift]);
 
   const handleNavigateNext = useCallback(() => {
-    if (viewMode === 'day') {
-      const nextKey = addJalaliDays(currentDateKey, 1);
-      setCurrentDateKey(nextKey);
-      onSelectDate(nextKey);
-    } else if (viewMode === 'week') {
+    animatePeriodShift('next');
+    if (viewMode === 'week') {
       const date = jalaliToDate(parsedCurrent.jy, parsedCurrent.jm, parsedCurrent.jd);
       date.setDate(date.getDate() + 7);
       setCurrentDateKey(formatJalaliKey(getJalaliDate(date)));
@@ -604,15 +594,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         formatJalaliKey({ jy: parsedCurrent.jy + 1, jm: parsedCurrent.jm, jd: 1 })
       );
     }
-  }, [viewMode, currentDateKey, parsedCurrent, onSelectDate]);
+  }, [viewMode, parsedCurrent, animatePeriodShift]);
 
   const handleToday = useCallback(() => {
     setCurrentDateKey(todayKey);
-    if (viewMode === 'day') onSelectDate(todayKey);
     if (!isMobile && viewMode === 'week' && !enableDaySections) {
       window.setTimeout(scrollTimelineToNow, 80);
     }
-  }, [todayKey, viewMode, onSelectDate, scrollTimelineToNow, isMobile, enableDaySections]);
+  }, [todayKey, viewMode, scrollTimelineToNow, isMobile, enableDaySections]);
 
   const handleTaskDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData('text/plain', taskId);
@@ -680,24 +669,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   };
 
-  const handleDropOnSection = useCallback(
-    async (taskId: string, timeOfDay: TimeOfDay) => {
-      try {
-        await taskRepo.update(taskId, {
-          time_of_day: timeOfDay,
-          due_date: currentDateKey,
-        });
-        await loadCalendarData();
-        onTaskChanged?.();
-        toast.show('بخش روز تغییر کرد');
-      } catch (error) {
-        console.error('Failed to change task section', error);
-        toast.show('خطا در انتقال کار');
-      }
-    },
-    [currentDateKey, loadCalendarData, onTaskChanged]
-  );
-
   const currentLiveTop = useMemo(
     () => currentTime.hour * HOUR_HEIGHT + (currentTime.minute / 60) * HOUR_HEIGHT,
     [currentTime]
@@ -759,11 +730,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         mode={viewMode}
         title={headerTitle}
         subtitle={headerSubtitle}
-        canGoBack={history.length > 0}
         isOnToday={isOnToday}
         currentYear={parsedCurrent.jy}
         currentMonth={parsedCurrent.jm}
-        onBack={handleBack}
         onPrev={handleNavigatePrev}
         onNext={handleNavigateNext}
         onToday={handleToday}
@@ -774,23 +743,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         }
       />
 
-      <div className="min-h-0 flex-1">
-        {viewMode === 'day' && (
-          <CalendarDayView
-            dateKey={currentDateKey}
-            tasks={getTasksForDate(currentDateKey)}
-            tagsMap={tagsMap}
-            isToday={currentDateKey === todayKey}
-            onStatusChanged={handleStatusChanged}
-            onDropTask={handleDropOnSection}
-            onDragStartTask={handleTaskDragStart}
-          />
-        )}
-
+      <div ref={periodAnimRef} className="min-h-0 flex-1 px-6 sm:px-12">
         {viewMode === 'week' && (
           <div className="h-full min-h-0 w-full">
             {isMobile ? (
-              <div className="h-full overflow-y-auto no-scrollbar px-3 pb-28 pt-2">
+              <div className="h-full overflow-y-auto no-scrollbar pb-28 pt-2">
               {overdueTasks.length > 0 && (
                 <button
                   type="button"
@@ -987,8 +944,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               )}
 
               <div className="flex min-w-0 flex-1 flex-col">
-              {/* Desktop: week grid */}
-              <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px border-b border-border/40 bg-border/40">
+              <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px border-b border-border/40 bg-background">
                 <button
                   type="button"
                   onClick={() => setOverdueOpen((open) => !open)}
@@ -997,7 +953,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   title="کارهای عقب‌افتاده"
                   className={cn(
                     'group flex flex-col items-center justify-center gap-1 px-1 text-muted-foreground outline-none transition-colors hover:bg-secondary/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                    overdueOpen ? 'bg-secondary/40 text-foreground' : 'bg-card/55'
+                    overdueOpen ? 'bg-secondary/40 text-foreground' : 'bg-background',
+                    cellRuleX
                   )}
                 >
                   <span className="relative flex items-center justify-center">
@@ -1026,20 +983,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       onClick={() => openDay(day.formattedDate)}
                       title={`نمایش ${day.dayName}`}
                       className={cn(
-                        'group flex flex-col items-center gap-0.5 bg-card/55 px-1 pb-2 pt-2.5 transition-colors hover:bg-secondary/30 dark:hover:bg-black/20 cursor-pointer',
-                        isToday && 'bg-primary/[0.04] dark:bg-black/25'
+                        'group flex flex-col items-center gap-0.5 px-1 pb-2.5 pt-4 transition-colors hover:bg-secondary/30 dark:hover:bg-black/20 cursor-pointer',
+                        cellRuleX,
+                        day.formattedDate === selectedDateKey
+                          ? 'rounded-t-xl bg-cell-selected'
+                          : 'bg-background'
                       )}
                     >
-                      <span
-                        className={cn(
-                          'text-[10px]',
-                          isRedDay
-                            ? 'text-rose-500/80 dark:text-rose-400/80'
-                            : 'text-muted-foreground'
-                        )}
-                      >
-                        {day.dayName}
-                      </span>
                       <span
                         className={cn(
                           'flex size-8 items-center justify-center rounded-full font-darvish text-base font-bold tabular-nums transition-colors',
@@ -1053,6 +1003,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         )}
                       >
                         {toPersianDigits(day.dayNumber)}
+                      </span>
+                      <span
+                        className={cn(
+                          'mt-1.5 text-[14.5px] font-medium leading-5',
+                          isRedDay
+                            ? 'text-rose-500/90 dark:text-rose-400/90'
+                            : 'text-muted-foreground'
+                        )}
+                      >
+                        {day.dayName}
                       </span>
                       <span
                         className={cn(
@@ -1091,13 +1051,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               )}
 
               {!enableDaySections && (
-                <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px border-b border-border/40 bg-border/40">
-                  <div className="flex items-start justify-center bg-card/55 pt-2.5 text-[10px] font-semibold text-muted-foreground">
+                <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px bg-background">
+                  <div className={cn('flex items-start justify-center bg-background pt-2.5 text-[10px] font-semibold text-muted-foreground', cellRuleX)}>
                     هر زمان
                   </div>
 
                   {weekDays.map((day, dayIndex) => {
-                    const isToday = day.formattedDate === todayKey;
                     const anytimeTasks = weekTasks[dayIndex].tasks.filter(
                       (task) => !task.due_time?.trim()
                     );
@@ -1113,8 +1072,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           handleCellDrop(e, day.formattedDate, { timeOfDay: 'anytime' })
                         }
                         className={cn(
-                          'group/cell flex min-h-[86px] flex-col gap-1 bg-card/55 p-1.5 transition-colors',
-                          isToday && 'bg-primary/[0.04] dark:bg-black/25',
+                          'group/cell flex min-h-[86px] flex-col gap-1 p-1 transition-colors',
+                          cellRuleX,
+                          day.formattedDate === selectedDateKey
+                            ? 'bg-cell-selected'
+                            : 'bg-background',
                           isDragOver && 'bg-primary/10 ring-2 ring-inset ring-primary/40'
                         )}
                       >
@@ -1151,16 +1113,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               )}
 
               {enableDaySections ? (
-                <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar pb-6">
-                  <div className="grid min-h-full grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] items-stretch gap-px bg-border/40">
-                    {TIME_OF_DAY_SECTIONS.map((section) => (
+                <div className="relative isolate min-h-0 flex-1">
+                  <SelectedDayViewportFill days={weekDays} selectedDateKey={selectedDateKey} />
+                  <div className="h-full overflow-y-auto no-scrollbar pb-6">
+                  <div className="grid min-h-full grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] items-stretch gap-px bg-transparent">
+                    {TIME_OF_DAY_SECTIONS.map((section, sectionIndex) => (
                       <React.Fragment key={section.key}>
-                        <div className="flex min-h-[110px] items-start justify-center bg-card/55 pt-3 text-[10px] font-semibold text-muted-foreground">
+                        <div
+                          className={cn(
+                            'flex min-h-[110px] items-start justify-center bg-background pt-3 text-[10px] font-semibold text-muted-foreground',
+                            sectionIndex === 0 ? cellRuleX : cellRuleXY
+                          )}
+                        >
                           {section.label}
                         </div>
 
                         {weekDays.map((day, dayIndex) => {
-                          const isToday = day.formattedDate === todayKey;
                           const sectionTasks = weekTasks[dayIndex].tasks.filter(
                             (task) => getTaskSection(task) === section.key
                           );
@@ -1179,8 +1147,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 })
                               }
                               className={cn(
-                                'group/cell flex min-h-[110px] flex-col gap-1 bg-card/55 p-1.5 transition-colors cursor-pointer',
-                                isToday && 'bg-primary/[0.04] dark:bg-black/25',
+                                'group/cell flex min-h-[110px] flex-col gap-1 p-1 transition-colors cursor-pointer',
+                                sectionIndex === 0 ? cellRuleX : cellRuleXY,
+                                day.formattedDate === selectedDateKey
+                                  ? 'bg-transparent'
+                                  : 'bg-background',
                                 isDragOver && 'bg-primary/10 ring-2 ring-inset ring-primary/40'
                               )}
                             >
@@ -1223,17 +1194,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       </React.Fragment>
                     ))}
                   </div>
+                  </div>
                 </div>
               ) : (
-                <div
-                  ref={timelineScrollRef}
-                  className="min-h-0 flex-1 overflow-y-auto no-scrollbar pb-6"
-                >
+                <div className="relative isolate min-h-0 flex-1">
+                  <SelectedDayViewportFill days={weekDays} selectedDateKey={selectedDateKey} />
                   <div
-                    className="relative grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px bg-border/40"
+                    ref={timelineScrollRef}
+                    className="h-full overflow-y-auto no-scrollbar pb-6"
+                  >
+                  <div
+                    className="relative grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px bg-transparent"
                     style={{ height: HOURS.length * HOUR_HEIGHT }}
                   >
-                    <div className="flex flex-col bg-card/55">
+                    <div className={cn('flex flex-col bg-background', cellRuleX)}>
                       {HOURS.map((hour) => (
                         <div
                           key={hour}
@@ -1254,8 +1228,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div
                           key={day.formattedDate}
                           className={cn(
-                            'relative bg-card/55',
-                            isToday && 'bg-primary/[0.04] dark:bg-black/25'
+                            'relative',
+                            cellRuleX,
+                            day.formattedDate === selectedDateKey
+                              ? 'bg-transparent'
+                              : 'bg-background'
                           )}
                           style={{ height: HOURS.length * HOUR_HEIGHT }}
                         >
@@ -1417,6 +1394,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         </div>
                       );
                     })}
+                  </div>
                   </div>
                 </div>
               )}

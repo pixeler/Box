@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { getSupabase } from './cloud';
+import { runWhenIdle } from './idle';
 
 interface AuthContextType {
   user: User | null;
@@ -21,31 +22,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Starts `false`: the shell never waits on the network. The session is
+  // restored on idle and simply arrives a beat later.
+  const [loading] = useState(false);
 
   useEffect(() => {
-    // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
 
-    // 2. Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    // Session restore is a network/auth concern, not a render concern, so it
+    // runs after first paint and after the native bridge is up.
+    runWhenIdle(() => {
+      void getSupabase()
+        .then((supabase) => {
+          if (cancelled) return;
+
+          supabase.auth
+            .getSession()
+            .then(({ data }) => {
+              if (cancelled) return;
+              setSession(data.session);
+              setUser(data.session?.user ?? null);
+            })
+            .catch(() => {});
+
+          const {
+            data: { subscription },
+          } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+            setSession(nextSession);
+            setUser(nextSession?.user ?? null);
+          });
+
+          unsubscribe = () => subscription.unsubscribe();
+        })
+        .catch(() => {});
     });
 
     return () => {
-      subscription.unsubscribe();
+      cancelled = true;
+      unsubscribe?.();
     };
   }, []);
 
-  const signInWithOtp = async (email: string) => {
+  const signInWithOtp = useCallback(async (email: string) => {
+    const supabase = await getSupabase();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -53,9 +73,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     });
     return { error };
-  };
+  }, []);
 
-  const verifyOtp = async (email: string, token: string) => {
+  const verifyOtp = useCallback(async (email: string, token: string) => {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.auth.verifyOtp({
       email,
       token,
@@ -66,9 +87,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
     }
     return { error };
-  };
+  }, []);
 
-  const signInWithPassword = async (email: string, password: string) => {
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -78,9 +100,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
     }
     return { error };
-  };
+  }, []);
 
-  const signUpWithPassword = async (email: string, password: string) => {
+  const signUpWithPassword = useCallback(async (email: string, password: string) => {
+    const supabase = await getSupabase();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -93,9 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(data.user);
     }
     return { error };
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
+    const supabase = await getSupabase();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -103,9 +127,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     });
     return { error };
-  };
+  }, []);
 
-  const resendConfirmationEmail = async (email: string) => {
+  const resendConfirmationEmail = useCallback(async (email: string) => {
+    const supabase = await getSupabase();
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
@@ -114,23 +139,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     });
     return { error };
-  };
+  }, []);
 
-  const resetPasswordForEmail = async (email: string) => {
+  const resetPasswordForEmail = useCallback(async (email: string) => {
+    const supabase = await getSupabase();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin,
     });
     return { error };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
+    const supabase = await getSupabase();
     const { error } = await supabase.auth.signOut();
     if (!error) {
       setSession(null);
       setUser(null);
     }
     return { error };
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -146,7 +173,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resetPasswordForEmail,
       signOut,
     }),
-    [user, session, loading]
+    [
+      user,
+      session,
+      loading,
+      signInWithOtp,
+      verifyOtp,
+      signInWithPassword,
+      signUpWithPassword,
+      signInWithGoogle,
+      resendConfirmationEmail,
+      resetPasswordForEmail,
+      signOut,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

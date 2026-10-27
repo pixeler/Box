@@ -3,7 +3,7 @@ import type { Tag } from '@/types/models';
 import { entryRepo, taskRepo, tagRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey } from '@/lib/jalali';
 import { parseQuickInput } from '@/lib/quick-parser';
-import { JalaliDatePicker } from '../calendar/JalaliDatePicker';
+import { JalaliDatePicker } from '../calendar/LazyJalaliDatePicker';
 import { TagPickerPopover } from '../tags/TagPickerPopover';
 import {
   DropdownMenu,
@@ -130,7 +130,7 @@ export const TaskInlineForm: React.FC<TaskInlineFormProps> = ({
   const selectedTags = tagIds.map((id) => tagsMap[id]).filter(Boolean);
 
   return (
-    <div className="w-full mb-3 rounded-[8px] border border-gray-300 bg-white p-3 shadow-md select-none font-sans text-right transition-all">
+    <div className="w-full mb-3 rounded-[8px] border border-gray-300 bg-white p-3 shadow-md select-none font-sans text-right transition">
       <form onSubmit={handleSubmit}>
         {/* Title Input */}
         <input

@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { NoteEditModal } from '@/components/notebook/NoteEditModal';
+import { NoteEditModal } from '@/components/notebook/LazyNoteEditModal';
 import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
 import { stripMarkdownForPreview } from '@/lib/markdown';
 import { useIsMobile } from '@/lib/device';

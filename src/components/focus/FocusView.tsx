@@ -260,7 +260,7 @@ export const FocusView: React.FC = () => {
             تمرکز
           </h1>
           <span
-            className={`w-2 h-2 rounded-full inline-block shrink-0 transition-all duration-300 ${
+            className={`w-2 h-2 rounded-full inline-block shrink-0 transition duration-300 ${
               timerState === 'running'
                 ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse'
                 : 'bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.4)]'
@@ -325,7 +325,7 @@ export const FocusView: React.FC = () => {
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
-              className="transition-all duration-150 ease-out -rotate-90 origin-center"
+              className="transition duration-150 ease-out -rotate-90 origin-center"
             />
 
             {/* 3. Ticks inside active stroke */}
@@ -449,7 +449,7 @@ export const FocusView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleStart}
-                className="h-12 px-8 rounded-full flex items-center justify-center gap-1.5 text-sm font-bold bg-[#212228] text-white hover:bg-[#2c2e36] dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
+                className="h-12 px-8 rounded-full flex items-center justify-center gap-1.5 text-sm font-bold bg-[#212228] text-white hover:bg-[#2c2e36] dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white shadow-xs transition active:scale-95 cursor-pointer font-sans"
               >
                 {/* Icon first -> in RTL, renders on the RIGHT side of text */}
                 <RiPlayLine className="w-4 h-4 stroke-[2.4]" />
@@ -459,7 +459,7 @@ export const FocusView: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePauseResume}
-                className="h-12 px-8 rounded-full flex items-center justify-center gap-1.5 text-sm font-bold bg-[#212228] text-white hover:bg-[#2c2e36] dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
+                className="h-12 px-8 rounded-full flex items-center justify-center gap-1.5 text-sm font-bold bg-[#212228] text-white hover:bg-[#2c2e36] dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-white shadow-xs transition active:scale-95 cursor-pointer font-sans"
               >
                 {timerState === 'running' ? (
                   <>
@@ -612,7 +612,7 @@ export const FocusView: React.FC = () => {
           <button
             type="button"
             onClick={() => setTaskPickerOpen((prev) => !prev)}
-            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border/80 bg-card/60 dark:bg-white/5 hover:bg-card hover:border-border transition-all cursor-pointer shadow-2xs text-xs font-sans"
+            className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border border-border/80 bg-card/60 dark:bg-white/5 hover:bg-card hover:border-border transition cursor-pointer shadow-2xs text-xs font-sans"
           >
             <RiArrowDownSLine className="w-4 h-4 text-muted-foreground transition-transform duration-150" />
             <span className="font-semibold text-foreground truncate">

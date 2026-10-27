@@ -59,7 +59,7 @@ export const RecurringDeleteSheet: React.FC<RecurringDeleteSheetProps> = ({
               onDeleteSingle();
               onClose();
             }}
-            className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-primary/50 hover:bg-secondary/60 dark:hover:bg-white/5 transition-all text-right group cursor-pointer"
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-primary/50 hover:bg-secondary/60 dark:hover:bg-white/5 transition text-right group cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
               <RiCalendarEventLine className="w-5 h-5" />
@@ -81,7 +81,7 @@ export const RecurringDeleteSheet: React.FC<RecurringDeleteSheetProps> = ({
               onDeleteAll();
               onClose();
             }}
-            className="w-full flex items-center gap-3 p-3 rounded-xl border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 transition-all text-right group cursor-pointer"
+            className="w-full flex items-center gap-3 p-3 rounded-xl border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 transition text-right group cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
               <RiDeleteBinLine className="w-5 h-5" />

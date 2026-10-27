@@ -6,7 +6,7 @@ import { Clock01Icon, Sun01Icon } from '@hugeicons/core-free-icons';
 import { MorningSunriseIcon, EveningMoonIcon } from '../stream/timeOfDayConfig';
 import { taskRepo, tagRepo, boxRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
-import { JalaliDatePicker } from '@/components/calendar/JalaliDatePicker';
+import { JalaliDatePicker } from '@/components/calendar/LazyJalaliDatePicker';
 import { TagPickerSheet } from '../pickers/TagPickerSheet';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
 import { BoxPickerSheet } from '../pickers/BoxPickerSheet';
@@ -30,7 +30,7 @@ import {
 } from '@remixicon/react';
 import { ReminderPickerSheet } from '../pickers/ReminderPickerSheet';
 
-interface TaskEditModalProps {
+export interface TaskEditModalProps {
   task: Task | null;
   isOpen: boolean;
   onClose: () => void;
@@ -428,7 +428,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           <button
             type="button"
             onClick={handleClose}
-            className="w-9 h-9 rounded-full bg-secondary/80 hover:bg-secondary dark:bg-white/10 dark:hover:bg-white/15 text-foreground flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-2xs"
+            className="w-9 h-9 rounded-full bg-secondary/80 hover:bg-secondary dark:bg-white/10 dark:hover:bg-white/15 text-foreground flex items-center justify-center transition active:scale-95 cursor-pointer shadow-2xs"
             title="بستن"
           >
             <RiCloseLine className="w-5 h-5" />
@@ -439,7 +439,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <button
               type="button"
               onClick={handleTogglePin}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-2xs ${
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition active:scale-95 cursor-pointer shadow-2xs ${
                 isPinned
                   ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
                   : 'bg-secondary/80 hover:bg-secondary dark:bg-white/10 dark:hover:bg-white/15 text-foreground'
@@ -457,7 +457,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
               <button
                 type="button"
                 onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-                className="w-9 h-9 rounded-full bg-secondary/80 hover:bg-secondary dark:bg-white/10 dark:hover:bg-white/15 text-foreground flex items-center justify-center transition-all active:scale-95 cursor-pointer shadow-2xs"
+                className="w-9 h-9 rounded-full bg-secondary/80 hover:bg-secondary dark:bg-white/10 dark:hover:bg-white/15 text-foreground flex items-center justify-center transition active:scale-95 cursor-pointer shadow-2xs"
                 title="گزینه‌ها"
               >
                 <RiMoreLine className="w-5 h-5" />
@@ -489,7 +489,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <button
               type="button"
               onClick={handleToggleDone}
-              className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center shrink-0 mt-0.5 cursor-pointer ${
+              className={`w-5 h-5 rounded-full border-2 transition flex items-center justify-center shrink-0 mt-0.5 cursor-pointer ${
                 isDone
                   ? 'bg-emerald-500 border-emerald-500 text-white'
                   : priority === 3
@@ -646,7 +646,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                       setTimeOfDay(item.id);
                       performSave({ timeOfDay: item.id });
                     }}
-                    className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs transition-all cursor-pointer ${
+                    className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg text-xs transition cursor-pointer ${
                       isSelected
                         ? item.activeClass
                         : 'text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5'
@@ -710,7 +710,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <button
               type="button"
               onClick={() => setDatePickerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition shrink-0 cursor-pointer"
             >
               <RiCalendarLine className="w-3.5 h-3.5" />
               <span>+ تاریخ</span>
@@ -720,7 +720,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <button
               type="button"
               onClick={() => setPriorityPickerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition shrink-0 cursor-pointer"
             >
               <RiFlagLine className="w-3.5 h-3.5" />
               <span>+ اولویت</span>
@@ -730,7 +730,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <button
               type="button"
               onClick={() => setTagPickerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition shrink-0 cursor-pointer"
             >
               <RiPriceTag3Line className="w-3.5 h-3.5" />
               <span>+ برچسب</span>
@@ -740,7 +740,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             <button
               type="button"
               onClick={() => setReminderPickerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/40 hover:bg-muted dark:bg-white/5 dark:hover:bg-white/10 border border-border/70 text-muted-foreground hover:text-foreground transition shrink-0 cursor-pointer"
             >
               <RiAlarmLine className="w-3.5 h-3.5" />
               <span>+ یادآور</span>

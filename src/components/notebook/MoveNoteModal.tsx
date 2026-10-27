@@ -81,7 +81,7 @@ export const MoveNoteModal: React.FC<MoveNoteModalProps> = ({
           <button
             type="button"
             onClick={() => handleSelectBox(null)}
-            className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition cursor-pointer ${
               currentBoxId === null
                 ? 'bg-primary/10 border border-primary/40 font-bold'
                 : 'bg-secondary/40 hover:bg-secondary/80 border border-transparent'
@@ -105,7 +105,7 @@ export const MoveNoteModal: React.FC<MoveNoteModalProps> = ({
                 key={box.id}
                 type="button"
                 onClick={() => handleSelectBox(box.id)}
-                className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition cursor-pointer ${
                   isSelected
                     ? 'bg-primary/10 border border-primary/40 font-bold'
                     : 'bg-secondary/40 hover:bg-secondary/80 border border-transparent'

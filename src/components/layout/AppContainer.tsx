@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { WALLPAPER_LIST } from '../profile/ProfileView';
+import { WALLPAPER_LIST } from '@/lib/wallpapers';
 import { useIsMobile, useIsDesktop } from '@/lib/device';
 import { generateLensDisplacementMap, generatePillDisplacementMap } from '@/lib/glass';
 import { DynamicSkyBackground } from './DynamicSkyBackground';

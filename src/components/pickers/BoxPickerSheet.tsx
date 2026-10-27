@@ -98,7 +98,7 @@ export const BoxPickerSheet: React.FC<BoxPickerSheetProps> = ({
               onSelectBox(null);
               handleClose();
             }}
-            className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer active:scale-[0.98] border ${
+            className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition cursor-pointer active:scale-[0.98] border ${
               !selectedBoxId
                 ? 'border-primary/50 bg-primary/10 dark:bg-primary/15'
                 : 'border-border/60 dark:border-white/10 hover:border-primary/30 hover:bg-muted/40 dark:hover:bg-white/5'
@@ -131,7 +131,7 @@ export const BoxPickerSheet: React.FC<BoxPickerSheetProps> = ({
                   onSelectBox(box.id);
                   handleClose();
                 }}
-                className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition-all cursor-pointer active:scale-[0.98] border ${
+                className={`w-full flex items-center justify-between p-2.5 rounded-2xl transition cursor-pointer active:scale-[0.98] border ${
                   isSelected
                     ? 'border-primary/50 bg-primary/10 dark:bg-primary/15'
                     : 'border-border/60 dark:border-white/10 hover:border-primary/30 hover:bg-muted/40 dark:hover:bg-white/5'

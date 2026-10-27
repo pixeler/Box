@@ -1,7 +1,10 @@
 import { updateStatusBarTheme, updateKeyboardTheme } from './capacitor';
 
 export type ThemeId =
-  // Dark themes
+  // Product themes
+  | 'claude-dark'
+  | 'claude-light'
+  // Legacy dark themes
   | 'default-dark'
   | 'github-dark'
   | 'miku-dark'
@@ -39,7 +42,37 @@ export interface ThemeConfig {
 }
 
 export const THEMES: ThemeConfig[] = [
-  // --- Dark Themes ---
+  // --- Product themes ---
+  {
+    id: 'claude-dark',
+    name: 'جعبه تاریک',
+    nameEn: 'Box Dark',
+    mode: 'dark',
+    description: 'پالت خنثی و آرام با اکسنت خاک‌رسی کم‌رنگ',
+    previewColors: {
+      bg: '#0a0a0a',
+      card: '#171717',
+      border: '#2b2b2b',
+      text: '#f2f2f2',
+      accent: '#c67c63',
+    },
+  },
+  {
+    id: 'claude-light',
+    name: 'جعبه روشن',
+    nameEn: 'Box Light',
+    mode: 'light',
+    description: 'کاغذ گرم، سطوح تمیز و همان اکسنت خاک‌رسی برای روز',
+    previewColors: {
+      bg: '#faf9f5',
+      card: '#ffffff',
+      border: '#e3e0d5',
+      text: '#141413',
+      accent: '#b45235',
+    },
+  },
+
+  // --- Legacy dark themes ---
   {
     id: 'default-dark',
     name: 'پیش‌فرض (shadcn)',
@@ -286,14 +319,48 @@ export const DARK_THEMES = THEMES.filter((t) => t.mode === 'dark');
 export const LIGHT_THEMES = THEMES.filter((t) => t.mode === 'light');
 
 const STORAGE_KEY = 'second_brain_theme';
+const THEME_MIGRATION_KEY = 'second_brain_theme_migrated_to_claude';
+const LEGACY_THEME_KEY = 'second_brain_theme_legacy';
 
+function getSystemTheme(): ThemeId {
+  if (typeof window === 'undefined') return 'claude-dark';
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches
+    ? 'claude-dark'
+    : 'claude-light';
+}
+
+/**
+ * Reads the theme once and migrates the old palette family to the new Claude
+ * pair by its light/dark mode. The old value is kept for rollback and the
+ * migration only runs once, so a deliberate legacy choice is not overwritten.
+ */
 export function getStoredTheme(): ThemeId {
-  if (typeof window === 'undefined') return 'default-light';
+  if (typeof window === 'undefined') return 'claude-dark';
+
   const saved = localStorage.getItem(STORAGE_KEY) as ThemeId | null;
-  if (saved && THEMES.some((t) => t.id === saved)) {
+  if (saved === 'claude-dark' || saved === 'claude-light') return saved;
+
+  const alreadyMigrated = localStorage.getItem(THEME_MIGRATION_KEY) === 'true';
+
+  if (saved && !alreadyMigrated) {
+    const legacy = THEMES.find((theme) => theme.id === saved);
+    const next: ThemeId = legacy?.mode === 'light' ? 'claude-light' : 'claude-dark';
+    localStorage.setItem(LEGACY_THEME_KEY, saved);
+    localStorage.setItem(THEME_MIGRATION_KEY, 'true');
+    localStorage.setItem(STORAGE_KEY, next);
+    return next;
+  }
+
+  if (saved && THEMES.some((theme) => theme.id === saved)) {
+    // A legacy theme explicitly chosen after migration. It stays available
+    // until the legacy palette is removed at the end of the redesign.
     return saved;
   }
-  return 'default-light';
+
+  const next = getSystemTheme();
+  localStorage.setItem(STORAGE_KEY, next);
+  localStorage.setItem(THEME_MIGRATION_KEY, 'true');
+  return next;
 }
 
 export function applyTheme(themeId: ThemeId) {
@@ -303,6 +370,7 @@ export function applyTheme(themeId: ThemeId) {
 
   // Set data-theme attribute
   root.setAttribute('data-theme', themeId);
+  root.style.backgroundColor = config.previewColors.bg;
 
   // Toggle .dark class
   if (config.mode === 'dark') {
@@ -310,6 +378,23 @@ export function applyTheme(themeId: ThemeId) {
   } else {
     root.classList.remove('dark');
   }
+
+  // The selected calendar day sits two shades below the card surface, so the
+  // task cards drawn on top of it keep reading as raised. Derived from the
+  // theme's own card lightness instead of hard-coding a colour per theme.
+  try {
+    const cardToken = getComputedStyle(root).getPropertyValue('--card').trim();
+    const [hue, saturation, rawLightness] = cardToken.split(/[\s,/]+/);
+    const lightness = parseFloat(rawLightness);
+    if (Number.isFinite(lightness)) {
+      const step = lightness > 50 ? 5 : 3;
+      const nextLightness = Math.min(100, Math.max(0, lightness - step));
+      root.style.setProperty(
+        '--cell-selected',
+        `hsl(${hue} ${saturation} ${nextLightness}%)`
+      );
+    }
+  } catch {}
 
   // Update browser & mobile address bar / system chrome color
   try {

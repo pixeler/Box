@@ -169,7 +169,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar pb-24">
-          <div className="grid h-full auto-rows-fr grid-cols-7 gap-px overflow-hidden rounded-2xl border border-border/50 bg-border/40">
+          <div className="grid h-full auto-rows-fr grid-cols-7 gap-px bg-border/40">
             {cells.map((cell) => {
               const isDragOver = dragOverCell === cell.dateKey;
               const isSelected = cell.dateKey === selectedDateKey;
@@ -191,11 +191,9 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                   onDragLeave={onCellDragLeave}
                   onDrop={(e) => onCellDrop(e, cell.dateKey)}
                   className={cn(
-                    'flex min-h-[104px] flex-col bg-card/55 p-1.5 text-right transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
-                    !cell.inMonth && 'bg-secondary/[0.18]',
+                    'flex min-h-[104px] flex-col bg-background p-1 text-right transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     cell.inMonth && 'hover:bg-secondary/30 dark:hover:bg-black/20',
-                    cell.isToday && 'bg-primary/[0.05] dark:bg-black/25',
-                    isSelected && !cell.isToday && 'bg-secondary/40 dark:bg-black/25',
+                    isSelected && 'bg-card',
                     isDragOver && 'bg-primary/10 ring-2 ring-inset ring-primary/40'
                   )}
                 >
@@ -332,9 +330,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                 onClick={() => setPreviewDateKey(cell.dateKey)}
                 className={cn(
                   'flex h-12 flex-col items-center justify-center gap-0.5 rounded-xl transition-colors cursor-pointer active:scale-95',
-                  previewKey === cell.dateKey
-                    ? 'bg-secondary/60 dark:bg-black/30'
-                    : cell.isToday && 'bg-secondary/30 dark:bg-black/20'
+                  previewKey === cell.dateKey ? 'bg-card' : 'bg-background'
                 )}
                 aria-label={`انتخاب روز ${toPersianDigits(cell.dayNumber)} ${cell.monthName}`}
               >

@@ -304,7 +304,7 @@ export const CreateBoxSheet: React.FC<CreateBoxSheetProps> = ({
                   onClick={() => setSelectedImage(tmpl.id)}
                   title={tmpl.name}
                   aria-label={tmpl.name}
-                  className={`flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-all ${
+                  className={`flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition ${
                     isSelected
                       ? 'border-primary bg-primary/10 ring-1 ring-primary/40'
                       : 'border-transparent hover:bg-secondary/60'

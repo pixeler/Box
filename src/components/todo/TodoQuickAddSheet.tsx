@@ -197,7 +197,7 @@ export const TodoQuickAddSheet: React.FC<TodoQuickAddSheetProps> = ({
                   setShowPriorityMenu((prev) => !prev);
                   setShowDurationMenu(false);
                 }}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${pBadge.color}`}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer flex items-center gap-1.5 active:scale-95 ${pBadge.color}`}
               >
                 <span>{pBadge.label}</span>
                 <span className="text-[9px] opacity-70">▾</span>
@@ -257,7 +257,7 @@ export const TodoQuickAddSheet: React.FC<TodoQuickAddSheetProps> = ({
                   setShowDurationMenu((prev) => !prev);
                   setShowPriorityMenu(false);
                 }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer flex items-center gap-1 active:scale-95 ${
                   durationMinutes
                     ? 'bg-secondary border-border text-foreground font-semibold'
                     : 'bg-muted/40 dark:bg-white/5 border-border/60 text-muted-foreground hover:text-foreground'
@@ -297,7 +297,7 @@ export const TodoQuickAddSheet: React.FC<TodoQuickAddSheetProps> = ({
               onClick={() => {
                 setDateChoice((prev) => (prev === 'today' ? 'tomorrow' : prev === 'tomorrow' ? 'none' : 'today'));
               }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition cursor-pointer flex items-center gap-1 active:scale-95 ${
                 dateChoice !== 'none'
                   ? 'bg-secondary border-border text-foreground font-semibold'
                   : 'bg-muted/40 dark:bg-white/5 border-border/60 text-muted-foreground'
@@ -313,7 +313,7 @@ export const TodoQuickAddSheet: React.FC<TodoQuickAddSheetProps> = ({
             type="button"
             disabled={!title.trim() || isSubmitting}
             onClick={handleCreate}
-            className="w-10 h-10 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition-all cursor-pointer shrink-0"
+            className="w-10 h-10 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-md hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 transition cursor-pointer shrink-0"
             title="ثبت تسک"
           >
             <RiArrowUpLine className="w-5 h-5 stroke-[2]" />

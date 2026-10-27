@@ -758,7 +758,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                         key={p.minutes}
                         type="button"
                         onClick={() => setDurationMinutes(p.minutes)}
-                        className={`py-2 px-2.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
+                        className={`py-2 px-2.5 rounded-xl text-xs font-medium border transition cursor-pointer ${
                           durationMinutes === p.minutes
                             ? 'bg-primary/15 text-primary border-primary/40 font-bold shadow-2xs'
                             : 'bg-card text-foreground/80 border-border/70 hover:bg-muted/70'
@@ -843,7 +843,7 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
                           key={w.id}
                           type="button"
                           onClick={() => handleToggleWeekday(w.id)}
-                          className={`flex flex-col items-center justify-center py-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
+                          className={`flex flex-col items-center justify-center py-2.5 rounded-xl text-xs transition cursor-pointer border ${
                             isSelected
                               ? 'bg-primary text-primary-foreground border-primary font-bold shadow-xs scale-102'
                               : isFriday

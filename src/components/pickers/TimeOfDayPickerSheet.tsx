@@ -135,7 +135,7 @@ export const TimeOfDayPickerSheet: React.FC<TimeOfDayPickerSheetProps> = ({
                   onChange(item.key);
                   handleClose();
                 }}
-                className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer text-right group ${
+                className={`w-full flex items-center justify-between p-2.5 rounded-2xl border transition cursor-pointer text-right group ${
                   isSelected
                     ? 'border-primary/50 bg-primary/10 dark:bg-primary/15'
                     : 'border-border/60 dark:border-white/10 hover:border-primary/30 hover:bg-muted/40 dark:hover:bg-white/5'

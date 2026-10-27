@@ -73,7 +73,7 @@ export const DayHeader: React.FC<DayHeaderProps> = ({
       <button
         type="button"
         onClick={onOpenAdd}
-        className="border border-neutral-200 dark:border-neutral-800 text-muted-foreground hover:text-foreground hover:bg-secondary/40 text-xs px-3 py-1 rounded-full flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 select-none"
+        className="border border-neutral-200 dark:border-neutral-800 text-muted-foreground hover:text-foreground hover:bg-secondary/40 text-xs px-3 py-1 rounded-full flex items-center gap-1.5 cursor-pointer transition active:scale-95 select-none"
         title="اضافه کردن کار"
       >
         <span className="text-sm font-light leading-none">+</span>

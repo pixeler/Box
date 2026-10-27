@@ -104,7 +104,7 @@ export const NotebookSidebar: React.FC<NotebookSidebarProps> = ({
           <button
             type="button"
             onClick={() => onSelectFilter('all', null)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
               currentFilter === 'all'
                 ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                 : 'text-foreground hover:bg-secondary/70'
@@ -129,7 +129,7 @@ export const NotebookSidebar: React.FC<NotebookSidebarProps> = ({
           <button
             type="button"
             onClick={() => onSelectFilter('pinned', null)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
               currentFilter === 'pinned'
                 ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                 : 'text-foreground hover:bg-secondary/70'
@@ -156,7 +156,7 @@ export const NotebookSidebar: React.FC<NotebookSidebarProps> = ({
           <button
             type="button"
             onClick={() => onSelectFilter('ideas', null)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
               currentFilter === 'ideas'
                 ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                 : 'text-foreground hover:bg-secondary/70'
@@ -186,7 +186,7 @@ export const NotebookSidebar: React.FC<NotebookSidebarProps> = ({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, null)}
             onClick={() => onSelectFilter('uncategorized', null)}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
               dragOverBoxId === 'null' ? 'ring-2 ring-primary bg-primary/10' : ''
             } ${
               currentFilter === 'uncategorized'
@@ -241,7 +241,7 @@ export const NotebookSidebar: React.FC<NotebookSidebarProps> = ({
                   onDragOver={(e) => handleDragOver(e, box.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, box.id)}
-                  className={`group relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                  className={`group relative w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition cursor-pointer ${
                     isDragOver ? 'ring-2 ring-primary scale-[1.02] bg-primary/15' : ''
                   } ${
                     isActive
@@ -326,7 +326,7 @@ export const NotebookSidebar: React.FC<NotebookSidebarProps> = ({
         <button
           type="button"
           onClick={onOpenCreateBox}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-dashed border-border/80 hover:border-primary/60 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer bg-secondary/30 hover:bg-secondary/60 active:scale-98"
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-dashed border-border/80 hover:border-primary/60 text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer bg-secondary/30 hover:bg-secondary/60 active:scale-98"
         >
           <RiAddLine className="size-4 text-primary" />
           <span>ساخت جعبه جدید</span>

@@ -48,11 +48,13 @@ export const NOTE_EMOJIS = [
   '📈', '💰', '🧾', '🗓️', '✅', '🧘', '🚀', '🕯️',
 ];
 
-interface NoteEditModalProps {
+export interface NoteEditModalProps {
   note: Note | null;
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
+  /** One-shot mode used when a note is opened from the sidebar. */
+  initialViewMode?: NotionViewMode;
 }
 
 const extractNoteData = (n: Note | null) => {
@@ -85,10 +87,12 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   isOpen,
   onClose,
   onSaved,
+  initialViewMode,
 }) => {
   const initialData = extractNoteData(note);
   const [isClosing, setIsClosing] = useState(false);
   const [viewMode, setViewMode] = useState<NotionViewMode>(() => {
+    if (initialViewMode) return initialViewMode;
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('notion_note_view_mode') as NotionViewMode;
       if (saved === 'side-peek' || saved === 'center' || saved === 'fullscreen') {
@@ -596,8 +600,8 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       : 'px-5 sm:px-12';
 
   // Compute outer backdrop and inner container classes based on Notion view mode
-  let backdropClasses = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs select-none transition-all duration-200';
-  let containerClasses = 'bg-card text-card-foreground font-sans text-right flex flex-col transition-all duration-200 overflow-hidden';
+  let backdropClasses = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs select-none transition duration-200';
+  let containerClasses = 'bg-card text-card-foreground font-sans text-right flex flex-col transition duration-200 overflow-hidden';
 
   if (viewMode === 'fullscreen') {
     containerClasses += ' fixed inset-0 z-[101] h-screen w-screen flex flex-col rounded-none bg-card';
@@ -644,7 +648,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   type="button"
                   title="چیدمان پنجره"
                   aria-label="چیدمان پنجره"
-                  className="flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-60 transition-all hover:bg-secondary hover:text-foreground focus-visible:opacity-100 data-[state=open]:opacity-100 sm:opacity-0 sm:group-hover/topbar:opacity-100"
+                  className="flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-60 transition hover:bg-secondary hover:text-foreground focus-visible:opacity-100 data-[state=open]:opacity-100 sm:opacity-0 sm:group-hover/topbar:opacity-100"
                 >
                   <RiLayoutLine className="size-4" />
                 </button>
@@ -884,7 +888,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   }
                 }}
                 placeholder="بدون عنوان"
-                className={`w-full resize-none overflow-y-auto break-words bg-transparent text-[26px] font-bold leading-[1.25] text-foreground outline-none transition-all placeholder:font-semibold placeholder:text-muted-foreground/35 sm:text-[30px] max-h-[160px] [overflow-wrap:anywhere] ${
+                className={`w-full resize-none overflow-y-auto break-words bg-transparent text-[26px] font-bold leading-[1.25] text-foreground outline-none transition placeholder:font-semibold placeholder:text-muted-foreground/35 sm:text-[30px] max-h-[160px] [overflow-wrap:anywhere] ${
                   noteIcon ? 'mt-1.5' : 'mt-2'
                 }`}
                 dir="rtl"

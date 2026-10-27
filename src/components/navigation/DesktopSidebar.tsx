@@ -48,7 +48,7 @@ const CollapsedTooltip: React.FC<{ label: string; hint?: string; show: boolean }
   show,
 }) =>
   show ? (
-    <span className="desktop-sidebar-tooltip pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-3 whitespace-nowrap rounded-lg bg-popover text-popover-foreground px-2.5 py-1 text-xs font-medium shadow-lg border border-border opacity-0 translate-x-1 transition-all duration-150 group-hover/item:opacity-100 group-hover/item:translate-x-0 z-50">
+    <span className="desktop-sidebar-tooltip pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-3 whitespace-nowrap rounded-lg bg-popover text-popover-foreground px-2.5 py-1 text-xs font-medium shadow-lg border border-border opacity-0 translate-x-1 transition duration-150 group-hover/item:opacity-100 group-hover/item:translate-x-0 z-50">
       {label}
       {hint && <kbd className="mr-1.5 text-[10px] text-muted-foreground font-sans">{hint}</kbd>}
     </span>

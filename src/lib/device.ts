@@ -5,6 +5,29 @@ function mobileQuery(breakpoint: number): string {
   return `(max-width: ${(isNative() ? 768 : breakpoint) - 1}px)`;
 }
 
+/**
+ * A plain media-query hook for the shell. Unlike useIsDesktop it does not
+ * change its answer inside the native app: layout is driven by the actual
+ * viewport, while native-specific behavior stays in the older hooks.
+ */
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(query).matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia(query);
+    const handleChange = () => setMatches(media.matches);
+    handleChange();
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, [query]);
+
+  return matches;
+}
+
 function desktopQuery(breakpoint: number): string {
   return `(min-width: ${breakpoint}px)`;
 }

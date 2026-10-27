@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import type { Note, Tag, Box } from '@/types/models';
+import type { NotionViewMode } from './NoteEditModal';
 import { noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { toast } from '@/lib/toast';
 
@@ -14,6 +15,8 @@ interface NotebookContextType {
   setEditingNote: (note: Note | null) => void;
   noteEditModalOpen: boolean;
   setNoteEditModalOpen: (open: boolean) => void;
+  noteViewModeOverride: NotionViewMode | null;
+  setNoteViewModeOverride: (mode: NotionViewMode | null) => void;
   createBoxOpen: boolean;
   setCreateBoxOpen: (open: boolean) => void;
   boxToEdit: Box | null;
@@ -37,6 +40,7 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteEditModalOpen, setNoteEditModalOpen] = useState(false);
+  const [noteViewModeOverride, setNoteViewModeOverride] = useState<NotionViewMode | null>(null);
 
   const [createBoxOpen, setCreateBoxOpen] = useState(false);
   const [boxToEdit, setBoxToEdit] = useState<Box | null>(null);
@@ -157,6 +161,8 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setEditingNote,
       noteEditModalOpen,
       setNoteEditModalOpen,
+      noteViewModeOverride,
+      setNoteViewModeOverride,
       createBoxOpen,
       setCreateBoxOpen,
       boxToEdit,
@@ -176,6 +182,7 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       boxNotesCountMap,
       editingNote,
       noteEditModalOpen,
+      noteViewModeOverride,
       createBoxOpen,
       boxToEdit,
       targetParentBoxId,

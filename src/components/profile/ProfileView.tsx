@@ -37,114 +37,22 @@ import {
 import { useIsMobile } from '@/lib/device';
 import { AMBIENT_SOUNDS } from '@/components/focus/ambientSounds';
 
-export interface WallpaperItem {
-  id: string;
-  title: string;
-  url?: string;
-  thumbUrl?: string;
-  bgColor?: string;
-  bgGradient?: string;
-  isCustomImage?: boolean;
-}
+import { WALLPAPER_LIST } from '@/lib/wallpapers';
 
-export const WALLPAPER_LIST: WallpaperItem[] = [
-  // --- پس‌زمینه‌های ویژه و داینامیک ---
-  {
-    id: 'wafer-sky',
-    title: 'ابر و آسمان اسکی (Ascii Magic)',
-    url: '/wallpapers/wafer-sky.jpg',
-  },
-  {
-    id: 'morning-live',
-    title: 'صبح بخیر (آسمان زنده)',
-    bgGradient:
-      'radial-gradient(circle at 78% 20%, rgba(255,246,215,0.9) 0%, rgba(255,246,215,0) 45%), radial-gradient(ellipse at 25% 90%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 40%), linear-gradient(180deg, #3a8fe0 0%, #78baf0 50%, #fff0d6 100%)',
-  },
+export type { WallpaperItem } from '@/types/wallpaper';
+export { WALLPAPER_LIST };
 
-  // --- پالت‌های روشن و لطیف (Light Tones & Gradients) ---
-  {
-    id: 'clean-snow',
-    title: 'مینیمال برفی',
-    bgColor: '#f8fafc',
-  },
-  {
-    id: 'parchment-sand',
-    title: 'کاغذ کرافت',
-    bgColor: '#f6f1e8',
-  },
-  {
-    id: 'soft-lavender',
-    title: 'یاس پاستلی',
-    bgGradient: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%)',
-  },
-  {
-    id: 'morning-sky',
-    title: 'افق سپیده‌دم',
-    bgGradient: 'linear-gradient(135deg, #e0f2fe 0%, #e8f5e9 50%, #f0f9ff 100%)',
-  },
-  {
-    id: 'rose-dawn',
-    title: 'رز صبحگاهی',
-    bgGradient: 'linear-gradient(135deg, #fff1f2 0%, #fce7f3 50%, #fef2f2 100%)',
-  },
-  {
-    id: 'warm-peach',
-    title: 'هلویی ملایم',
-    bgGradient: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fef3c7 100%)',
-  },
-  {
-    id: 'misty-sage',
-    title: 'مریم‌گلی مه‌آلود',
-    bgGradient: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #f1f5f9 100%)',
-  },
-  {
-    id: 'nordic-frost',
-    title: 'یخبندان قطبی',
-    bgGradient: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #bae6fd 100%)',
-  },
 
-  // --- پالت‌های تیره و عمیق (Dark Tones & Gradients) ---
-  {
-    id: 'dark-obsidian',
-    title: 'آبسیدین خالص',
-    bgColor: '#09090b',
-  },
-  {
-    id: 'midnight-navy',
-    title: 'سورمه‌ای نیمه‌شب',
-    bgColor: '#0b132b',
-  },
-  {
-    id: 'deep-emerald',
-    title: 'زمرد شبانه',
-    bgColor: '#061a14',
-  },
-  {
-    id: 'espresso-noir',
-    title: 'قهوه تیره',
-    bgColor: '#16110e',
-  },
-  {
-    id: 'cosmic-nebula',
-    title: 'سحابی کیهانی',
-    bgGradient: 'linear-gradient(135deg, #0f0c20 0%, #1e1338 50%, #0d1b2a 100%)',
-  },
-  {
-    id: 'aurora-night',
-    title: 'شفق شمالی عمیق',
-    bgGradient: 'linear-gradient(135deg, #051412 0%, #0d2a24 50%, #081e1a 100%)',
-  },
-  {
-    id: 'sunset-noir',
-    title: 'شامگاه ارغوانی',
-    bgGradient: 'linear-gradient(135deg, #180d1e 0%, #281424 50%, #110b14 100%)',
-  },
-  {
-    id: 'slate-dusk',
-    title: 'سربی گرافیت',
-    bgGradient: 'linear-gradient(135deg, #111827 0%, #1f2937 50%, #0f172a 100%)',
-  },
-];
+export type SettingsSection =
+  | 'main'
+  | 'theme'
+  | 'wallpaper'
+  | 'ambient'
+  | 'backup'
+  | 'about'
+  | 'changelog'
+  | 'feedback'
+  | 'account';
 
 export interface ProfileViewProps {
   currentWallpaper: string;
@@ -164,20 +72,13 @@ export interface ProfileViewProps {
   onDailyTaskGoalChange?: (goal: number) => void;
   onOpenAuthModal?: () => void;
   onBackToToday?: () => void;
+  /** Opens the settings window directly on one of its sub-pages. */
+  initialSection?: SettingsSection;
   /** 'page' fills the mobile tab; 'panel' is the desktop settings side panel. */
   variant?: 'page' | 'panel';
 }
 
-type SubPage =
-  | 'main'
-  | 'theme'
-  | 'wallpaper'
-  | 'ambient'
-  | 'backup'
-  | 'about'
-  | 'changelog'
-  | 'feedback'
-  | 'account';
+type SubPage = SettingsSection;
 
 const SettingsGroup: React.FC<{
   title: string;
@@ -269,7 +170,7 @@ const SettingsSwitch: React.FC<{
 export const ProfileView: React.FC<ProfileViewProps> = ({
   currentWallpaper,
   onWallpaperChange,
-  currentTheme = 'default-dark',
+  currentTheme = 'claude-dark',
   onThemeChange,
   onOpenSearch,
   glassBackground = false,
@@ -284,13 +185,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onDailyTaskGoalChange,
   onOpenAuthModal,
   onBackToToday,
+  initialSection = 'main',
   variant = 'page',
 }) => {
   const isMobile = useIsMobile();
   const { user, signOut } = useAuth();
 
-  // Active sub-page state
-  const [activeSubPage, setActiveSubPage] = useState<SubPage>('main');
+  // Active sub-page state. The settings window unmounts when closed, so the
+  // initial section only needs to be read once.
+  const [activeSubPage, setActiveSubPage] = useState<SubPage>(initialSection);
 
   // Theme switch mode: dark vs light
   const [themeTab, setThemeTab] = useState<ThemeMode>(
@@ -572,7 +475,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           <button
             type="button"
             onClick={() => customImageInputRef.current?.click()}
-            className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+            className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95"
           >
             <RiImageAddLine className="w-4 h-4" />
             <span>انتخاب فایل</span>
@@ -590,7 +493,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 customImageInputRef.current?.click();
               }
             }}
-            className={`h-24 rounded-2xl overflow-hidden border text-right transition-all relative flex flex-col cursor-pointer shadow-2xs ${
+            className={`h-24 rounded-2xl overflow-hidden border text-right transition relative flex flex-col cursor-pointer shadow-2xs ${
               currentWallpaper.startsWith('custom') ||
               currentWallpaper.startsWith('data:') ||
               currentWallpaper.startsWith('http')
@@ -633,7 +536,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 key={wp.id}
                 type="button"
                 onClick={() => onWallpaperChange(wp.id)}
-                className={`h-24 rounded-2xl overflow-hidden border text-right transition-all relative flex flex-col cursor-pointer shadow-2xs ${
+                className={`h-24 rounded-2xl overflow-hidden border text-right transition relative flex flex-col cursor-pointer shadow-2xs ${
                   isSelected
                     ? 'border-primary ring-2 ring-primary/20 shadow-xs'
                     : 'border-border/80 hover:border-foreground/40'
@@ -718,7 +621,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <button
               type="button"
               onClick={handleExportBackup}
-              className="flex-1 py-2.5 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95"
+              className="flex-1 py-2.5 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer shadow-xs active:scale-95"
             >
               <RiDownload2Line className="w-4 h-4" />
               <span>دانلود نسخه پشتیبان (JSON)</span>
@@ -727,7 +630,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <button
               type="button"
               onClick={() => backupImportInputRef.current?.click()}
-              className="flex-1 py-2.5 px-3.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/80 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer border border-border active:scale-95"
+              className="flex-1 py-2.5 px-3.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/80 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer border border-border active:scale-95"
             >
               <RiUpload2Line className="w-4 h-4" />
               <span>بازگردانی از فایل</span>
@@ -834,7 +737,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   setFeedbackSent(true);
                   setFeedbackText('');
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold transition-all cursor-pointer disabled:opacity-40 flex items-center justify-center gap-1.5 shadow-xs active:scale-95"
+                className="w-full py-2.5 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold transition cursor-pointer disabled:opacity-40 flex items-center justify-center gap-1.5 shadow-xs active:scale-95"
               >
                 <RiSendPlane2Line className="w-4 h-4" />
                 <span>ارسال پیام</span>
@@ -892,7 +795,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenAuthModal}
-                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold transition cursor-pointer shadow-xs active:scale-95"
               >
                 ورود یا ثبت‌نام
               </button>

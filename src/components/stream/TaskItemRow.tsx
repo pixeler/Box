@@ -19,10 +19,10 @@ import {
   ContextMenuTrigger,
   MenuSectionLabel,
 } from '@/components/ui/context-menu';
-import { TaskEditModal } from '@/components/task/TaskEditModal';
+import { TaskEditModal } from '@/components/task/LazyTaskEditModal';
 import { RecurringDeleteSheet } from '@/components/task/RecurringDeleteSheet';
 import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
-import { JalaliDatePicker } from '@/components/calendar/JalaliDatePicker';
+import { JalaliDatePicker } from '@/components/calendar/LazyJalaliDatePicker';
 import { useIsMobile } from '@/lib/device';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -206,18 +206,100 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
             }}
             onClick={() => setEditModalOpen(true)}
             className={cn(
-              'group relative w-full select-none transition-colors duration-150 stream-row-hover',
-              !isLast && 'task-dashed-border',
-              'py-3 px-6',
+              'group relative w-full select-none rounded-xl bg-card transition-colors duration-150',
+              !isLast && 'mb-1.5',
+              'py-3 px-4',
+              'hover:bg-secondary/50',
               draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
-              isDone && 'opacity-60',
+              isDone && 'opacity-55',
               isNewlyAdded && 'animate-task-insert',
               className
             )}
           >
-            <div className="flex items-start justify-between w-full">
-              {/* 1. RIGHT SIDE in RTL: Checkbox and Content (Title + Description + Date) */}
-              <div className={cn('flex items-start flex-1 min-w-0', compact ? 'gap-2' : 'gap-3')}>
+            <div className={cn('flex items-start w-full', compact ? 'gap-2' : 'gap-3')}>
+              {/* 1. RIGHT SIDE in RTL (reading start): Title + Description + Date */}
+              <div className="flex flex-col flex-1 min-w-0 text-right">
+                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                  {/* Pin icon if pinned */}
+                  {isPinned && (
+                    <span title="سنجاق‌شده" className="shrink-0 flex items-center text-primary">
+                      <RiPushpin2Fill className="size-3.5 text-primary" />
+                    </span>
+                  )}
+
+                  <h3
+                    className={cn(
+                      'font-medium leading-relaxed transition-colors break-words line-clamp-2',
+                      compact ? 'text-[11.5px]' : 'text-[13.5px]'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        isDone
+                          ? ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground font-normal']
+                          : 'text-foreground'
+                      )}
+                    >
+                      {stripMarkdownForPreview(task.title)}
+                    </span>
+                  </h3>
+                </div>
+
+                {/* Task Description if present */}
+                {task.description && task.description.trim() && (
+                  <p
+                    className={cn(
+                      'font-normal leading-relaxed mt-1 select-none break-words',
+                      compact ? 'text-[10.5px] line-clamp-1' : 'text-[11.5px] leading-5 line-clamp-2'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        isDone
+                          ? ['pencil-strike', getTaskPencilPattern(task.id + '_desc'), 'text-muted-foreground/60']
+                          : 'text-muted-foreground'
+                      )}
+                    >
+                      {stripMarkdownForPreview(task.description)}
+                    </span>
+                  </p>
+                )}
+
+                {/* Meta: Recurring tasks show only time and repeat icon. Non-recurring tasks show date/time */}
+                {isRecurring ? (
+                  <div
+                    className={cn(
+                      'flex items-center gap-1.5 text-subtle font-normal select-none',
+                      compact ? 'mt-1 text-[10.5px]' : 'mt-1.5 text-[11px]'
+                    )}
+                  >
+                    {recurringTime && <span>{recurringTime}</span>}
+                    <RiRepeatLine className="size-3.5 text-muted-foreground/80 shrink-0" />
+                  </div>
+                ) : dateDisplay ? (
+                  <div
+                    className={cn(
+                      'flex items-center gap-1.5 text-subtle font-normal select-none',
+                      compact ? 'mt-1 text-[10.5px]' : 'mt-1.5 text-[11px]'
+                    )}
+                  >
+                    <span>{dateDisplay}</span>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* 2. LEFT SIDE in RTL (reading end): optional illustration, then the done circle at the far edge */}
+              <div className={cn('flex shrink-0 items-start', compact ? 'gap-2' : 'gap-2.5')}>
+                {Boolean((task as any).image_url || (task as any).icon) && (
+                  <div className="size-10 flex items-center justify-center self-center select-none pointer-events-none">
+                    <img
+                      src={(task as any).image_url || (task as any).icon}
+                      alt=""
+                      className="size-9 object-contain"
+                    />
+                  </div>
+                )}
+
                 {/* Circular checkbox */}
                 <button
                   type="button"
@@ -226,8 +308,8 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     handleToggle();
                   }}
                   className={`flex items-center justify-center shrink-0 mt-0.5 transition-colors cursor-pointer rounded-full border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-              compact ? 'size-4' : 'size-5'
-            } ${
+                    compact ? 'size-4' : 'size-5'
+                  } ${
                     isRecurring
                       ? 'border-dashed'
                       : 'border-solid'
@@ -246,89 +328,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 >
                   {isDone && <RiCheckLine className="size-3.5 stroke-[2.5]" />}
                 </button>
-
-                {/* Content: Title + Description + Meta */}
-                <div className="flex flex-col flex-1 min-w-0 text-right">
-                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                    {/* Pin icon if pinned */}
-                    {isPinned && (
-                      <span title="سنجاق‌شده" className="shrink-0 flex items-center text-primary">
-                        <RiPushpin2Fill className="size-3.5 text-primary" />
-                      </span>
-                    )}
-
-                    <h3
-                      className={cn(
-                        'font-medium leading-snug transition-colors break-words line-clamp-2',
-                        compact ? 'text-[11px]' : 'text-sm'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          isDone
-                            ? ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground font-normal']
-                            : 'text-foreground'
-                        )}
-                      >
-                        {stripMarkdownForPreview(task.title)}
-                      </span>
-                    </h3>
-                  </div>
-
-                  {/* Task Description if present */}
-                  {task.description && task.description.trim() && (
-                    <p
-                      className={cn(
-                        'font-normal leading-relaxed mt-1 select-none break-words',
-                        compact ? 'text-[10.5px] line-clamp-1' : 'text-xs line-clamp-2'
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          isDone
-                            ? ['pencil-strike', getTaskPencilPattern(task.id + '_desc'), 'text-muted-foreground/60']
-                            : 'text-muted-foreground'
-                        )}
-                      >
-                        {stripMarkdownForPreview(task.description)}
-                      </span>
-                    </p>
-                  )}
-
-                  {/* Meta: Recurring tasks show only time and repeat icon. Non-recurring tasks show date/time */}
-                  {isRecurring ? (
-                    <div
-                      className={cn(
-                        'flex items-center gap-1.5 text-muted-foreground font-normal select-none',
-                        compact ? 'mt-1 text-[10.5px]' : 'mt-1.5 text-xs'
-                      )}
-                    >
-                      {recurringTime && <span>{recurringTime}</span>}
-                      <RiRepeatLine className="size-3.5 text-muted-foreground/80 shrink-0" />
-                    </div>
-                  ) : dateDisplay ? (
-                    <div
-                      className={cn(
-                        'flex items-center gap-1.5 text-muted-foreground font-normal select-none',
-                        compact ? 'mt-1 text-[10.5px]' : 'mt-1.5 text-xs'
-                      )}
-                    >
-                      <span>{dateDisplay}</span>
-                    </div>
-                  ) : null}
-                </div>
               </div>
-
-              {/* 2. LEFT SIDE in RTL: Image/Illustration slot (e.g. runner or medicine icon) */}
-              {Boolean((task as any).image_url || (task as any).icon) && (
-                <div className="shrink-0 size-10 flex items-center justify-center self-center mr-3 select-none pointer-events-none">
-                  <img
-                    src={(task as any).image_url || (task as any).icon}
-                    alt=""
-                    className="size-9 object-contain"
-                  />
-                </div>
-              )}
             </div>
           </div>
         </ContextMenuTrigger>

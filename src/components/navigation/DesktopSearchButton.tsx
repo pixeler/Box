@@ -10,7 +10,7 @@ export const DesktopSearchButton: React.FC<DesktopSearchButtonProps> = ({ onClic
   <button
     type="button"
     onClick={onClick}
-    className="desktop-search-pill group flex items-center gap-1.5 h-9 pr-2.5 pl-1.5 rounded-full cursor-pointer select-none transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    className="desktop-search-pill group flex items-center gap-1.5 h-9 pr-2.5 pl-1.5 rounded-full cursor-pointer select-none transition duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     title="جستجو (/ یا Ctrl+K)"
     aria-label="جستجو"
   >

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';
-import { RiArrowLeftSLine, RiCheckLine, RiCheckboxBlankCircleLine } from '@remixicon/react';
+import { Check, ChevronLeft, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ContextMenu: React.FC<React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Root>> = ({
@@ -22,14 +22,14 @@ const ContextMenuSubTrigger = React.forwardRef<
   <ContextMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      'flex cursor-default select-none items-center rounded-md px-2 py-1.5 text-xs outline-none focus:bg-gray-100 data-[state=open]:bg-gray-100 text-gray-700',
+      'flex cursor-default select-none items-center rounded-md px-2 py-1.5 text-xs outline-none focus:bg-secondary data-[state=open]:bg-secondary text-foreground',
       inset && 'pr-8',
       className
     )}
     {...props}
   >
     {children}
-    <RiArrowLeftSLine className="mr-auto h-3.5 w-3.5 text-gray-400" />
+    <ChevronLeft className="mr-auto h-3.5 w-3.5 text-subtle" />
   </ContextMenuPrimitive.SubTrigger>
 ));
 ContextMenuSubTrigger.displayName = ContextMenuPrimitive.SubTrigger.displayName;
@@ -41,7 +41,7 @@ const ContextMenuSubContent = React.forwardRef<
   <ContextMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      'z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-popover/95 backdrop-blur-md p-1 text-popover-foreground shadow-xl text-xs animate-in fade-in-80 font-sans',
+      'z-50 min-w-[8rem] overflow-hidden rounded-lg border border-border/70 bg-popover p-1 text-[12.5px] text-popover-foreground shadow-2xl duration-150 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 font-sans',
       className
     )}
     {...props}
@@ -59,7 +59,7 @@ const ContextMenuContent = React.forwardRef<
     <ContextMenuPrimitive.Content
       ref={ref}
       className={cn(
-        'z-50 min-w-[8rem] overflow-hidden rounded-xl border border-border bg-popover/95 backdrop-blur-md p-1.5 text-popover-foreground shadow-2xl text-xs animate-in fade-in-80 font-sans',
+        'z-50 min-w-[8rem] overflow-hidden rounded-lg border border-border/70 bg-popover p-1 text-[12.5px] text-popover-foreground shadow-2xl duration-150 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 font-sans',
         className
       )}
       {...props}
@@ -78,7 +78,7 @@ const ContextMenuItem = React.forwardRef<
   <ContextMenuPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground/85',
+      'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] outline-none transition-colors focus:bg-secondary hover:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground',
       variant === 'destructive' &&
         'text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive',
       inset && 'pr-8',
@@ -96,7 +96,7 @@ const ContextMenuCheckboxItem = React.forwardRef<
   <ContextMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center rounded-lg py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground/85',
+      'relative flex cursor-pointer select-none items-center rounded-md py-1.5 pe-2 ps-8 text-xs outline-none transition-colors focus:bg-secondary hover:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground',
       className
     )}
     checked={checked}
@@ -104,7 +104,7 @@ const ContextMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <ContextMenuPrimitive.ItemIndicator>
-        <RiCheckLine className="h-3.5 w-3.5 text-primary" />
+        <Check className="h-3.5 w-3.5 text-foreground" />
       </ContextMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -119,14 +119,14 @@ const ContextMenuRadioItem = React.forwardRef<
   <ContextMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      'relative flex cursor-pointer select-none items-center rounded-lg py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground/85',
+      'relative flex cursor-pointer select-none items-center rounded-md py-1.5 pe-2 ps-8 text-xs outline-none transition-colors focus:bg-secondary hover:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground',
       className
     )}
     {...props}
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <ContextMenuPrimitive.ItemIndicator>
-        <RiCheckboxBlankCircleLine className="h-2 w-2 fill-current text-primary" />
+        <Circle className="h-2 w-2 fill-current text-foreground" />
       </ContextMenuPrimitive.ItemIndicator>
     </span>
     {children}

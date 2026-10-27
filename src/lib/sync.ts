@@ -1,7 +1,8 @@
-import { supabase } from './supabase';
+import { getSupabase } from './cloud';
 import { db } from './db/dexie';
 import { toPersianDigits, formatJalaliKey, getJalaliDate, extractDateOnly } from './jalali';
 import { markIdAsDeleted, markMultipleIdsAsDeleted, getDeletedIds } from './storage';
+import { runWhenIdle } from './idle';
 import type { Task, Note, EventItem, Tag, Box } from '@/types/models';
 
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'up_to_date' | 'table_missing' | 'error';
@@ -385,10 +386,14 @@ class SyncManager {
       });
     });
 
-    // Run local deduplication on init
-    deduplicateLocalDatabase().catch((err) => {
-      console.warn('Initial deduplication warning:', err);
-    });
+    // Local de-duplication is a maintenance pass over the entire database.
+    // It must never run on the boot path: the first screen reads IndexedDB
+    // directly, so this waits until the app is idle.
+    runWhenIdle(() => {
+      deduplicateLocalDatabase().catch((err) => {
+        console.warn('Initial deduplication warning:', err);
+      });
+    }, 3000);
 
     // 2. Reconnection listener: push changes when back online
     window.addEventListener('online', () => {
@@ -420,12 +425,16 @@ class SyncManager {
       }
     });
 
-    // 5. Setup realtime listener for currently logged in user
-    this.setupRealtimeListener();
+    // 5. Realtime is a network concern: subscribe once the UI is idle so the
+    //    auth round-trip never delays the first screen.
+    runWhenIdle(() => {
+      void this.setupRealtimeListener();
+    });
   }
 
   private async setupRealtimeListener() {
     try {
+      const supabase = await getSupabase();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       if (this.currentUserId === user.id && this.realtimeChannel) return;
@@ -559,6 +568,7 @@ class SyncManager {
   public async performSync(options?: { background?: boolean; silentIfUpToDate?: boolean }): Promise<boolean> {
     if (this.isSyncRunning) return false;
 
+    const supabase = await getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       if (!options?.background) {

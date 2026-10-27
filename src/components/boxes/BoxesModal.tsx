@@ -152,7 +152,7 @@ export const BoxesModal: React.FC<BoxesModalProps> = ({
                     key={box.id}
                     type="button"
                     onClick={() => setSelectedBox(box)}
-                    className="group flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer select-none active:scale-95"
+                    className="group flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition cursor-pointer select-none active:scale-95"
                   >
                     {/* Box 3D Thumbnail */}
                     <BoxThumbnail
@@ -179,7 +179,7 @@ export const BoxesModal: React.FC<BoxesModalProps> = ({
                 setBoxToEdit(null);
                 setCreateSheetOpen(true);
               }}
-              className="flex items-center gap-2 bg-[#1f2329] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 px-5 py-3 rounded-full text-xs font-bold shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-[#1f2329] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 px-5 py-3 rounded-full text-xs font-bold shadow-xl hover:scale-105 active:scale-95 transition cursor-pointer"
             >
               <RiAddLine className="w-4 h-4 stroke-[2]" />
               <span>باکس جدید</span>

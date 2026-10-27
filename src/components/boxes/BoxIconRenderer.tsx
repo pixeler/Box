@@ -122,7 +122,7 @@ export const BoxIconRenderer: React.FC<BoxIconProps> = ({
   }
 
   return (
-    <div className={`flex items-center justify-center transition-all ${styleClasses}`}>
+    <div className={`flex items-center justify-center transition ${styleClasses}`}>
       <IconComponent className={className} />
     </div>
   );

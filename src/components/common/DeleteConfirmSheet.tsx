@@ -115,7 +115,7 @@ export const DeleteConfirmSheet: React.FC<DeleteConfirmSheetProps> = ({
             type="button"
             disabled={isSubmitting}
             onClick={handleConfirm}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition shadow-sm cursor-pointer disabled:opacity-50"
           >
             <RiDeleteBinLine className="w-4 h-4" />
             <span>{isSubmitting ? 'در حال حذف...' : confirmLabel}</span>

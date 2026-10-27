@@ -20,6 +20,10 @@ interface ResurfacingSectionProps {
   onExternalTouchEnd?: () => void;
   externalDraggingTaskId?: string | null;
   externalTouchDeltaY?: number;
+  /** Render only one of the two groups (used by the desktop overdue column). */
+  variant?: 'all' | 'overdue' | 'future';
+  /** Overrides the overdue group title, e.g. a column heading. */
+  overdueTitle?: string;
 }
 
 export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
@@ -35,7 +39,11 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
   onExternalTouchEnd,
   externalDraggingTaskId,
   externalTouchDeltaY = 0,
+  variant = 'all',
+  overdueTitle,
 }) => {
+  const showOverdue = variant !== 'future';
+  const showFuture = variant !== 'overdue';
   const [openPrevious, setOpenPrevious] = useState(() => overdueTasks.length > 0);
   const [openFuture, setOpenFuture] = useState(false);
   const [localOverdueTasks, setLocalOverdueTasks] = useState<Task[]>(overdueTasks);
@@ -140,55 +148,62 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
   const futureEventCount = futureEvents.length;
 
   return (
-    <div className="w-full my-2 space-y-1 select-none">
+    <div className={variant === 'overdue' ? 'w-full select-none' : 'my-3 w-full select-none space-y-1'}>
       {/* 1. از روزهای قبل */}
+      {showOverdue && (
       <div className="w-full">
         <button
           onClick={() => setOpenPrevious(!openPrevious)}
-          className="w-full flex items-center justify-between py-2 px-6 transition-colors cursor-pointer text-right"
+          className={`group/resurface flex w-full cursor-pointer items-center justify-between pb-2 text-right transition-colors ${
+            variant === 'overdue' ? 'pt-0' : 'pt-2'
+          }`}
         >
-          {/* 1. Text, count and subtitle on FAR RIGHT (First child in RTL) */}
+          {/* Text, count and subtitle on the reading-start side (RTL: right) */}
           <div className="flex flex-col items-start gap-0.5 text-right">
-            <div className="flex items-center gap-2">
-              <span className="text-foreground font-medium text-sm">
-                از روزهای قبل
+            <div className="flex items-center gap-1.5">
+              <span
+                className={
+                  overdueTitle
+                    ? 'text-[13.5px] font-semibold text-foreground'
+                    : 'text-[12.5px] font-medium text-foreground'
+                }
+              >
+                {overdueTitle ?? 'از روزهای قبل'}
               </span>
-              <span className="text-muted-foreground font-normal text-xs tabular-nums">
-                ({toPersianDigits(localOverdueTasks.length)})
+              <span className="text-[11px] font-normal tabular-nums text-subtle">
+                {toPersianDigits(localOverdueTasks.length)}
               </span>
             </div>
-            <span className="text-xs text-muted-foreground/80 font-normal">
-              تسک‌ها را می‌توانید به امروز درگ کنید
+            <span className="text-[11px] font-normal leading-5 text-subtle">
+              کارهای عقب‌افتاده را می‌توانی به امروز بکشی
             </span>
           </div>
 
-          {/* 2. Chevron on FAR LEFT (Second child in RTL) */}
-          <div className="text-muted-foreground">
+          <div className="text-subtle">
             {openPrevious ? (
-              <RiArrowUpSLine className="w-4 h-4" />
+              <RiArrowUpSLine className="size-4" />
             ) : (
-              <RiArrowDownSLine className="w-4 h-4" />
+              <RiArrowDownSLine className="size-4" />
             )}
           </div>
         </button>
 
         {openPrevious && (
-          <div className="pt-1 w-full space-y-2">
-            {/* زیرمجموعه: باکس خیلی عقب‌افتاده (> 7 روز عقب‌افتاده) */}
+          <div className="w-full space-y-2 pt-1">
+            {/* Very overdue bucket */}
             {criticalTasks.length > 0 && (
-              <div className="mx-4 my-1.5 rounded-2xl border border-rose-500/25 bg-rose-500/[0.05] dark:bg-rose-500/[0.09] backdrop-blur-xs overflow-hidden transition-all duration-200 shadow-2xs">
-                {/* هدر باکس خیلی عقب‌افتاده بدون فلش، بدون نقطه قرمز و بدون شمارشگر */}
-                <div className="py-2 px-4 text-right">
-                  <span className="text-destructive font-semibold text-xs tracking-tight block">
+              <div className="my-1.5 overflow-hidden rounded-xl border border-destructive/25 bg-destructive/[0.05] p-2 transition-colors duration-200">
+                <div className="px-4 pb-1.5 pt-0.5 text-right">
+                  <span className="block text-[11.5px] font-medium tracking-tight text-destructive">
                     خیلی عقب‌افتاده
                   </span>
-                  <span className="text-xs text-destructive/80 font-normal mt-0.5 block">
+                  <span className="mt-0.5 block text-[11px] font-normal text-destructive/80">
                     یا انجام بده یا حذفشان کن.
                   </span>
                 </div>
 
                 {/* لیست تسک‌های خیلی عقب‌افتاده */}
-                <div className="pt-0.5 pb-1 w-full">
+                <div className="w-full">
                   {criticalTasks.map((task, idx) => (
                     <div
                       key={task.id}
@@ -309,37 +324,39 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* 2. برای بعدا */}
+      {showFuture && (
       <div className="w-full">
         <button
           onClick={() => setOpenFuture(!openFuture)}
-          className="w-full flex items-center justify-between py-2 px-6 transition-colors cursor-pointer text-right"
+          className="flex w-full cursor-pointer items-center justify-between py-2 text-right transition-colors"
         >
-          {/* 1. Text on FAR RIGHT (First child in RTL) */}
-          <div className="flex items-center gap-2">
-            <span className="text-foreground font-medium text-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12.5px] font-medium text-foreground">
               برای بعدا
             </span>
-            <span className="text-muted-foreground font-normal text-xs tabular-nums">
-              ({toPersianDigits(futureTaskCount + futureEventCount)})
+            <span className="text-[11px] font-normal tabular-nums text-subtle">
+              {toPersianDigits(futureTaskCount + futureEventCount)}
             </span>
           </div>
 
-          {/* 2. Chevron on FAR LEFT (Second child in RTL) */}
-          <div className="text-muted-foreground">
+          <div className="text-subtle">
             {openFuture ? (
-              <RiArrowUpSLine className="w-4 h-4" />
+              <RiArrowUpSLine className="size-4" />
             ) : (
-              <RiArrowDownSLine className="w-4 h-4" />
+              <RiArrowDownSLine className="size-4" />
             )}
           </div>
         </button>
 
         {openFuture && (
-          <div className="pt-1 w-full">
+          <div className="w-full pt-1">
             {futureTasks.length === 0 && futureEvents.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-2">موردی برای نمایش وجود ندارد.</p>
+              <p className="pb-2 text-[12px] text-subtle">
+                چیزی برای بعد برنامه‌ریزی نشده.
+              </p>
             ) : (
               (() => {
                 const futureItems = [
@@ -419,6 +436,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

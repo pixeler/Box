@@ -166,7 +166,7 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
         <button
           type="button"
           onClick={() => toggleSection(cat)}
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer active:scale-95 select-none transition-all ${pillBgClass}`}
+          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer active:scale-95 select-none transition ${pillBgClass}`}
         >
           {icon}
           <span className="text-foreground tracking-tight">{label}</span>
@@ -322,7 +322,7 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
                 <button
                   type="button"
                   onClick={() => setCompletedOpen((prev) => !prev)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer active:scale-95 select-none transition-all bg-emerald-500/15 dark:bg-emerald-500/25 hover:bg-emerald-500/20"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold cursor-pointer active:scale-95 select-none transition bg-emerald-500/15 dark:bg-emerald-500/25 hover:bg-emerald-500/20"
                 >
                   <RiCheckLine className="w-3.5 h-3.5 text-emerald-500 stroke-[2.5]" />
                   <span className="text-foreground tracking-tight">انجام‌شده‌ها</span>

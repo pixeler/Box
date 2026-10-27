@@ -387,7 +387,7 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
         <button
           type="button"
           onClick={() => handleModeChange('hybrid')}
-          className={`px-2 py-0.5 rounded-full transition-all cursor-pointer font-medium ${
+          className={`px-2 py-0.5 rounded-full transition cursor-pointer font-medium ${
             overlayMode === 'hybrid'
               ? 'bg-white/25 text-white font-bold shadow-xs'
               : 'text-white/60 hover:text-white'
@@ -399,7 +399,7 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
         <button
           type="button"
           onClick={() => handleModeChange('ascii')}
-          className={`px-2 py-0.5 rounded-full transition-all cursor-pointer font-medium ${
+          className={`px-2 py-0.5 rounded-full transition cursor-pointer font-medium ${
             overlayMode === 'ascii'
               ? 'bg-white/25 text-white font-bold shadow-xs'
               : 'text-white/60 hover:text-white'
@@ -411,7 +411,7 @@ export const DynamicSkyBackground: React.FC<DynamicSkyBackgroundProps> = ({
         <button
           type="button"
           onClick={() => handleModeChange('mosaic')}
-          className={`px-2 py-0.5 rounded-full transition-all cursor-pointer font-medium ${
+          className={`px-2 py-0.5 rounded-full transition cursor-pointer font-medium ${
             overlayMode === 'mosaic'
               ? 'bg-white/25 text-white font-bold shadow-xs'
               : 'text-white/60 hover:text-white'

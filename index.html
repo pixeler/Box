@@ -5,21 +5,28 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/logo.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#090812" />
+    <meta name="theme-color" content="#171717" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-visual" />
     <link rel="preload" href="/fonts/Dana/DanaVF.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/Darvish/Darvish VF.woff2" as="font" type="font/woff2" crossorigin />
     <title>Box :: جعبه</title>
 
     <!-- Synchronous Theme Initializer (Prevents any Dark/Light mode flash/FOUC on startup) -->
     <script>
       (function() {
         try {
-          var saved = localStorage.getItem('second_brain_theme') || 'default-light';
-          var darkThemes = [
+          var STORAGE_KEY = 'second_brain_theme';
+          var MIGRATION_KEY = 'second_brain_theme_migrated_to_claude';
+          var LEGACY_KEY = 'second_brain_theme_legacy';
+          var saved = localStorage.getItem(STORAGE_KEY);
+          var legacyDarkThemes = [
             'default-dark', 'github-dark', 'miku-dark', 'caffeine-dark',
             'rose-pine-dark', 'dracula-dark', 'one-dark', 'nord-dark', 'tokyo-night'
           ];
+          var darkThemes = ['claude-dark'].concat(legacyDarkThemes);
           var themeCardColors = {
+            'claude-dark': '#171717',
+            'claude-light': '#ffffff',
             'default-light': '#ffffff',
             'sky-light': '#ffffff',
             'github-light': '#ffffff',
@@ -39,6 +46,8 @@
             'tokyo-night': '#1f2335'
           };
           var themeBgColors = {
+            'claude-dark': '#0a0a0a',
+            'claude-light': '#faf9f5',
             'default-light': '#fafafa',
             'sky-light': '#f0f7ff',
             'github-light': '#f6f8fa',
@@ -58,9 +67,33 @@
             'tokyo-night': '#1a1b26'
           };
 
+          var isClaude = saved === 'claude-dark' || saved === 'claude-light';
+          var migrated = localStorage.getItem(MIGRATION_KEY) === 'true';
+
+          if (!isClaude) {
+            if (saved && !migrated) {
+              var wasDark = legacyDarkThemes.indexOf(saved) !== -1;
+              var next = wasDark ? 'claude-dark' : 'claude-light';
+              localStorage.setItem(LEGACY_KEY, saved);
+              localStorage.setItem(MIGRATION_KEY, 'true');
+              localStorage.setItem(STORAGE_KEY, next);
+              saved = next;
+              isClaude = true;
+            } else if (!saved) {
+              saved = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'claude-dark'
+                : 'claude-light';
+              localStorage.setItem(STORAGE_KEY, saved);
+              localStorage.setItem(MIGRATION_KEY, 'true');
+              isClaude = true;
+            }
+          }
+
+          // A legacy theme explicitly selected after migration is allowed
+          // until the old palette is removed at the end of the redesign.
           var isDark = darkThemes.indexOf(saved) !== -1;
-          var card = themeCardColors[saved] || (isDark ? '#18181b' : '#ffffff');
-          var bg = themeBgColors[saved] || (isDark ? '#09090b' : '#fafafa');
+          var card = themeCardColors[saved] || (isDark ? '#171716' : '#ffffff');
+          var bg = themeBgColors[saved] || (isDark ? '#0b0b0a' : '#faf9f5');
 
           document.documentElement.setAttribute('data-theme', saved);
           if (isDark) {
@@ -82,125 +115,25 @@
     </script>
 
     <style>
-      /* Base instant skeleton styles before Tailwind CSS renders */
-      .sk-container {
-        min-height: 100vh;
-        min-height: 100dvh;
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+      /* Critical first-paint styles. The app is offline-first: the shell paints
+         straight into the real UI, so there is no boot/splash/loading state. */
+      html, body, #root {
+        height: 100%;
         margin: 0;
         padding: 0;
       }
-      .sk-card {
-        width: 100%;
-        max-width: 460px;
-        height: 100vh;
-        height: 100dvh;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        position: relative;
-        overflow: hidden;
-        box-sizing: border-box;
+      body {
+        background: transparent;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
       }
-      .sk-shimmer {
-        position: relative;
-        overflow: hidden;
-        background-color: rgba(125, 125, 125, 0.12);
-        border-radius: 8px;
-      }
-      .sk-shimmer::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        transform: translateX(-100%);
-        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%);
-        animation: sk-wave 1.6s infinite ease-in-out;
-      }
-      html:not(.dark) .sk-shimmer {
-        background-color: rgba(0, 0, 0, 0.06);
-      }
-      html:not(.dark) .sk-shimmer::after {
-        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%);
-      }
-      @keyframes sk-wave {
-        100% {
-          transform: translateX(100%);
-        }
+      #root {
+        background: transparent;
       }
     </style>
   </head>
   <body class="font-sans antialiased selection:bg-black selection:text-white">
-    <div id="root">
-      <!-- High-fidelity Instant Skeleton Screen -->
-      <div class="sk-container">
-        <div class="sk-card">
-          <!-- Mobile Status Bar Area Fill (matches calendar bg-card) -->
-          <div style="height: env(safe-area-inset-top, 0px); width: 100%; background: var(--card, #ffffff);" class="shrink-0"></div>
-
-          <!-- Top Calendar Header Card Skeleton -->
-          <div style="background: var(--card, #ffffff); border-bottom: 1px solid rgba(125, 125, 125, 0.15); border-radius: 0 0 16px 16px; padding: 12px 18px 14px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div class="sk-shimmer" style="width: 32px; height: 32px; border-radius: 9999px;"></div>
-                <div class="sk-shimmer" style="width: 100px; height: 24px; border-radius: 8px;"></div>
-                <div class="sk-shimmer" style="width: 8px; height: 8px; border-radius: 9999px;"></div>
-              </div>
-              <div class="sk-shimmer" style="width: 58px; height: 26px; border-radius: 9999px;"></div>
-            </div>
-            <div class="sk-shimmer" style="width: 160px; height: 12px; border-radius: 4px; margin-top: 8px;"></div>
-            <!-- 7-day strip skeleton -->
-            <div style="display: flex; justify-content: space-between; gap: 6px; margin-top: 14px;">
-              <div class="sk-shimmer" style="flex: 1; height: 52px; border-radius: 12px;"></div>
-              <div class="sk-shimmer" style="flex: 1; height: 52px; border-radius: 12px;"></div>
-              <div class="sk-shimmer" style="flex: 1; height: 52px; border-radius: 12px;"></div>
-              <div class="sk-shimmer" style="flex: 1; height: 52px; border-radius: 12px; opacity: 0.9;"></div>
-              <div class="sk-shimmer" style="flex: 1; height: 52px; border-radius: 12px;"></div>
-              <div class="sk-shimmer" style="flex: 1; height: 52px; border-radius: 12px;"></div>
-              <div class="sk-shimmer" style="flex: 1; height: 52px; border-radius: 12px;"></div>
-            </div>
-          </div>
-
-          <!-- Stream List Skeleton -->
-          <div style="flex: 1; padding: 16px 14px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
-            <!-- Task Card 1 -->
-            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(125,125,125,0.04); border: 1px solid rgba(125,125,125,0.08); border-radius: 14px;">
-              <div class="sk-shimmer" style="width: 20px; height: 20px; border-radius: 9999px; flex-shrink: 0;"></div>
-              <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                <div class="sk-shimmer" style="width: 65%; height: 15px; border-radius: 6px;"></div>
-                <div class="sk-shimmer" style="width: 40%; height: 11px; border-radius: 4px;"></div>
-              </div>
-            </div>
-            <!-- Task Card 2 -->
-            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(125,125,125,0.04); border: 1px solid rgba(125,125,125,0.08); border-radius: 14px;">
-              <div class="sk-shimmer" style="width: 20px; height: 20px; border-radius: 9999px; flex-shrink: 0;"></div>
-              <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                <div class="sk-shimmer" style="width: 80%; height: 15px; border-radius: 6px;"></div>
-                <div class="sk-shimmer" style="width: 25%; height: 11px; border-radius: 4px;"></div>
-              </div>
-            </div>
-            <!-- Task Card 3 -->
-            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(125,125,125,0.04); border: 1px solid rgba(125,125,125,0.08); border-radius: 14px;">
-              <div class="sk-shimmer" style="width: 20px; height: 20px; border-radius: 9999px; flex-shrink: 0;"></div>
-              <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-                <div class="sk-shimmer" style="width: 50%; height: 15px; border-radius: 6px;"></div>
-                <div class="sk-shimmer" style="width: 35%; height: 11px; border-radius: 4px;"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bottom Dock Skeleton -->
-          <div style="padding-bottom: 24px; display: flex; justify-content: center; width: 100%;">
-            <div class="sk-shimmer" style="width: 260px; height: 54px; border-radius: 9999px; border: 1px solid rgba(125,125,125,0.12);"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

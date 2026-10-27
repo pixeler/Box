@@ -230,7 +230,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="جستجو در این باکس..."
-            className="w-full text-xs text-foreground bg-muted/40 dark:bg-white/5 border border-border/70 dark:border-white/10 rounded-xl pr-9 pl-3 py-2 outline-none focus:border-primary placeholder:text-muted-foreground/50 dark:placeholder:text-zinc-500 transition-all"
+            className="w-full text-xs text-foreground bg-muted/40 dark:bg-white/5 border border-border/70 dark:border-white/10 rounded-xl pr-9 pl-3 py-2 outline-none focus:border-primary placeholder:text-muted-foreground/50 dark:placeholder:text-zinc-500 transition"
           />
         </div>
 
@@ -249,7 +249,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setTypeFilter(tab.id)}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer border ${
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition cursor-pointer border ${
                   typeFilter === tab.id
                     ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 border-transparent shadow-xs font-bold'
                     : 'border-border/70 dark:border-white/10 text-muted-foreground hover:text-foreground'
@@ -301,7 +301,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
             <button
               type="button"
               onClick={() => onOpenAddForBox(box.id)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 text-xs font-bold shadow-xs hover:scale-105 active:scale-95 transition cursor-pointer"
             >
               <RiAddLine className="w-4 h-4" />
               <span>افزودن اولین آیتم به این باکس</span>
@@ -317,7 +317,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                 <div
                   key={task.id}
                   onClick={() => setEditingTask(task)}
-                  className={`group flex items-start gap-2.5 p-3 rounded-2xl border transition-all cursor-pointer select-none ${
+                  className={`group flex items-start gap-2.5 p-3 rounded-2xl border transition cursor-pointer select-none ${
                     isDone
                       ? 'bg-muted/30 border-border/40 dark:border-white/5 opacity-65'
                       : 'bg-card dark:bg-white/5 border-border/70 dark:border-white/10 hover:border-primary/40 shadow-xs'
@@ -327,7 +327,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleToggleTask(e, task.id)}
-                    className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 transition-all cursor-pointer ${
+                    className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 transition cursor-pointer ${
                       task.recurrence_rule && task.recurrence_rule !== 'none'
                         ? 'rounded-[5px] border-[1.5px] border-dashed'
                         : 'rounded-full border border-solid'
@@ -406,7 +406,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
                 <div
                   key={note.id}
                   onClick={() => setEditingNote(note)}
-                  className="group p-3 rounded-2xl bg-card dark:bg-white/5 border border-border/70 dark:border-white/10 hover:border-primary/40 shadow-xs transition-all cursor-pointer select-none space-y-1.5"
+                  className="group p-3 rounded-2xl bg-card dark:bg-white/5 border border-border/70 dark:border-white/10 hover:border-primary/40 shadow-xs transition cursor-pointer select-none space-y-1.5"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 min-w-0">
@@ -455,7 +455,7 @@ export const BoxDetailView: React.FC<BoxDetailViewProps> = ({
         <button
           type="button"
           onClick={() => onOpenAddForBox(box.id)}
-          className="flex items-center gap-2 bg-[#1f2329] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 px-5 py-3 rounded-full text-xs font-bold shadow-xl hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          className="flex items-center gap-2 bg-[#1f2329] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 px-5 py-3 rounded-full text-xs font-bold shadow-xl hover:scale-105 active:scale-95 transition cursor-pointer"
         >
           <RiAddLine className="w-4 h-4" />
           <span>افزودن به این باکس</span>

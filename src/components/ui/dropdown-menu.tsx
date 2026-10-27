@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { RiCheckLine, RiArrowLeftSLine, RiCheckboxBlankCircleLine } from "@remixicon/react";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      "flex cursor-pointer select-none items-center rounded-[6px] px-2 py-1.5 text-xs outline-none focus:bg-gray-100 data-[state=open]:bg-gray-100",
+      "flex cursor-pointer select-none items-center rounded-md px-2 py-1.5 text-[12.5px] outline-none focus:bg-secondary data-[state=open]:bg-secondary",
       inset && "pr-8",
       className
     )}
@@ -47,7 +47,7 @@ const DropdownMenuSubContent = React.forwardRef<
   <DropdownMenuPrimitive.SubContent
     ref={ref}
     className={cn(
-      "z-50 min-w-[8rem] overflow-hidden rounded-[8px] border border-gray-200 bg-white p-1 text-gray-800 shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 font-sans",
+      "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover p-1 font-sans text-popover-foreground shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
       className
     )}
     {...props}
@@ -67,7 +67,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-[8px] border border-gray-200 bg-white p-1 text-gray-800 shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 font-sans text-xs",
+        "z-50 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover p-1 font-sans text-[12.5px] text-popover-foreground shadow-xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         className
       )}
       {...props}
@@ -86,8 +86,8 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center gap-2 rounded-[6px] px-2 py-1.5 text-xs outline-none transition-colors focus:bg-gray-100 hover:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-gray-700",
-      variant === 'destructive' && "text-rose-600 focus:bg-rose-50 focus:text-rose-700 hover:bg-rose-50 hover:text-rose-700",
+      "relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-[12.5px] outline-none transition-colors hover:bg-secondary focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground",
+      variant === 'destructive' && "text-destructive focus:bg-destructive/10 focus:text-destructive hover:bg-destructive/10 hover:text-destructive",
       inset && "pr-8",
       className
     )}
@@ -103,7 +103,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-gray-100 hover:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-gray-700",
+      "relative flex cursor-pointer select-none items-center rounded-md py-1.5 pe-2 ps-8 text-[12.5px] outline-none transition-colors hover:bg-secondary focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground",
       className
     )}
     checked={checked}
@@ -111,7 +111,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <RiCheckLine className="h-4 w-4 text-black" />
+        <RiCheckLine className="h-4 w-4 text-foreground" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -127,14 +127,14 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-[6px] py-1.5 pr-8 pl-2 text-xs outline-none transition-colors focus:bg-gray-100 hover:bg-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-gray-700",
+      "relative flex cursor-pointer select-none items-center rounded-md py-1.5 pe-2 ps-8 text-[12.5px] outline-none transition-colors hover:bg-secondary focus:bg-secondary data-[disabled]:pointer-events-none data-[disabled]:opacity-50 text-foreground",
       className
     )}
     {...props}
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <DropdownMenuPrimitive.ItemIndicator>
-        <RiCheckboxBlankCircleLine className="h-2 w-2 fill-current text-black" />
+        <RiCheckboxBlankCircleLine className="h-2 w-2 fill-current text-foreground" />
       </DropdownMenuPrimitive.ItemIndicator>
     </span>
     {children}
@@ -151,7 +151,7 @@ const DropdownMenuLabel = React.forwardRef<
   <DropdownMenuPrimitive.Label
     ref={ref}
     className={cn(
-      "px-2 py-1.5 text-[11px] font-medium text-gray-400",
+      "px-2 py-1.5 text-[11px] font-medium text-subtle",
       inset && "pr-8",
       className
     )}
@@ -166,7 +166,7 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-gray-100", className)}
+    className={cn("-mx-1 my-1 h-px bg-border", className)}
     {...props}
   />
 ));

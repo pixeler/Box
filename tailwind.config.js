@@ -48,6 +48,18 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "cell-selected": "var(--cell-selected)",
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          border: "hsl(var(--sidebar-border))",
+        },
+        surface: {
+          DEFAULT: "hsl(var(--card))",
+          2: "hsl(var(--surface-2))",
+        },
+        subtle: "hsl(var(--fg-subtle))",
+        scrim: "hsl(var(--scrim))",
       },
       borderRadius: {
         lg: "var(--radius)",

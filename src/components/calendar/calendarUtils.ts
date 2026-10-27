@@ -6,7 +6,7 @@ import {
   type WeekDayInfo,
 } from '@/lib/jalali';
 
-export type CalendarViewMode = 'day' | 'week' | 'month' | 'year';
+export type CalendarViewMode = 'week' | 'month' | 'year';
 
 const PERSIAN_WEEK_ORDINALS = ['اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم'];
 
