@@ -1,3 +1,6 @@
+# ---------------------------------------------------------------------------
+# Dependencies & build output
+# ---------------------------------------------------------------------------
 node_modules
 dist
 dist-ssr
@@ -6,3 +9,41 @@ dist-ssr
 .env.*
 .DS_Store
 thumbs.db
+
+# Local build / profiling output used while tuning the bundle
+.build-check
+.perf-before
+.perf-after
+.perf-analyze
+
+# Packaged Android artifacts (rebuilt by `pnpm android:build`)
+*.apk
+*.aab
+
+# ---------------------------------------------------------------------------
+# AI assistant tooling
+# Agent configs, skills and working memory. They describe how the assistant
+# works on the repo, not the app itself, so they stay out of it.
+# ---------------------------------------------------------------------------
+.agents/
+.claude/
+.freebuff/
+.kilo/
+.workbuddy-ai/
+skills-lock.json
+
+# ---------------------------------------------------------------------------
+# Documentation & notes
+# Design specs, redesign references and requirement notes live beside the code
+# but are not part of the application.
+# ---------------------------------------------------------------------------
+docs/
+contex/
+req.md
+screenshot.png
+
+# ---------------------------------------------------------------------------
+# Scratch space: verification scripts, screenshots, build logs, throwaway
+# patches and headless-Chrome profiles used while debugging.
+# ---------------------------------------------------------------------------
+scratch/
