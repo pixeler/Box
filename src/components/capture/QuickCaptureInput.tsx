@@ -830,6 +830,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 }
                 className={cn(
                   'relative z-10 w-full text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] px-0',
+                  activeTab === 'task' && 'focus-quiet',
                   isFullscreen && activeTab === 'note'
                     ? 'text-2xl md:text-3xl font-bold'
                     : isInline
@@ -1020,7 +1021,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 placeholder={isInline ? 'توضیحات (اختیاری)' : 'توضیحات'}
                 rows={isInline ? 1 : 2}
                 className={cn(
-                  'w-full resize-none text-foreground/85 bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal leading-relaxed',
+                  'focus-quiet w-full resize-none text-foreground/85 bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal leading-relaxed',
                   isInline
                     ? 'mt-1.5 min-h-[24px] max-h-[72px] text-[12.5px]'
                     : 'mt-2.5 min-h-[46px] max-h-[92px] text-sm'

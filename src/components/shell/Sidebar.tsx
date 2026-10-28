@@ -488,8 +488,16 @@ const AccountMenu: React.FC<{
                 <span className="truncate text-[13px] font-medium leading-5 text-foreground">
                   {displayName}
                 </span>
-                <span className="truncate text-[11px] leading-4 text-subtle">
-                  {syncLabel}
+                <span
+                  className={cn(
+                    'flex min-w-0 items-center gap-1.5 truncate text-[11px] leading-4',
+                    online ? 'text-subtle' : 'text-amber-600 dark:text-amber-400'
+                  )}
+                >
+                  {!online && (
+                    <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
+                  )}
+                  <span className="truncate">{syncLabel}</span>
                 </span>
               </div>
               <ChevronDown className="size-3.5 shrink-0 text-subtle transition-transform duration-150 group-data-[state=open]/account:rotate-180" />
@@ -708,20 +716,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {!compact && (onToggleCollapsed || onClose) && (
+        {!compact && onClose && (
           <div className="flex shrink-0 items-center gap-0.5">
-            {canCollapse && onToggleCollapsed && (
-              <button
-                type="button"
-                onClick={onToggleCollapsed}
-                title={`بستن منو (${collapseShortcut})`}
-                aria-label="بستن منو"
-                aria-keyshortcuts={shortcutAria('B')}
-                className="flex size-8 items-center justify-center rounded-md text-subtle transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-              >
-                <PanelRight className="size-[18px]" />
-              </button>
-            )}
             {onClose && (
               <button
                 type="button"
@@ -745,7 +741,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onOpenAdd}
               title="کار (T)"
               aria-label="کار"
-              className="group relative flex size-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.04]"
+              className="group relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
             >
               <Plus className="size-[18px]" />
               <RailTip label="کار (T)" />
@@ -755,7 +751,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onOpenNote}
               title="یادداشت (N)"
               aria-label="یادداشت"
-              className="group relative flex size-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.04]"
+              className="group relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
             >
               <SquareText className="size-[18px]" />
               <RailTip label="یادداشت (N)" />
@@ -767,7 +763,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={onOpenAdd}
               title="کار (T)"
-              className="flex flex-1 items-center justify-between gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-foreground/[0.04]"
+              className="flex h-9 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
             >
               <span className="flex items-center gap-1.5">
                 <Plus className="size-4 shrink-0" />
@@ -779,7 +775,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={onOpenNote}
               title="یادداشت (N)"
-              className="flex flex-1 items-center justify-between gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-foreground/[0.04]"
+              className="flex h-9 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
             >
               <span className="flex items-center gap-1.5">
                 <SquareText className="size-4 shrink-0" />

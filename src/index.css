@@ -541,11 +541,27 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Electron frameless window: the strip moves the window, buttons do not. */
+.desktop-titlebar {
+  -webkit-app-region: drag;
+}
+.desktop-titlebar .desktop-no-drag {
+  -webkit-app-region: no-drag;
+}
+
 /* A visible, tokenised focus ring everywhere. Components may add their own
    ring on top, but nothing may remove the keyboard indicator entirely. */
 :where(button, a, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
+}
+
+/* The capture composer is already an obvious focus target: the caret, the
+   highlighted tokens and the surrounding card show where typing goes. The
+   accent outline reads like an error frame around the text box, so these
+   fields opt out of it. */
+:where(input.focus-quiet, textarea.focus-quiet):focus-visible {
+  outline: none;
 }
 
 /* Sidebar utility controls stay quiet until the row is hovered or focused.

@@ -1,257 +1,229 @@
-import { taskRepo, noteRepo, eventRepo, tagRepo, entryRepo, boxRepo } from '@/repositories';
-import {
-  getTodayJalaliKey,
-  parseJalaliKey,
-  jalaliToDate,
-  getJalaliDate,
-  formatJalaliKey,
-} from './jalali';
-
-export async function checkAndSeedDemoBoxes() {
-  try {
-    const existingBoxes = await boxRepo.list();
-    if (existingBoxes.length === 0) {
-      const b1 = await boxRepo.create({
-        title: 'روزنوشت‌ها',
-        image: 'Box 5.png',
-        order: 1,
-      });
-
-      await boxRepo.create({
-        title: 'یوتیوب',
-        image: 'Box 2.png',
-        icon: 'RiYoutubeFill',
-        order: 2,
-      });
-
-      await boxRepo.create({
-        title: 'دستور غذا',
-        image: 'Box6.png',
-        order: 3,
-      });
-
-
-      const b4 = await boxRepo.create({
-        title: 'روزا',
-        image: 'Box 1.png',
-        icon: 'RiSunLine',
-        order: 4,
-      });
-
-      // Link existing tasks/notes to boxes if appropriate
-      const allTasks = await taskRepo.list();
-      const taskRoza = allTasks.find((t) => t.title.includes('روزا'));
-      if (taskRoza && !taskRoza.box_id) {
-        await taskRepo.update(taskRoza.id, { box_id: b4.id });
-      }
-
-      const allNotes = await noteRepo.list();
-      if (allNotes.length > 0 && !allNotes[0].box_id) {
-        await noteRepo.update(allNotes[0].id, { box_id: b1.id });
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to seed demo boxes:', err);
-  }
-}
-
+import { boxRepo, eventRepo, noteRepo, tagRepo, taskRepo } from '@/repositories';
+import { getTodayJalaliKey } from './jalali';
 
 /**
- * One-off demo bootstrap. Returns `true` when it actually changed local data,
- * so callers can decide whether a re-read is needed.
+ * Guest onboarding.
+ *
+ * The app is offline-first, so a first-time guest gets a small, honest starter
+ * set that teaches the product instead of a pile of unrelated "demo" content.
+ * Signed-in users (including someone who is currently offline) never get it:
+ * their local database is their own data.
  */
-export async function checkAndSeedDesignDemoData(): Promise<boolean> {
-  const { supabase } = await import('./supabase');
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    // If user is logged into Supabase, their data comes from cloud server. Do not seed demo tasks!
-    const { deduplicateLocalDatabase } = await import('./sync');
-    await deduplicateLocalDatabase().catch(() => {});
-    return true;
+
+const LEGACY_SEED_FLAG = 'second_brain_demo_seeded';
+const ONBOARDING_FLAG = 'second_brain_onboarding_seeded_v1';
+
+const LEGACY_TASK_TITLES = new Set([
+  'تکمیل دیزاین تسک در روزا',
+  'بررسی فیدبک‌های کاربر',
+  'تمدید اشتراک سرور و هاست',
+  'آماده‌سازی خروجی نهایی',
+]);
+
+const LEGACY_NOTE_TITLE_PREFIXES = ['گاهی وقت‌ها احساس می‌کنم'];
+
+const LEGACY_BOX_TITLES = new Set(['روزنوشت‌ها', 'یوتیوب', 'دستور غذا', 'روزا']);
+
+const hasStoredAuthSession = (): boolean => {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    return Object.keys(localStorage).some(
+      (key) => key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
+  } catch {
+    return false;
   }
+};
 
-  await checkAndSeedDemoBoxes();
-
-  const todayKey = getTodayJalaliKey();
-
-  const todayJ = parseJalaliKey(todayKey);
-  const nowDate = jalaliToDate(todayJ.jy, todayJ.jm, todayJ.jd);
-
-  // Overdue date: 2 days before today
-  const overdueDate = new Date(nowDate);
-  overdueDate.setDate(nowDate.getDate() - 2);
-  const overdueKey = formatJalaliKey(getJalaliDate(overdueDate));
-
-  // Future date: 5 days after today
-  const futureDate = new Date(nowDate);
-  futureDate.setDate(nowDate.getDate() + 5);
-  const futureKey = formatJalaliKey(getJalaliDate(futureDate));
-
-  // Migration for previously seeded data using hardcoded 1404/10/30
-  let migratedAny = false;
-  const migratedKey = 'second_brain_demo_migrated_to_dynamic_v1';
-  if (!localStorage.getItem(migratedKey)) {
-    try {
-      const oldTodayTasks = await taskRepo.list({ due_date: '1404/10/30' });
-      for (const t of oldTodayTasks) {
-        await taskRepo.update(t.id, { due_date: todayKey });
-        migratedAny = true;
-      }
-      const oldOverdueTasks = await taskRepo.list({ due_date: '1404/10/28' });
-      for (const t of oldOverdueTasks) {
-        await taskRepo.update(t.id, { due_date: overdueKey });
-        migratedAny = true;
-      }
-      const oldFutureTasks = await taskRepo.list({ due_date: '1404/11/05' });
-      for (const t of oldFutureTasks) {
-        await taskRepo.update(t.id, { due_date: futureKey });
-        migratedAny = true;
-      }
-    } catch (e) {
-      console.warn('Seed migration error:', e);
-    }
-    localStorage.setItem(migratedKey, 'true');
-  }
-
-  const seeded = localStorage.getItem('second_brain_demo_seeded');
-  if (seeded) return migratedAny;
+const isSignedIn = async (): Promise<boolean> => {
+  // The storage check works offline and covers an expired token; getSession()
+  // is the authoritative local answer when storage is readable.
+  if (hasStoredAuthSession()) return true;
 
   try {
-    const existingTasks = await taskRepo.list();
-    if (existingTasks.length > 0) return false;
+    const { supabase } = await import('./supabase');
+    const { data } = await supabase.auth.getSession();
+    return Boolean(data.session);
+  } catch {
+    return false;
+  }
+};
 
-    // 1. Create Tag
-    const tag = await tagRepo.getOrCreate('دیزاین', 'manual');
+/**
+ * Earlier builds seeded a personal-looking demo set for guests. Remove only
+ * those exact records once, so real content the user added is untouched.
+ */
+const removeLegacyDemoData = async (): Promise<boolean> => {
+  if (typeof localStorage === 'undefined') return false;
+  const flagged = localStorage.getItem(LEGACY_SEED_FLAG) === 'true';
 
-    // 2. Task 1 (تکمیل دیزاین تسک در روزا)
-    const entry1 = await entryRepo.create({
-      raw_text: 'تکمیل دیزاین تسک در روزا #دیزاین',
-      source: 'text',
-      processed: true,
+  try {
+    const [tasks, notes, boxes] = await Promise.all([
+      taskRepo.list(),
+      noteRepo.list(),
+      boxRepo.list(),
+    ]);
+
+    const legacyTasks = tasks.filter((task) => LEGACY_TASK_TITLES.has(task.title));
+    const legacyNotes = notes.filter((note) =>
+      LEGACY_NOTE_TITLE_PREFIXES.some((prefix) => note.title.startsWith(prefix))
+    );
+    const legacyBoxes = boxes.filter((box) => LEGACY_BOX_TITLES.has(box.title));
+
+    // The saved flag is the normal path. The title set is a fallback for a
+    // profile whose localStorage was reset while the old records remained.
+    const looksSeeded = legacyTasks.length >= 4 && legacyBoxes.length >= 3;
+    if (!flagged && !looksSeeded) return false;
+
+    await Promise.all([
+      ...legacyTasks.map((task) => taskRepo.softDelete(task.id)),
+      ...legacyNotes.map((note) => noteRepo.softDelete(note.id)),
+      ...legacyBoxes.map((box) => boxRepo.delete(box.id)),
+    ]);
+
+    localStorage.removeItem(LEGACY_SEED_FLAG);
+
+    return legacyTasks.length + legacyNotes.length + legacyBoxes.length > 0;
+  } catch (error) {
+    console.warn('Failed to clear legacy demo data:', error);
+    return false;
+  }
+};
+
+let onboardingRun: Promise<boolean> | null = null;
+
+/**
+ * Guard against two mounts (or two windows) racing through the empty-database
+ * check and seeding the same starter set twice.
+ */
+export function checkAndSeedOnboarding(): Promise<boolean> {
+  if (!onboardingRun) {
+    onboardingRun = runOnboardingSeed().finally(() => {
+      onboardingRun = null;
     });
-    await taskRepo.create({
-      entry_id: entry1.id,
-      title: 'تکمیل دیزاین تسک در روزا',
-      description: 'اگر تکمیل نکنیم، جواب محمد را چی بدهیم.',
-      status: 'open',
-      due_date: todayKey,
+  }
+  return onboardingRun;
+}
+
+async function runOnboardingSeed(): Promise<boolean> {
+  if (typeof localStorage === 'undefined') return false;
+  if (await isSignedIn()) return false;
+
+  const cleaned = await removeLegacyDemoData();
+
+  if (localStorage.getItem(ONBOARDING_FLAG) === 'true') return cleaned;
+
+  try {
+    const [tasks, notes, boxes, events] = await Promise.all([
+      taskRepo.list(),
+      noteRepo.list(),
+      boxRepo.list(),
+      eventRepo.list(),
+    ]);
+
+    // A guest who already made something is not a first-time guest anymore.
+    if (tasks.length > 0 || notes.length > 0 || boxes.length > 0 || events.length > 0) {
+      return cleaned;
+    }
+
+    const todayKey = getTodayJalaliKey();
+    const tag = await tagRepo.getOrCreate('شروع', 'manual');
+
+    const guideBox = await boxRepo.create({
+      title: 'راهنمای جعبه',
+      image: 'Box 2.png',
+      order: 0,
+    });
+
+    const guideNote = await noteRepo.create({
+      entry_id: null,
+      box_id: guideBox.id,
+      type: 'note',
+      title: 'جعبه چطور کار می‌کند؟',
+      body: [
+        'این یادداشت را باز نگه دار و قدم‌به‌قدم امتحان کن:',
+        '',
+        '• در «امروز» دکمه + یا میان‌بر T یک کار تازه می‌سازد.',
+        '• هر کار را باز کن تا زیرکار، یادداشت پیوندشده و یادآور داشته باشد.',
+        '• در «تقویم» بین نمای هفته، ماه و سال جابه‌جا شو.',
+        '• در «همه کارها» و «تمرکز» از سایدبار دنبال کارهای دیگر برو.',
+        '• یادداشت‌ها را می‌توانی داخل جعبه‌ها دسته‌بندی کنی.',
+      ].join('\n'),
+      icon: '👋',
       tag_ids: [tag.id],
     });
 
-    // 3. Note 1 (گاهی وقت‌ها احساس می‌کنم...)
-    const entry2 = await entryRepo.create({
-      raw_text: 'گاهی وقت‌ها احساس می‌کنم که نباید بلیچ را شروع می‌کردم. چون ۲۰ ساله که هنوز تمام نشده.',
-      source: 'text',
-      processed: true,
-    });
     await noteRepo.create({
-      entry_id: entry2.id,
+      entry_id: null,
       type: 'note',
-      title: 'گاهی وقت‌ها احساس می‌کنم که نباید بلیچ را شروع می‌کردم. چون ۲۰ ساله که هنوز تمام نشده.',
-      body: 'گاهی وقت‌ها احساس می‌کنم که نباید بلیچ را شروع می‌کردم. چون ۲۰ ساله که هنوز تمام نشده.',
-      tag_ids: [],
+      title: 'سه قدم برای شروع',
+      body: [
+        '۱. سه کار مهم امروزت را بنویس.',
+        '۲. برای هر کار یک قدم کوچک تعریف کن.',
+        '۳. آخر شب یک یادداشت کوتاه از روزت بنویس.',
+      ].join('\n'),
+      pinned: true,
+      icon: '🌱',
+      tag_ids: [tag.id],
     });
 
-    // 4. Overdue Task (از روزهای قبل - تاخیر کم)
     await taskRepo.create({
       entry_id: null,
-      title: 'بررسی فیدبک‌های کاربر',
-      description: 'موارد یادداشت‌شده در جلسه دیروز',
-      status: 'open',
-      due_date: overdueKey,
-      tag_ids: [],
+      title: 'این کار انجام شده است',
+      description: 'تیک کنار عنوان را بردار تا ببینی چطور به حالت باز برمی‌گردد.',
+      status: 'done',
+      done_dates: [todayKey],
+      due_date: todayKey,
+      time_of_day: 'anytime',
+      priority: 1,
+      tag_ids: [tag.id],
+      subtasks: [],
     });
 
-    // 4b. Critical Overdue Task (خیلی عقب‌افتاده - بیش از ۷ روز)
-    const criticalDate = new Date(nowDate);
-    criticalDate.setDate(nowDate.getDate() - 10);
-    const criticalKey = formatJalaliKey(getJalaliDate(criticalDate));
     await taskRepo.create({
       entry_id: null,
-      title: 'تمدید اشتراک سرور و هاست',
-      description: 'نیاز به هماهنگی با بخش مالی',
+      title: 'یک کار تازه برای امروز بساز',
+      description:
+        'از دکمه + بالای «امروز» یا میان‌بر T استفاده کن. کارها را می‌شود برای صبح، طول روز یا عصر ساخت.',
       status: 'open',
-      due_date: criticalKey,
+      due_date: todayKey,
+      time_of_day: 'morning',
       priority: 3,
-      tag_ids: [],
+      tag_ids: [tag.id],
+      subtasks: [],
     });
 
-    // 5. Future Task (برای بعدا)
     await taskRepo.create({
       entry_id: null,
-      title: 'آماده‌سازی خروجی نهایی',
-      description: '',
+      title: 'برای این کار یک زیرکار اضافه کن',
+      description:
+        'کار را باز کن و در بخش «زیرکارها» اولین قدم کوچک را بنویس. زیرکارها همین‌جا داخل خود کار زندگی می‌کنند.',
       status: 'open',
-      due_date: futureKey,
-      tag_ids: [],
+      due_date: todayKey,
+      time_of_day: 'day',
+      priority: 2,
+      tag_ids: [tag.id],
+      subtasks: [{ id: crypto.randomUUID(), title: 'یک قدم کوچک بنویس', done: false }],
     });
 
-    localStorage.setItem('second_brain_demo_seeded', 'true');
+    await taskRepo.create({
+      entry_id: null,
+      title: 'یادداشت راهنما را باز کن',
+      description:
+        'این کار به یادداشت «جعبه چطور کار می‌کند؟» پیوند خورده است. روی عنوان یادداشت در کارت کار بزن.',
+      status: 'open',
+      due_date: todayKey,
+      time_of_day: 'evening',
+      priority: 1,
+      tag_ids: [tag.id],
+      linked_note_ids: [guideNote.id],
+      subtasks: [],
+    });
+
+    localStorage.setItem(ONBOARDING_FLAG, 'true');
     return true;
-  } catch (err) {
-    console.warn('Failed to seed design demo data:', err);
-    return false;
-  } finally {
-    await cleanupDuplicatesAndObsoleteItems();
+  } catch (error) {
+    console.warn('Failed to seed guest onboarding:', error);
+    return cleaned;
   }
 }
-
-/**
- * پاکسازی موارد تکراری و رویدادهای منسوخ‌شده (مانند مصرف دارو)
- */
-export async function cleanupDuplicatesAndObsoleteItems() {
-  try {
-    const { db } = await import('./db/dexie');
-    const { markIdAsDeleted } = await import('./storage');
-
-    // 1. حذف رویدادهای «مصرف دارو»
-    const allEvents = await eventRepo.list();
-    for (const ev of allEvents) {
-      if (ev.title.includes('مصرف دارو')) {
-        await db.events.delete(ev.id);
-        markIdAsDeleted(ev.id);
-      }
-    }
-
-    // 2. حذف تسک‌های کاملاً تکراری
-    const allTasks = await db.tasks.toArray();
-
-    const seen = new Map<string, typeof allTasks[0]>();
-    const idsToDelete: string[] = [];
-
-    for (const t of allTasks) {
-      if (t.status === 'dropped') continue;
-
-      // کلید یکتا بر اساس عنوان، قوانین تکرار یا تاریخ
-      const cleanTitle = t.title.trim().toLowerCase();
-      const normRecurrence = (t.recurrence_rule || 'none').trim();
-      const normDate = (t.due_date || '').trim();
-
-      const uniqueKey = `${cleanTitle}|${normRecurrence}|${normRecurrence !== 'none' ? '' : normDate}`;
-
-      if (seen.has(uniqueKey)) {
-        const existing = seen.get(uniqueKey)!;
-        // نگه‌داشتن تسکی که وضعیت انجام بیشتری دارد یا جدیدتر است
-        const existingDoneCount = (existing.done_dates || []).length;
-        const currentDoneCount = (t.done_dates || []).length;
-
-        if (currentDoneCount > existingDoneCount || (!existingDoneCount && t.status === 'done' && existing.status !== 'done')) {
-          idsToDelete.push(existing.id);
-          seen.set(uniqueKey, t);
-        } else {
-          idsToDelete.push(t.id);
-        }
-      } else {
-        seen.set(uniqueKey, t);
-      }
-    }
-
-    for (const id of idsToDelete) {
-      await db.tasks.delete(id);
-      markIdAsDeleted(id);
-    }
-  } catch (err) {
-    console.warn('cleanupDuplicatesAndObsoleteItems failed:', err);
-  }
-}
-

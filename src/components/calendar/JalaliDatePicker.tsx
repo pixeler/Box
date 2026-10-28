@@ -31,6 +31,7 @@ import {
   RiCalendar2Line,
 } from '@remixicon/react';
 import { formatRecurrenceDisplay, PERSIAN_WEEKDAYS } from '@/lib/recurrence';
+import { getPickerPopoverStyle, type PickerAnchor } from '@/components/pickers/PickerPopover';
 
 export interface DateTimeSelectionResult {
   dateKey: string | null;
@@ -51,6 +52,9 @@ export interface JalaliDatePickerProps {
   recurrenceStartDate?: string | null;
   recurrenceEndDate?: string | null;
   onDateTimeChange?: (result: DateTimeSelectionResult) => void;
+  /** Mobile keeps the bottom sheet; desktop opens this next to the date row. */
+  variant?: 'sheet' | 'popover';
+  anchorRect?: PickerAnchor | null;
 }
 
 const WEEK_DAYS_SHORT = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
@@ -96,6 +100,8 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
   recurrenceStartDate: initialRecurrenceStartDate,
   recurrenceEndDate: initialRecurrenceEndDate,
   onDateTimeChange,
+  variant = 'sheet',
+  anchorRect = null,
 }) => {
   const todayKey = getTodayJalaliKey();
   const initialJ = value ? parseJalaliKey(value) : parseJalaliKey(todayKey);
@@ -205,7 +211,13 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const isPopover = variant === 'popover';
+
   const handleClose = () => {
+    if (isPopover) {
+      onClose?.();
+      return;
+    }
     setIsClosing(true);
     setTimeout(() => {
       onClose?.();
@@ -353,26 +365,43 @@ export const JalaliDatePicker: React.FC<JalaliDatePickerProps> = ({
 
   const activeHolidayInfo = hoveredDate ? getHolidaysForDate(hoveredDate) : [];
 
-  const portalTarget = getOverlayPortalTarget();
+  const popoverStyle = isPopover ? getPickerPopoverStyle(anchorRect, 400, true) : null;
+
+  const portalTarget = isPopover
+    ? typeof document !== 'undefined'
+      ? document.body
+      : null
+    : getOverlayPortalTarget();
   if (!portalTarget) return null;
 
   return createPortal(
     <div
-      className={`absolute inset-0 z-[80] flex flex-col justify-end bg-black/70 backdrop-blur-xs select-none ${
-        isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
-      }`}
+      className={
+        isPopover
+          ? 'fixed inset-0 z-[220]'
+          : `absolute inset-0 z-[80] flex flex-col justify-end bg-black/70 backdrop-blur-xs select-none ${
+              isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
+            }`
+      }
       onClick={handleClose}
       dir="rtl"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full bg-card text-card-foreground rounded-t-[28px] border-t border-border/80 dark:border-white/10 shadow-2xl px-5 pt-3 pb-4 font-sans text-right flex flex-col min-h-[460px] max-h-[92%] h-[88%] overflow-hidden relative ${
-          isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
-        }`}
+        style={isPopover ? popoverStyle ?? undefined : undefined}
+        className={
+          isPopover
+            ? 'fixed flex flex-col overflow-hidden rounded-2xl border border-border/80 bg-card px-4 pb-3 pt-3 font-sans text-right text-card-foreground shadow-2xl dark:border-white/10'
+            : `w-full bg-card text-card-foreground rounded-t-[28px] border-t border-border/80 dark:border-white/10 shadow-2xl px-5 pt-3 pb-4 font-sans text-right flex flex-col min-h-[460px] max-h-[92%] h-[88%] overflow-hidden relative ${
+                isClosing ? 'animate-sheet-down' : 'animate-sheet-up'
+              }`
+        }
         dir="rtl"
       >
         {/* Drag handle */}
-        <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-2 shrink-0 cursor-grab active:cursor-grabbing" />
+        {!isPopover && (
+          <div className="w-10 h-1 bg-muted-foreground/30 rounded-full mx-auto mb-2 shrink-0 cursor-grab active:cursor-grabbing" />
+        )}
 
         {/* Top Header Bar */}
         <div className="flex items-center justify-between pb-2 mb-1 border-b border-border/60 shrink-0">

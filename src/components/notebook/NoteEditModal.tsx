@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import type { Note } from '@/types/models';
-import { noteRepo } from '@/repositories';
+import type { Note, Task } from '@/types/models';
+import { noteRepo, taskRepo } from '@/repositories';
 const BlockNoteEditor = React.lazy(() =>
   import('@/components/editor/BlockNoteEditor').then((m) => ({
     default: m.BlockNoteEditor,
@@ -111,6 +111,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   const [noteIcon, setNoteIcon] = useState<string>(note?.icon || '');
   const [noteCover, setNoteCover] = useState<string>(note?.cover || '');
   const [noteColor, setNoteColor] = useState<string>(note?.color || '');
+  const [linkedTasks, setLinkedTasks] = useState<Task[]>([]);
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -194,6 +195,29 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
     prevNoteIdRef.current = note?.id;
     prevIsOpenRef.current = isOpen;
   }, [note?.id, isOpen]);
+
+  // Which tasks point at this note. Local read only, so it costs one query.
+  useEffect(() => {
+    if (!isOpen || !note) {
+      setLinkedTasks([]);
+      return;
+    }
+    let cancelled = false;
+    taskRepo
+      .list()
+      .then((all) => {
+        if (cancelled) return;
+        setLinkedTasks(
+          all.filter(
+            (task) => task.status !== 'dropped' && (task.linked_note_ids ?? []).includes(note.id)
+          )
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, note?.id]);
 
   // Auto-resize title textarea as user types
   useEffect(() => {
@@ -460,7 +484,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
     <PopoverContent
       align="start"
       sideOffset={8}
-      className="!z-[140] w-[248px] rounded-xl border border-border/70 bg-popover p-2.5 shadow-xl"
+      className="!z-[190] w-[248px] rounded-xl border border-border/70 bg-popover p-2.5 shadow-xl"
     >
       <div className="grid grid-cols-4 gap-1.5">
         {NOTE_COLOR_PRESETS.map((preset) => (
@@ -518,7 +542,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
     <PopoverContent
       align="start"
       sideOffset={8}
-      className="!z-[140] w-[268px] rounded-xl border border-border/70 bg-popover p-2 shadow-xl"
+      className="!z-[190] w-[268px] rounded-xl border border-border/70 bg-popover p-2 shadow-xl"
     >
       <div className="mb-1.5 flex items-center gap-0.5 border-b border-border/60 pb-1.5">
         <button
@@ -600,18 +624,18 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       : 'px-5 sm:px-12';
 
   // Compute outer backdrop and inner container classes based on Notion view mode
-  let backdropClasses = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs select-none transition duration-200';
+  let backdropClasses = 'fixed inset-0 z-[180] bg-black/60 backdrop-blur-xs select-none transition duration-200';
   let containerClasses = 'bg-card text-card-foreground font-sans text-right flex flex-col transition duration-200 overflow-hidden';
 
   if (viewMode === 'fullscreen') {
-    containerClasses += ' fixed inset-0 z-[101] h-screen w-screen flex flex-col rounded-none bg-card';
+    containerClasses += ' fixed inset-0 z-[181] h-screen w-screen flex flex-col rounded-none bg-card';
   } else if (viewMode === 'center') {
     backdropClasses += ' flex items-center justify-center p-4 sm:p-6';
     containerClasses += ' relative w-full sm:max-w-3xl md:max-w-4xl lg:max-w-5xl h-[88vh] sm:h-[86vh] rounded-2xl sm:rounded-3xl shadow-2xl border border-border';
   } else {
     // side-peek (slides in from the right edge of the screen)
     backdropClasses += ' flex justify-end';
-    containerClasses += ' fixed inset-y-0 right-0 z-[101] w-full sm:w-[620px] md:w-[720px] lg:w-[780px] h-full shadow-2xl border-l border-border bg-card sm:rounded-l-2xl animate-in slide-in-from-right duration-200';
+    containerClasses += ' fixed inset-y-0 right-0 z-[181] w-full sm:w-[620px] md:w-[720px] lg:w-[780px] h-full shadow-2xl border-l border-border bg-card sm:rounded-l-2xl animate-in slide-in-from-right duration-200';
   }
 
   return createPortal(
@@ -653,7 +677,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   <RiLayoutLine className="size-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" sideOffset={6} className={`${noteMenuContentClass} !z-[140]`}>
+              <DropdownMenuContent align="start" sideOffset={6} className={`${noteMenuContentClass} !z-[190]`}>
                 {(
                   [
                     { mode: 'side-peek', label: 'نیم‌پنجره کناری', Icon: RiLayoutRightLine },
@@ -728,7 +752,7 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                   <RiMoreLine className="size-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={6} className={`${noteMenuContentClass} !z-[140]`}>
+              <DropdownMenuContent align="end" sideOffset={6} className={`${noteMenuContentClass} !z-[190]`}>
                 <DropdownMenuItem className={noteMenuItemClass} onClick={handleTogglePin}>
                   {isPinned ? (
                     <RiPushpinFill className="size-3.5" />
@@ -893,6 +917,23 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
                 }`}
                 dir="rtl"
               />
+
+              {linkedTasks.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center gap-1.5 pb-1">
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                    <RiLink className="size-3" />
+                    کارهای مرتبط
+                  </span>
+                  {linkedTasks.map((task) => (
+                    <span
+                      key={task.id}
+                      className="inline-flex max-w-[220px] items-center gap-1 truncate rounded-full border border-border/60 bg-secondary/70 px-2 py-0.5 text-[11px] font-medium text-secondary-foreground"
+                    >
+                      <span className="truncate">{task.title?.trim() || 'بدون عنوان'}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* BlockNote body.

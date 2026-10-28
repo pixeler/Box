@@ -11,6 +11,12 @@ export interface Entry {
 export type ItemStatus = "open" | "done" | "dropped" | "migrated";
 export type TimeOfDay = "anytime" | "morning" | "day" | "evening";
 
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   entry_id: string | null; // null یعنی مستقیم ساخته شده، نه از dump
@@ -32,6 +38,8 @@ export interface Task {
   migrated_from_id?: string; // زنجیره‌ی تاریخچه‌ی migrate
   pinned?: boolean;
   reminder?: string | null;
+  subtasks?: Subtask[]; // زیرکارهای داخل همان تسک
+  linked_note_ids?: string[]; // یادداشت‌های مرتبط با این تسک
   image_url?: string;
   icon?: string;
   order?: number;

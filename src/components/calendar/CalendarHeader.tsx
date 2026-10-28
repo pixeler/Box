@@ -73,11 +73,41 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   return (
     <header
       dir="rtl"
-      className="relative z-30 w-full shrink-0 px-6 pb-3 pt-6 sm:px-12 sm:pt-8"
+      className="relative z-30 w-full shrink-0 px-0 pb-3 pt-5 min-[1100px]:px-5 min-[1400px]:px-10 min-[1100px]:pt-6"
     >
-      <div className="grid grid-cols-2 items-center gap-x-3 gap-y-2 sm:grid-cols-[1fr_auto_1fr]">
-        {/* Period title, flanked by the step arrows */}
-        <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-0.5">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 gap-y-2 max-sm:grid-cols-2">
+        {/* View switch, on the physical right */}
+        <div className="flex justify-self-start max-sm:col-start-1 max-sm:row-start-2">
+          <div
+            role="group"
+            aria-label="نمای تقویم"
+            className="flex h-8 items-center gap-0.5 rounded-md border border-border/60 p-0.5"
+          >
+            {MODES.map(({ key, label, icon: Icon }) => {
+              const isActive = mode === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onModeChange(key)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    'flex h-7 items-center justify-center gap-1.5 rounded-[5px] px-2 text-[12px] font-medium transition-colors cursor-pointer',
+                    isActive
+                      ? 'bg-secondary text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <Icon className="size-3.5 shrink-0" />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Period title in the middle, with its two step arrows together */}
+        <div className="flex min-w-0 items-center justify-center gap-0.5 max-sm:col-span-2 max-sm:row-start-1">
           <button
             type="button"
             onClick={onPrev}
@@ -102,7 +132,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
               </button>
             </PopoverTrigger>
             <PopoverContent
-              align="start"
+              align="center"
               sideOffset={8}
               dir="rtl"
               className="z-[140] w-[19rem] rounded-2xl border-border/70 bg-card p-3 text-foreground shadow-2xl"
@@ -180,37 +210,8 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
           </button>
         </div>
 
-        {/* View switch — centred in the calendar layout */}
-        <div className="col-span-2 row-start-2 flex justify-center sm:col-span-1 sm:col-start-2 sm:row-start-1">
-          <div
-            role="group"
-            aria-label="نمای تقویم"
-            className="flex h-8 items-center gap-0.5 rounded-md border border-border/60 p-0.5"
-          >
-            {MODES.map(({ key, label, icon: Icon }) => {
-              const isActive = mode === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => onModeChange(key)}
-                  aria-pressed={isActive}
-                  className={cn(
-                    'flex h-7 items-center justify-center gap-1.5 rounded-[5px] px-2 text-[12px] font-medium transition-colors cursor-pointer',
-                    isActive
-                      ? 'bg-secondary text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <Icon className="size-3.5 shrink-0" />
-                  <span>{label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="col-start-2 row-start-1 flex items-center justify-end gap-2 sm:col-start-3">
+        {/* Today / add, on the physical left */}
+        <div className="flex items-center justify-self-end gap-2 max-sm:col-start-2 max-sm:row-start-2">
           {!isOnToday && (
             <button
               type="button"
@@ -236,7 +237,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         </div>
       </div>
 
-      <p className="mt-0.5 text-[12px] leading-5 text-muted-foreground">{subtitle}</p>
+      <p className="mt-1 text-center text-[12px] leading-5 text-muted-foreground">{subtitle}</p>
     </header>
   );
 };

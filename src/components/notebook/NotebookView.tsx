@@ -4,7 +4,6 @@ import { useNotebook } from './NotebookContext';
 import { NoteCard } from './NoteCard';
 import { FolderTile } from './FolderTile';
 import { MoveNoteModal } from './MoveNoteModal';
-import { NoteEditModal } from './NoteEditModal';
 import { CreateBoxSheet } from '@/components/boxes/CreateBoxSheet';
 import { BoxThumbnail } from '@/components/boxes/BoxThumbnail';
 import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
@@ -126,12 +125,8 @@ export const NotebookView: React.FC = () => {
     currentFolderId,
     setCurrentFolderId,
     boxNotesCountMap,
-    editingNote,
     setEditingNote,
-    noteEditModalOpen,
     setNoteEditModalOpen,
-    noteViewModeOverride,
-    setNoteViewModeOverride,
     createBoxOpen,
     setCreateBoxOpen,
     boxToEdit,
@@ -841,18 +836,6 @@ export const NotebookView: React.FC = () => {
           setTargetParentBoxId(null);
           setBoxToDelete(box);
         }}
-      />
-
-      <NoteEditModal
-        note={editingNote}
-        isOpen={noteEditModalOpen}
-        initialViewMode={noteViewModeOverride ?? undefined}
-        onClose={() => {
-          setNoteEditModalOpen(false);
-          setEditingNote(null);
-          setNoteViewModeOverride(null);
-        }}
-        onSaved={loadData}
       />
 
       <MoveNoteModal

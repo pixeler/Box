@@ -4,7 +4,8 @@ import { MobileScrollArea } from './components/layout/MobileScrollArea';
 import { QuickCaptureInput } from './components/capture/QuickCaptureInput';
 import { DayStream } from './components/stream/DayStream';
 import { PinnedSection } from './components/stream/PinnedSection';
-import { NotebookProvider } from './components/notebook/NotebookContext';
+import { NotebookProvider, useNotebook } from './components/notebook/NotebookContext';
+import { NoteEditModal } from './components/notebook/LazyNoteEditModal';
 import type { SettingsSection } from './components/profile/ProfileView';
 import type { ActiveTab } from './components/navigation/BottomDock';
 import { ToastContainer } from './components/ui/Toast';
@@ -39,7 +40,6 @@ const LoginModal = lazy(() =>
   import('./components/auth/LoginModal').then((m) => ({ default: m.LoginModal }))
 );
 
-import { useAuth } from './lib/auth';
 import { syncManager, type SyncState } from './lib/sync';
 import { Plus, RotateCcw } from 'lucide-react';
 import { RiArrowRightSLine, RiArrowLeftSLine } from '@remixicon/react';
@@ -63,10 +63,38 @@ import {
   toPersianDigits,
 } from './lib/jalali';
 import { isTaskOccurringOnDate } from './lib/recurrence';
-import { checkAndSeedDesignDemoData } from './lib/seed';
+import { checkAndSeedOnboarding } from './lib/seed';
 import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
-import type { Task, EventItem, Note, Tag, TimeOfDay } from './types/models';
+import type { Task, EventItem, Tag, TimeOfDay } from './types/models';
 import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
+
+/** One note window for the whole app, so a note opened from a task or the
+ *  sidebar works no matter which tab is mounted. */
+const GlobalNoteEditor = () => {
+  const {
+    editingNote,
+    noteEditModalOpen,
+    setNoteEditModalOpen,
+    setEditingNote,
+    noteViewModeOverride,
+    setNoteViewModeOverride,
+    loadData,
+  } = useNotebook();
+
+  return (
+    <NoteEditModal
+      note={editingNote}
+      isOpen={noteEditModalOpen}
+      initialViewMode={noteViewModeOverride ?? undefined}
+      onClose={() => {
+        setNoteEditModalOpen(false);
+        setEditingNote(null);
+        setNoteViewModeOverride(null);
+      }}
+      onSaved={loadData}
+    />
+  );
+};
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('day');
@@ -101,10 +129,8 @@ export function App() {
   };
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [pinnedTasks, setPinnedTasks] = useState<Task[]>([]);
-  const [pinnedNotes, setPinnedNotes] = useState<Note[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
   const [futureTasks, setFutureTasks] = useState<Task[]>([]);
   const [futureEvents, setFutureEvents] = useState<EventItem[]>([]);
@@ -132,7 +158,6 @@ export function App() {
     if (searchOpen) setSearchMounted(true);
   }, [searchOpen]);
 
-  const { user } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
@@ -180,13 +205,6 @@ export function App() {
       setSyncState(state);
     });
   }, []);
-
-  // Auto trigger sync on user login or mount
-  useEffect(() => {
-    if (user) {
-      syncManager.performSync();
-    }
-  }, [user]);
 
   // Apply active theme on mount and change
   useEffect(() => {
@@ -373,8 +391,6 @@ export function App() {
       });
       futureT.sort((a, b) => extractDateOnly(a.due_date).localeCompare(extractDateOnly(b.due_date)));
 
-      const pinnedN = allNotes.filter((n) => n.pinned);
-
       const dayTasks = allTasksList
         .filter(
           (t) => isTaskOccurringOnDate(t, targetDateKey) && t.status !== 'dropped' && !t.pinned
@@ -389,22 +405,6 @@ export function App() {
           }
           return t;
         });
-
-      const dayNotes = allNotes.filter((n) => {
-        if (n.pinned) return false;
-        if (n.date_key) {
-          return extractDateOnly(n.date_key) === targetDateKey;
-        }
-        if (n.created_at) {
-          try {
-            const noteJalali = formatJalaliKey(getJalaliDate(new Date(n.created_at)));
-            return noteJalali === targetDateKey;
-          } catch {
-            return false;
-          }
-        }
-        return false;
-      });
 
       // Pre-compute window date strings ONCE instead of re-computing inside every task iteration
       const recurringTasks = allTasksList.filter(
@@ -479,9 +479,7 @@ export function App() {
       setTagsMap(tMap);
       setTasks(dayTasks);
       setEvents(dayEvents);
-      setNotes(dayNotes);
       setPinnedTasks(pinnedT);
-      setPinnedNotes(pinnedN);
       setDatesWithItems(dSet);
       setOverdueTasks(overdue);
       setFutureTasks(futureT);
@@ -525,7 +523,7 @@ export function App() {
   useEffect(() => {
     runWhenIdle(async () => {
       try {
-        const changed = await checkAndSeedDesignDemoData();
+        const changed = await checkAndSeedOnboarding();
         // Only re-read when the bootstrap actually touched the database.
         if (changed) fetchDayData(selectedDateKeyRef.current);
       } catch (err) {
@@ -619,29 +617,31 @@ export function App() {
               {/* Page row: the weekday title with step arrows, then the daily quote + date pill */}
               <div className="w-full px-5 pt-10 sm:px-6 sm:pt-12">
                 <div className="flex items-start justify-between gap-3">
-                  {/* Title: prev / weekday / next */}
-                  <div className="flex min-w-0 items-center gap-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
-                      title="روز قبل"
-                      aria-label="روز قبل"
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                    >
-                      <RiArrowRightSLine className="size-4" />
-                    </button>
+                  {/* Weekday title, with the prev/next pair beside it */}
+                  <div className="flex min-w-0 items-center gap-2.5">
                     <h1 className="truncate font-darvish text-[26px] font-bold tracking-normal text-foreground sm:text-[30px]">
                       {currentWeekdayName}
                     </h1>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
-                      title="روز بعد"
-                      aria-label="روز بعد"
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                    >
-                      <RiArrowLeftSLine className="size-4" />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
+                        title="روز قبل"
+                        aria-label="روز قبل"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
+                      >
+                        <RiArrowRightSLine className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
+                        title="روز بعد"
+                        aria-label="روز بعد"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
+                      >
+                        <RiArrowLeftSLine className="size-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-1.5">
@@ -699,10 +699,10 @@ export function App() {
                   {/* Stream Content Area */}
                   <div className="w-full flex-1 pt-1">
                     {/* Pinned Items Section (سنجاق شده) */}
-                    {(pinnedTasks.length > 0 || pinnedNotes.length > 0) && (
+                    {pinnedTasks.length > 0 && (
                       <PinnedSection
                         pinnedTasks={pinnedTasks}
-                        pinnedNotes={pinnedNotes}
+                        pinnedNotes={[]}
                         tagsMap={tagsMap}
                         currentDateKey={displayedDateKey}
                         onStatusChanged={loadDayData}
@@ -714,7 +714,7 @@ export function App() {
                       key={displayedDateKey}
                       selectedDateKey={displayedDateKey}
                       tasks={tasks}
-                      notes={notes}
+                      notes={[]}
                       events={events}
                       overdueTasks={overdueTasks}
                       futureTasks={futureTasks}
@@ -800,6 +800,8 @@ export function App() {
 
       {/* Floating dynamic toast notification */}
       <ToastContainer />
+
+      <GlobalNoteEditor />
 
       {/* Settings is a focused window; the legacy side panel is no longer rendered. */}
       <Suspense fallback={null}>

@@ -3,8 +3,10 @@ import type { Task } from '@/types/models';
 import type { ActiveTab } from '@/components/navigation/BottomDock';
 import type { SettingsSection } from '@/components/profile/ProfileView';
 import { useMediaQuery } from '@/lib/device';
+import { desktop } from '@/lib/desktop';
 import { cn } from '@/lib/utils';
 import { Sidebar } from './Sidebar';
+import { DesktopTitleBar } from './DesktopTitleBar';
 import { MobileTopBar } from './MobileTopBar';
 import { MobileTabBar } from './MobileTabBar';
 import {
@@ -64,6 +66,43 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  // A tiny tab history for the titlebar arrows. It only tracks top-level
+  // views; opening a task or a note is a modal, not a place to go back to.
+  const navStackRef = useRef<ActiveTab[]>([activeTab]);
+  const navIndexRef = useRef(0);
+  const applyingNavRef = useRef(false);
+  const [, setNavVersion] = useState(0);
+
+  useEffect(() => {
+    if (applyingNavRef.current) {
+      applyingNavRef.current = false;
+      return;
+    }
+    if (navStackRef.current[navIndexRef.current] === activeTab) return;
+
+    const next = navStackRef.current.slice(0, navIndexRef.current + 1);
+    next.push(activeTab);
+    navStackRef.current = next.slice(-30);
+    navIndexRef.current = navStackRef.current.length - 1;
+    setNavVersion((version) => version + 1);
+  }, [activeTab]);
+
+  const goBack = useCallback(() => {
+    if (navIndexRef.current <= 0) return;
+    navIndexRef.current -= 1;
+    applyingNavRef.current = true;
+    onTabChange(navStackRef.current[navIndexRef.current]);
+    setNavVersion((version) => version + 1);
+  }, [onTabChange]);
+
+  const goForward = useCallback(() => {
+    if (navIndexRef.current >= navStackRef.current.length - 1) return;
+    navIndexRef.current += 1;
+    applyingNavRef.current = true;
+    onTabChange(navStackRef.current[navIndexRef.current]);
+    setNavVersion((version) => version + 1);
+  }, [onTabChange]);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((previous) => {
@@ -177,9 +216,20 @@ export const AppShell: React.FC<AppShellProps> = ({
       className={cn(
         'flex h-dvh w-full overflow-hidden bg-background font-sans text-foreground',
         isTablet && 'bg-sidebar',
-        isResizing && 'cursor-col-resize select-none'
+        isResizing && 'cursor-col-resize select-none',
+        desktop && 'pt-10'
       )}
     >
+      <DesktopTitleBar
+        sidebarWidth={sidebarWidthPx}
+        sidebarCollapsed={collapsed}
+        canToggleSidebar={isDesktop}
+        onToggleSidebar={toggleCollapsed}
+        canGoBack={navIndexRef.current > 0}
+        canGoForward={navIndexRef.current < navStackRef.current.length - 1}
+        onBack={goBack}
+        onForward={goForward}
+      />
       <a
         href="#app-content"
         className="sr-only focus:not-sr-only focus:absolute focus:right-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus:text-foreground"

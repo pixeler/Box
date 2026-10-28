@@ -85,6 +85,7 @@ const HOUR_HEIGHT = 64;
 // background, so the grid surface can stay the page colour and the selected
 // day's rounded corners reveal the page rather than a border-coloured wedge.
 const cellRuleX = 'shadow-[-1px_0_0_0_var(--grid-line)]';
+const cellRuleY = 'shadow-[0_-1px_0_0_var(--grid-line)]';
 const cellRuleXY = 'shadow-[0_-1px_0_0_var(--grid-line),-1px_0_0_0_var(--grid-line)]';
 
 /**
@@ -402,6 +403,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     () => weekDays.some((day) => day.formattedDate === todayKey),
     [weekDays, todayKey]
   );
+
+  // The selected day is a rounded card. Suppress the 1px rules on its own
+  // edge and on the edge its previous column draws, so no straight line cuts
+  // through the rounded top. The horizontal rules of section rows stay.
+  const dayCellRule = (dayIndex: number, withHorizontalRule = false) => {
+    const current = weekDays[dayIndex]?.formattedDate;
+    // Each cell paints the rule on its left edge, which is also the right edge
+    // of the next cell. Both sides of the selected chip have to be suppressed.
+    const next = weekDays[dayIndex + 1]?.formattedDate;
+    const hideVertical = current === selectedDateKey || next === selectedDateKey;
+
+    if (withHorizontalRule) return hideVertical ? cellRuleY : cellRuleXY;
+    return hideVertical ? '' : cellRuleX;
+  };
+
+  const firstDaySelected = weekDays[0]?.formattedDate === selectedDateKey;
 
   const getTasksForDate = useCallback(
     (dateKey: string): Task[] => {
@@ -743,7 +760,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         }
       />
 
-      <div ref={periodAnimRef} className="min-h-0 flex-1 px-6 sm:px-12">
+      <div
+        ref={periodAnimRef}
+        className="min-h-0 flex-1 px-0 min-[1100px]:px-5 min-[1400px]:px-10"
+      >
         {viewMode === 'week' && (
           <div className="h-full min-h-0 w-full">
             {isMobile ? (
@@ -954,7 +974,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   className={cn(
                     'group flex flex-col items-center justify-center gap-1 px-1 text-muted-foreground outline-none transition-colors hover:bg-secondary/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     overdueOpen ? 'bg-secondary/40 text-foreground' : 'bg-background',
-                    cellRuleX
+                    firstDaySelected ? '' : cellRuleX
                   )}
                 >
                   <span className="relative flex items-center justify-center">
@@ -970,7 +990,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </span>
                 </button>
 
-                {weekDays.map((day) => {
+                {weekDays.map((day, dayIndex) => {
                   const holidays = getHolidaysForDate(day.formattedDate);
                   const isToday = day.formattedDate === todayKey;
                   const isRedDay =
@@ -984,9 +1004,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       title={`نمایش ${day.dayName}`}
                       className={cn(
                         'group flex flex-col items-center gap-0.5 px-1 pb-2.5 pt-4 transition-colors hover:bg-secondary/30 dark:hover:bg-black/20 cursor-pointer',
-                        cellRuleX,
+                        dayCellRule(dayIndex),
                         day.formattedDate === selectedDateKey
-                          ? 'rounded-t-xl bg-cell-selected'
+                          ? 'rounded-t-xl bg-cell-selected shadow-[0_10px_26px_-14px_rgba(0,0,0,0.75)]'
                           : 'bg-background'
                       )}
                     >
@@ -1052,7 +1072,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
               {!enableDaySections && (
                 <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px bg-background">
-                  <div className={cn('flex items-start justify-center bg-background pt-2.5 text-[10px] font-semibold text-muted-foreground', cellRuleX)}>
+                  <div className={cn('flex items-start justify-center bg-background pt-2.5 text-[10px] font-semibold text-muted-foreground', firstDaySelected ? '' : cellRuleX)}>
                     هر زمان
                   </div>
 
@@ -1073,7 +1093,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         }
                         className={cn(
                           'group/cell flex min-h-[86px] flex-col gap-1 p-1 transition-colors',
-                          cellRuleX,
+                          dayCellRule(dayIndex),
                           day.formattedDate === selectedDateKey
                             ? 'bg-cell-selected'
                             : 'bg-background',
@@ -1122,7 +1142,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div
                           className={cn(
                             'flex min-h-[110px] items-start justify-center bg-background pt-3 text-[10px] font-semibold text-muted-foreground',
-                            sectionIndex === 0 ? cellRuleX : cellRuleXY
+                            sectionIndex === 0
+                              ? firstDaySelected
+                                ? ''
+                                : cellRuleX
+                              : firstDaySelected
+                                ? cellRuleY
+                                : cellRuleXY
                           )}
                         >
                           {section.label}
@@ -1148,7 +1174,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               }
                               className={cn(
                                 'group/cell flex min-h-[110px] flex-col gap-1 p-1 transition-colors cursor-pointer',
-                                sectionIndex === 0 ? cellRuleX : cellRuleXY,
+                                dayCellRule(dayIndex, sectionIndex !== 0),
                                 day.formattedDate === selectedDateKey
                                   ? 'bg-transparent'
                                   : 'bg-background',
@@ -1207,7 +1233,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     className="relative grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px bg-transparent"
                     style={{ height: HOURS.length * HOUR_HEIGHT }}
                   >
-                    <div className={cn('flex flex-col bg-background', cellRuleX)}>
+                    <div className={cn('flex flex-col bg-background', firstDaySelected ? '' : cellRuleX)}>
                       {HOURS.map((hour) => (
                         <div
                           key={hour}
@@ -1229,7 +1255,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           key={day.formattedDate}
                           className={cn(
                             'relative',
-                            cellRuleX,
+                            dayCellRule(dayIndex),
                             day.formattedDate === selectedDateKey
                               ? 'bg-transparent'
                               : 'bg-background'

@@ -47,3 +47,6 @@ screenshot.png
 # patches and headless-Chrome profiles used while debugging.
 # ---------------------------------------------------------------------------
 scratch/
+
+# Packaged Windows output
+release/
