@@ -41,7 +41,8 @@ const LoginModal = lazy(() =>
 
 import { useAuth } from './lib/auth';
 import { syncManager, type SyncState } from './lib/sync';
-import { ChevronLeft, ChevronRight, Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw } from 'lucide-react';
+import { RiArrowRightSLine, RiArrowLeftSLine } from '@remixicon/react';
 import { getDailyQuote } from './lib/quotes';
 import { useMediaQuery } from './lib/device';
 import { runWhenIdle } from './lib/idle';
@@ -113,6 +114,8 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('main');
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
+  const [quickCaptureInitialTab, setQuickCaptureInitialTab] = useState<'task' | 'note'>('task');
+  const [inlineAddSection, setInlineAddSection] = useState<TimeOfDay | null>(null);
 
   /**
    * Overlays are mounted on first use and then kept mounted, so their exit
@@ -257,7 +260,25 @@ export function App() {
       // If user is inside an input field, do not trigger single-key navigation shortcuts
       if (isInput) return;
 
-      // 2. Add / Quick Capture shortcut: 'N' or Persian 'د' (KeyN)
+      // 2. Add Task shortcut: T or Persian 'ف' (KeyT)
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        (e.key === 't' || e.key === 'T' || e.key === 'ف' || e.code === 'KeyT')
+      ) {
+        if (!quickCaptureOpen && !searchOpen) {
+          e.preventDefault();
+          setQuickCaptureInitialTab('task');
+          if (activeTab === 'day') {
+            setInlineAddSection('anytime');
+          } else {
+            setQuickCaptureOpen(true);
+          }
+        }
+      }
+
+      // 3. Add Note shortcut: N or Persian 'د' (KeyN)
       if (
         !e.ctrlKey &&
         !e.metaKey &&
@@ -266,11 +287,12 @@ export function App() {
       ) {
         if (!quickCaptureOpen && !searchOpen) {
           e.preventDefault();
+          setQuickCaptureInitialTab('note');
           setQuickCaptureOpen(true);
         }
       }
 
-      // 3. Search '/' shortcut when not in input
+      // 4. Search '/' shortcut when not in input
       if (
         !e.ctrlKey &&
         !e.metaKey &&
@@ -282,24 +304,22 @@ export function App() {
           setSearchOpen(true);
         }
       }
-
-      // 4. To-do shortcut: 'T' or Persian 'ف' (KeyT)
-      if (
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey &&
-        (e.key === 't' || e.key === 'T' || e.key === 'ف' || e.code === 'KeyT')
-      ) {
-        if (!quickCaptureOpen && !searchOpen) {
-          e.preventDefault();
-          setActiveTab((prev) => (prev === 'todo' ? 'day' : 'todo'));
-        }
-      }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [quickCaptureOpen, searchOpen]);
+  }, [quickCaptureOpen, searchOpen, activeTab]);
+
+  // Dismiss the inline composer when the date or the active tab changes.
+  useEffect(() => {
+    setInlineAddSection(null);
+  }, [displayedDateKey, activeTab]);
+
+  // When the capture modal opens, the inline row should hide so we don't have
+  // two composers at once.
+  useEffect(() => {
+    if (quickCaptureOpen) setInlineAddSection(null);
+  }, [quickCaptureOpen]);
 
 
   // High-performance parallelized fetch for day data (only 4 consolidated IndexedDB queries)
@@ -596,19 +616,33 @@ export function App() {
               key={displayedDateKey}
               className="w-full flex-1 flex flex-col day-pane-enter"
             >
-              {/* Page row: the day title, then the daily quote with the page actions beside it */}
+              {/* Page row: the weekday title with step arrows, then the daily quote + date pill */}
               <div className="w-full px-5 pt-10 sm:px-6 sm:pt-12">
-                <h1 className="font-darvish text-[26px] font-bold tracking-normal text-foreground sm:text-[30px]">
-                  امروز
-                </h1>
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 select-none">
-                  <p
-                    ref={goalPillRef}
-                    className="min-w-[12rem] flex-1 text-[12.5px] leading-6 text-subtle"
-                  >
-                    {getDailyQuote(displayedDateKey)}
-                  </p>
+                <div className="flex items-start justify-between gap-3">
+                  {/* Title: prev / weekday / next */}
+                  <div className="flex min-w-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
+                      title="روز قبل"
+                      aria-label="روز قبل"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
+                    >
+                      <RiArrowRightSLine className="size-4" />
+                    </button>
+                    <h1 className="truncate font-darvish text-[26px] font-bold tracking-normal text-foreground sm:text-[30px]">
+                      {currentWeekdayName}
+                    </h1>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
+                      title="روز بعد"
+                      aria-label="روز بعد"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
+                    >
+                      <RiArrowLeftSLine className="size-4" />
+                    </button>
+                  </div>
 
                   <div className="flex shrink-0 items-center gap-1.5">
                     {!isSelectedToday && (
@@ -622,42 +656,31 @@ export function App() {
                         <span>امروز</span>
                       </button>
                     )}
-
-                    <div className="flex items-center rounded-md border border-border/60">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
-                        title="روز قبل"
-                        aria-label="روز قبل"
-                        className="flex size-8 items-center justify-center rounded-s-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                      >
-                        <ChevronRight className="size-4" />
-                      </button>
-                      <span className="h-4 w-px bg-border/70" aria-hidden="true" />
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
-                        title="روز بعد"
-                        aria-label="روز بعد"
-                        className="flex size-8 items-center justify-center rounded-e-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                      >
-                        <ChevronLeft className="size-4" />
-                      </button>
-                    </div>
-
                     <button
                       type="button"
                       onClick={() => {
-                        setQuickCaptureTimeOfDay('anytime');
-                        setQuickCaptureOpen(true);
+                        setQuickCaptureInitialTab('task');
+                        if (activeTab === 'day') setInlineAddSection('anytime');
+                        else setQuickCaptureOpen(true);
                       }}
-                      title="افزودن کار (N)"
-                      className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                      title="افزودن کار (T)"
+                      className="flex size-8 items-center justify-center rounded-md border border-border/70 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
                     >
-                      <Plus className="size-4" />
-                      <span>افزودن کار</span>
+                      <Plus className="size-[18px]" />
                     </button>
                   </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 select-none">
+                  <p
+                    ref={goalPillRef}
+                    className="min-w-[12rem] flex-1 text-[12.5px] leading-6 text-subtle"
+                  >
+                    {getDailyQuote(displayedDateKey)}
+                  </p>
+                  <span className="text-[11.5px] leading-5 text-muted-foreground">
+                    {formatJalaliDisplay(displayedJalali)} · {toPersianDigits(tasks.length)} کار
+                  </span>
                 </div>
               </div>
 
@@ -666,10 +689,10 @@ export function App() {
                 <div className="flex w-full min-w-0 flex-col">
                   <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pb-2 select-none">
                     <h2 className="text-[14.5px] font-semibold tracking-tight text-foreground">
-                      {formatJalaliDisplay(parseJalaliKey(displayedDateKey))}
+                      {formatJalaliDisplay(displayedJalali)}
                     </h2>
                     <span className="text-[11.5px] leading-5 text-muted-foreground">
-                      {currentWeekdayName} · {toPersianDigits(tasks.length)} کار
+                      {toPersianDigits(tasks.length)} کار
                     </span>
                   </div>
 
@@ -701,9 +724,13 @@ export function App() {
                       onMigrateTask={handleMigrateTask}
                       onGoToToday={() => setSelectedDateKey(getTodayJalaliKey())}
                       onOpenAdd={(tod) => {
+                        setQuickCaptureInitialTab('task');
                         setQuickCaptureTimeOfDay(tod || 'anytime');
                         setQuickCaptureOpen(true);
                       }}
+                      inlineAddSection={inlineAddSection}
+                      onOpenInlineAdd={setInlineAddSection}
+                      onCloseInlineAdd={() => setInlineAddSection(null)}
                       newlyAddedTaskId={newlyAddedTaskId}
                       isLoading={isInitialLoading}
                       todayDoneCount={todayDoneCount}
@@ -752,7 +779,15 @@ export function App() {
       <AppShell
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onOpenAdd={() => setQuickCaptureOpen(true)}
+        onOpenAdd={() => {
+          setQuickCaptureInitialTab('task');
+          if (activeTab === 'day') setInlineAddSection('anytime');
+          else setQuickCaptureOpen(true);
+        }}
+        onOpenNote={() => {
+          setQuickCaptureInitialTab('note');
+          setQuickCaptureOpen(true);
+        }}
         onOpenSettings={(section = 'main') => {
           setSettingsSection(section);
           setSettingsOpen(true);
@@ -809,6 +844,7 @@ export function App() {
         onOpen={() => setQuickCaptureOpen(true)}
         defaultBoxId={defaultBoxForAdd}
         initialTimeOfDay={quickCaptureTimeOfDay}
+        initialTab={quickCaptureInitialTab}
       />
 
       {/* Search Modal */}

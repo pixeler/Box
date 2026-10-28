@@ -61,6 +61,8 @@ interface QuickCaptureInputProps {
    * its own "بستن" action.
    */
   variant?: 'modal' | 'inline';
+  /** Which composer the surface opens with. The popup is task-first. */
+  initialTab?: 'task' | 'note';
   className?: string;
 }
 
@@ -75,12 +77,12 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   defaultBoxId,
   initialTimeOfDay,
   variant = 'modal',
+  initialTab = 'task',
   className,
 }) => {
   const isInline = variant === 'inline';
   const isActive = Boolean(isOpen) || isInline;
-  const [activeTab, _setActiveTab] = useState<CaptureTab>('task');
-  void _setActiveTab;
+  const [activeTab, setActiveTab] = useState<CaptureTab>(initialTab);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState<string | null>(currentSelectedDateKey);
@@ -114,6 +116,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const noteBodyRef = useRef<HTMLTextAreaElement>(null);
+  const inlineRef = useRef<HTMLDivElement>(null);
   const isSubmittingRef = useRef(false);
 
   // Track if priority/date were set via title regex tokens
@@ -132,6 +135,12 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       setTimeOfDay(initialTimeOfDay || 'anytime');
     }
   }, [isActive, initialTimeOfDay]);
+
+  // The popup is a shared surface for both entries: whichever one the caller
+  // asked for is the one it opens with.
+  useEffect(() => {
+    if (isOpen && !isInline) setActiveTab(initialTab);
+  }, [isOpen, isInline, initialTab]);
 
   // Parse title tokens in real time (for task mode)
   const parsedResult = useMemo(() => {
@@ -214,6 +223,16 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       return () => clearTimeout(timer);
     }
   }, [isActive, activeTab, currentSelectedDateKey, defaultBoxId]);
+
+  // The inline row opens at the end of a list, often below the fold: bring it
+  // into view without yanking the page around.
+  useEffect(() => {
+    if (!isInline) return;
+    const timer = window.setTimeout(() => {
+      inlineRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 90);
+    return () => window.clearTimeout(timer);
+  }, [isInline]);
 
   // Auto-resize title textarea as user types or changes content
   useEffect(() => {
@@ -745,7 +764,10 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 <div
                   ref={backdropRef}
                   aria-hidden="true"
-                  className="absolute inset-0 pointer-events-none overflow-hidden select-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-bold text-xl leading-snug px-0 pt-0"
+                  className={cn(
+                    'absolute inset-0 pointer-events-none overflow-hidden select-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-snug px-0 pt-0',
+                    isInline ? 'text-[15px] font-semibold' : 'text-xl font-bold'
+                  )}
                   dir="rtl"
                 >
                   {renderHighlightedTitle()}
@@ -800,15 +822,20 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   }
                 }}
                 placeholder={
-                  activeTab === 'task'
+                  isInline
+                    ? 'کار جدید…'
+                    : activeTab === 'task'
                     ? 'چی کاره‌ای؟ (فردا، #تگ، p1، یا / را تایپ کنید)'
                     : 'چی تو ذهنته؟'
                 }
-                className={`relative z-10 w-full font-bold text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] px-0 ${
+                className={cn(
+                  'relative z-10 w-full text-foreground bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal transition resize-none overflow-y-auto max-h-[140px] leading-snug break-words [overflow-wrap:anywhere] px-0',
                   isFullscreen && activeTab === 'note'
-                    ? 'text-2xl md:text-3xl'
-                    : 'text-xl'
-                }`}
+                    ? 'text-2xl md:text-3xl font-bold'
+                    : isInline
+                    ? 'text-[15px] font-semibold'
+                    : 'text-xl font-bold'
+                )}
                 dir="rtl"
               />
 
@@ -990,9 +1017,14 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                     handleSubmit();
                   }
                 }}
-                placeholder="توضیحات"
-                rows={2}
-                className="w-full resize-none text-sm text-foreground/85 bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal leading-relaxed mt-2.5 min-h-[46px] max-h-[92px]"
+                placeholder={isInline ? 'توضیحات (اختیاری)' : 'توضیحات'}
+                rows={isInline ? 1 : 2}
+                className={cn(
+                  'w-full resize-none text-foreground/85 bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal leading-relaxed',
+                  isInline
+                    ? 'mt-1.5 min-h-[24px] max-h-[72px] text-[12.5px]'
+                    : 'mt-2.5 min-h-[46px] max-h-[92px] text-sm'
+                )}
                 dir="rtl"
               />
             )}
@@ -1003,19 +1035,21 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
             {/* Task Tool Bar */}
             {activeTab === 'task' && (
               <div className="flex items-center gap-2 pb-3 overflow-x-auto no-scrollbar py-0.5">
-                {/* پین کردن - گزینه اول، بدون حاشیه و بدون زاویه */}
-                <button
-                  type="button"
-                  onClick={() => setIsPinned(!isPinned)}
-                  className="p-1.5 flex items-center justify-center transition cursor-pointer active:scale-90 shrink-0"
-                  title={isPinned ? 'پین‌شده (حذف پین)' : 'پین کردن'}
-                >
-                  {isPinned ? (
-                    <RiPushpinFill className="w-4 h-4 text-foreground" />
-                  ) : (
-                    <RiPushpinLine className="w-4 h-4 text-muted-foreground/75 hover:text-foreground transition-colors" />
-                  )}
-                </button>
+                {/* پین کردن — the popup only; the inline row stays quiet */}
+                {!isInline && (
+                  <button
+                    type="button"
+                    onClick={() => setIsPinned(!isPinned)}
+                    className="p-1.5 flex items-center justify-center transition cursor-pointer active:scale-90 shrink-0"
+                    title={isPinned ? 'پین‌شده (حذف پین)' : 'پین کردن'}
+                  >
+                    {isPinned ? (
+                      <RiPushpinFill className="w-4 h-4 text-foreground" />
+                    ) : (
+                      <RiPushpinLine className="w-4 h-4 text-muted-foreground/75 hover:text-foreground transition-colors" />
+                    )}
+                  </button>
+                )}
 
                 {/* امروز */}
                 <button
@@ -1322,8 +1356,16 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   if (isInline) {
     return (
       <div
+        ref={inlineRef}
         dir="rtl"
         onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape') return;
+          // The pickers own Escape while they are open.
+          if (datePickerOpen || priorityPickerOpen || tagPickerOpen || boxPickerOpen || timeOfDayPickerOpen || reminderPickerOpen) return;
+          event.stopPropagation();
+          handleClose();
+        }}
         className={cn(
           'w-full overflow-visible rounded-2xl border border-border/70 bg-card px-4 pb-2 pt-3 font-sans text-right text-card-foreground shadow-sm',
           className

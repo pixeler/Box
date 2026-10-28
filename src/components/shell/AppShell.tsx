@@ -18,6 +18,7 @@ interface AppShellProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd: () => void;
+  onOpenNote: () => void;
   onOpenSettings: (section?: SettingsSection) => void;
   onOpenAuth: () => void;
   onOpenTask: (task: Task) => void;
@@ -43,6 +44,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   activeTab,
   onTabChange,
   onOpenAdd,
+  onOpenNote,
   onOpenSettings,
   onOpenAuth,
   onOpenTask,
@@ -200,6 +202,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             onToggleCollapsed={toggleCollapsed}
             onTabChange={onTabChange}
             onOpenAdd={openAdd}
+            onOpenNote={onOpenNote}
             onOpenSettings={openSettings}
             onOpenAuth={openAuth}
             onOpenTask={onOpenTask}
@@ -268,6 +271,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               activeTab={activeTab}
               onTabChange={onTabChange}
               onOpenAdd={openAdd}
+              onOpenNote={onOpenNote}
               onOpenSettings={openSettings}
               onOpenAuth={openAuth}
               onOpenTask={onOpenTask}

@@ -4,6 +4,7 @@ import type { Note, Task } from '@/types/models';
 import type { ActiveTab } from '@/components/navigation/BottomDock';
 import type { SettingsSection } from '@/components/profile/ProfileView';
 import { useAuth } from '@/lib/auth';
+import { syncManager, type SyncState } from '@/lib/sync';
 import { noteRepo, taskRepo } from '@/repositories';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,7 @@ export interface SidebarProps {
   onToggleCollapsed?: () => void;
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd: () => void;
+  onOpenNote: () => void;
   onOpenSettings: (section?: SettingsSection) => void;
   onOpenAuth: () => void;
   onOpenTask: (task: Task) => void;
@@ -413,6 +415,29 @@ const AccountMenu: React.FC<{
   const { user, signOut } = useAuth();
   const settingsShortcut = shortcutLabel(',');
   const [avatarError, setAvatarError] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState>(() => syncManager.getState().state);
+  const [lastSyncLabel, setLastSyncLabel] = useState<string>(() => syncManager.getFormattedLastSync());
+  const [online, setOnline] = useState<boolean>(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+
+  useEffect(() => {
+    const unsub = syncManager.subscribe(() => {
+      setSyncState(syncManager.getState().state);
+      setLastSyncLabel(syncManager.getFormattedLastSync());
+    });
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    const interval = window.setInterval(() => {
+      setLastSyncLabel(syncManager.getFormattedLastSync());
+    }, 60000);
+    return () => {
+      unsub();
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const avatarUrl = user?.user_metadata?.avatar_url || '/avatar.png';
   const displayName: string =
@@ -426,6 +451,12 @@ const AccountMenu: React.FC<{
     if (error) toast.show('خروج از حساب انجام نشد');
     else toast.show('از حساب خارج شدی');
   };
+
+  const syncLabel = !online
+    ? 'آفلاین'
+    : syncState === 'syncing'
+    ? 'در حال همگام‌سازی…'
+    : lastSyncLabel;
 
   return (
     <DropdownMenu>
@@ -453,9 +484,14 @@ const AccountMenu: React.FC<{
 
           {!compact && (
             <>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
-                {displayName}
-              </span>
+              <div className="flex min-w-0 flex-1 flex-col items-start text-right">
+                <span className="truncate text-[13px] font-medium leading-5 text-foreground">
+                  {displayName}
+                </span>
+                <span className="truncate text-[11px] leading-4 text-subtle">
+                  {syncLabel}
+                </span>
+              </div>
               <ChevronDown className="size-3.5 shrink-0 text-subtle transition-transform duration-150 group-data-[state=open]/account:rotate-180" />
             </>
           )}
@@ -529,6 +565,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapsed,
   onTabChange,
   onOpenAdd,
+  onOpenNote,
   onOpenSettings,
   onOpenAuth,
   onOpenTask,
@@ -661,10 +698,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <PanelRight className="absolute size-[18px] text-muted-foreground opacity-0 transition-opacity group-hover/brand:opacity-100" />
           </button>
         ) : (
-          <div className={cn('flex min-w-0 items-center gap-2.5', compact && 'justify-center')}>
+          <div className={cn('flex min-w-0 items-center gap-2.5 ps-2.5', compact && 'justify-center')}>
             <img src="/Boxs/Box 2.png" alt="" className="size-7 shrink-0 rounded-md object-contain" />
             {!compact && (
-              <span className="truncate text-[18px] font-semibold leading-none text-foreground">
+              <span className="truncate font-darvish text-[18px] font-semibold leading-none text-foreground">
                 جعبه
               </span>
             )}
@@ -700,24 +737,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      <div className={cn('mt-4 flex flex-col gap-0.5', compact && 'items-center')}>
-        <button
-          type="button"
-          onClick={onOpenAdd}
-          title={compact ? undefined : 'جدید (N)'}
-          aria-label={compact ? 'جدید' : undefined}
-          className={cn(
-            'group relative flex h-9 items-center rounded-md text-[13px] font-medium text-foreground transition-colors hover:bg-foreground/[0.04]',
-            compact ? 'w-10 justify-center' : 'w-full gap-2.5 px-2.5'
-          )}
-        >
-          <Plus className="size-[18px] shrink-0" />
-          {!compact && <span className="flex-1 text-right">جدید</span>}
-          {!compact && (
-            <Shortcut>N</Shortcut>
-          )}
-          {compact && <RailTip label="جدید" />}
-        </button>
+      <div className={cn('mt-4 flex flex-col gap-1.5', compact && 'items-center gap-1')}>
+        {compact ? (
+          <>
+            <button
+              type="button"
+              onClick={onOpenAdd}
+              title="کار (T)"
+              aria-label="کار"
+              className="group relative flex size-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.04]"
+            >
+              <Plus className="size-[18px]" />
+              <RailTip label="کار (T)" />
+            </button>
+            <button
+              type="button"
+              onClick={onOpenNote}
+              title="یادداشت (N)"
+              aria-label="یادداشت"
+              className="group relative flex size-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.04]"
+            >
+              <SquareText className="size-[18px]" />
+              <RailTip label="یادداشت (N)" />
+            </button>
+          </>
+        ) : (
+          <div className="flex w-full items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onOpenAdd}
+              title="کار (T)"
+              className="flex flex-1 items-center justify-between gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-foreground/[0.04]"
+            >
+              <span className="flex items-center gap-1.5">
+                <Plus className="size-4 shrink-0" />
+                کار
+              </span>
+              <Shortcut>T</Shortcut>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenNote}
+              title="یادداشت (N)"
+              className="flex flex-1 items-center justify-between gap-1.5 rounded-md border border-border/60 px-2.5 py-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-foreground/[0.04]"
+            >
+              <span className="flex items-center gap-1.5">
+                <SquareText className="size-4 shrink-0" />
+                یادداشت
+              </span>
+              <Shortcut>N</Shortcut>
+            </button>
+          </div>
+        )}
       </div>
 
       <nav className={cn('mt-4 flex flex-col gap-0.5', compact && 'items-center')} aria-label="صفحه‌ها">

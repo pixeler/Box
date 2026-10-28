@@ -13,6 +13,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ChevronDown } from 'lucide-react';
 import { RiAddLine } from '@remixicon/react';
 import { taskRepo } from '@/repositories';
+import { QuickCaptureInput } from '@/components/capture/QuickCaptureInput';
 
 export type UnifiedStreamItem =
   | { id: string; type: 'task'; data: Task }
@@ -32,6 +33,10 @@ interface DayStreamProps {
   onMigrateTask: (taskId: string, targetDate?: string) => void;
   onGoToToday?: () => void;
   onOpenAdd?: (initialTimeOfDay?: TimeOfDay) => void;
+  /** Which section has the inline composer open, if any. */
+  inlineAddSection?: TimeOfDay | null;
+  onOpenInlineAdd?: (timeOfDay: TimeOfDay) => void;
+  onCloseInlineAdd?: () => void;
   newlyAddedTaskId?: string | null;
   isLoading?: boolean;
   todayDoneCount?: number;
@@ -161,6 +166,9 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
   onStatusChanged,
   onMigrateTask,
   onOpenAdd,
+  inlineAddSection = null,
+  onOpenInlineAdd,
+  onCloseInlineAdd,
   newlyAddedTaskId,
   isLoading,
   todayDoneCount: _todayDoneCount = 0,
@@ -808,6 +816,36 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
     handleDragEnd();
   };
 
+  const openComposer = (tod: TimeOfDay) => {
+    if (onOpenInlineAdd) onOpenInlineAdd(tod);
+    else onOpenAdd?.(tod);
+  };
+
+  /** The popup and this row are the same composer; inline just carries less. */
+  const renderInlineComposer = (tod: TimeOfDay) => (
+    <div className="pt-1.5">
+      <QuickCaptureInput
+        variant="inline"
+        currentSelectedDateKey={selectedDateKey}
+        initialTimeOfDay={tod}
+        onItemCreated={() => onStatusChanged()}
+        onClose={() => onCloseInlineAdd?.()}
+      />
+    </div>
+  );
+
+  const renderAddRow = (tod: TimeOfDay) => (
+    <button
+      type="button"
+      onClick={() => openComposer(tod)}
+      title="افزودن کار"
+      className="mt-0.5 flex h-8 w-full items-center gap-1.5 rounded-md px-1.5 text-[12px] font-medium text-subtle transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+    >
+      <RiAddLine className="size-4 shrink-0" />
+      <span>افزودن کار</span>
+    </button>
+  );
+
   return (
     <div className="w-full flex-1 flex flex-col justify-between">
       <div>
@@ -824,7 +862,8 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
           >
             {TIME_OF_DAY_SECTIONS.map((sec) => {
               const secItems = itemsBySection[sec.key];
-              const isOpen = sectionOverrides[sec.key] ?? secItems.length > 0;
+              const isComposing = inlineAddSection === sec.key;
+              const isOpen = isComposing || (sectionOverrides[sec.key] ?? secItems.length > 0);
               const activeDragIndex = draggedIndex !== null ? draggedIndex : touchDragIndex;
               const isExternalDragging = externalTouchDragInfo !== null;
               const isDraggingActive = activeDragIndex !== null || isExternalDragging;
@@ -864,7 +903,7 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                     {secItems.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => onOpenAdd?.(sec.key)}
+                        onClick={() => openComposer(sec.key)}
                         className="flex size-6 items-center justify-center rounded-md text-subtle opacity-0 transition-[opacity,color,background-color] hover:bg-foreground/[0.05] hover:text-foreground focus-visible:opacity-100 group-hover/section:opacity-100"
                         title={`افزودن کار به ${sec.label}`}
                       >
@@ -879,14 +918,7 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                       {secItems.length === 0 ? (
                         <div className="pb-1">
                           {isSectionDragOver && <CardDropPreview />}
-                          <button
-                            type="button"
-                            onClick={() => onOpenAdd?.(sec.key)}
-                            title={`افزودن کار به ${sec.label}`}
-                            className="flex size-7 items-center justify-center rounded-md text-subtle transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                          >
-                            <RiAddLine className="size-4" />
-                          </button>
+                          {isComposing ? renderInlineComposer(sec.key) : renderAddRow(sec.key)}
                         </div>
                       ) : (
                         secItems.map((item, itemIdx) => {
@@ -990,6 +1022,12 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                           );
                         })
                       )}
+
+                      {/* The composer lands after the last task of this section. */}
+                      {secItems.length > 0 &&
+                        (isComposing
+                          ? renderInlineComposer(sec.key)
+                          : renderAddRow(sec.key))}
                     </div>
                   )}
                 </div>
@@ -1132,6 +1170,12 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
               );
             })()}
 
+            {/* Inline composer for the flat stream lands here. */}
+            {hasAnyItems &&
+              (inlineAddSection
+                ? renderInlineComposer(inlineAddSection)
+                : renderAddRow('anytime'))}
+
             {/* پیش‌نمایش در حالت خالی بودن لیست فقط اگر آیتم درگی غیر از روی کامپوننت خالی هست */}
             {/* Empty state when no items */}
             {!hasAnyItems && (
@@ -1179,7 +1223,7 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                     <p className="text-[12px] leading-6 text-subtle">
                       <button
                         type="button"
-                        onClick={() => onOpenAdd?.()}
+                        onClick={() => openComposer('anytime')}
                         className="font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
                       >
                         یک کار اضافه کن
