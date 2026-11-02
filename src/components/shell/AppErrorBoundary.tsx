@@ -144,7 +144,7 @@ export class AppErrorBoundary extends React.Component<
               className="desktop-titlebar flex h-10 shrink-0 items-center justify-between border-b border-border bg-sidebar px-3 select-none"
               onDoubleClick={() => desktop?.toggleMaximize()}
             >
-              <span className="text-xs text-muted-foreground">SpaceZen — گزارش خطا</span>
+              <span className="text-xs text-muted-foreground">Box — گزارش خطا</span>
               <div dir="ltr" className="desktop-no-drag flex items-center gap-1">
                 <button
                   type="button"

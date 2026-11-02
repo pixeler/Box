@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo.png" width="112" alt="SpaceZen" />
+  <img src="assets/logo.png" width="112" alt="Box" />
 </p>
 
-<h1 align="center">SpaceZen</h1>
+<h1 align="center">Box</h1>
 
 <p align="center">
   <strong>A calm, offline-first second brain for notes, tasks, calendar and deep work.</strong><br />
@@ -18,7 +18,7 @@
 
 ---
 
-SpaceZen is a personal knowledge and focus workspace that treats your notes as
+Box is a personal knowledge and focus workspace that treats your notes as
 files, not as rows. Everything is stored locally first, so the app opens and
 works with no connection; a single Supabase document per account carries your
 data between devices when you ask it to.
@@ -76,8 +76,8 @@ in the middle of a note you are writing.
 Requirements: **Node 20+** and **pnpm 10+**.
 
 ```bash
-git clone https://github.com/pixeler/SpaceZen.git
-cd SpaceZen
+git clone https://github.com/pixeler/Box.git
+cd Box
 pnpm install
 cp .env.example .env      # then fill in the two Supabase values
 pnpm dev                  # http://localhost:5173
@@ -142,7 +142,7 @@ security related, please read [SECURITY.md](SECURITY.md) first.
 
 ## فارسی
 
-**SpaceZen** یک فضای کار شخصی و آفلاین‌محور است: یادداشت، کار، تقویم شمسی و
+**Box** یک فضای کار شخصی و آفلاین‌محور است: یادداشت، کار، تقویم شمسی و
 تمرکز، همه در یک برنامه با رابط راست‌به‌چپ. داده‌ها اول روی دستگاه خودت ذخیره
 می‌شوند و همگام‌سازی ابری اختیاری است. برای اجرا:
 

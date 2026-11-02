@@ -1,13 +1,13 @@
-# Contributing to SpaceZen
+# Contributing to Box
 
-Thanks for wanting to improve SpaceZen. This guide covers the workflow so your
+Thanks for wanting to improve Box. This guide covers the workflow so your
 change lands quickly.
 
 ## Before you start
 
 - For a bug, open an issue with the **Bug report** template (or comment on an
   existing one) before writing code, unless the fix is a one-liner.
-- For a feature, open a **Feature request** first. SpaceZen is deliberately
+- For a feature, open a **Feature request** first. Box is deliberately
   small and local-first, so not every good idea fits the product.
 - Security problems go to [SECURITY.md](SECURITY.md), never the issue tracker.
 

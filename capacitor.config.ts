@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.pixeler.spacezen',
-  appName: 'SpaceZen',
+  appId: 'com.pixeler.box',
+  appName: 'Box',
   webDir: 'dist',
 
   plugins: {

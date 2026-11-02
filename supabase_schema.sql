@@ -1,5 +1,5 @@
 -- ====================================================================
--- SpaceZen / MiniPini: Supabase Cloud Sync Schema
+-- Box / MiniPini: Supabase Cloud Sync Schema
 -- Run this in your Supabase Dashboard -> SQL Editor -> New Query
 -- ====================================================================
 

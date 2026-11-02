@@ -56,9 +56,52 @@ jobs:
             release/*.zip
           if-no-files-found: error
 
+  android:
+    name: Android (apk)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web bundle and sync Capacitor
+        run: pnpm run android:sync
+
+      - name: Assemble release APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Collect APK
+        run: |
+          mkdir -p apk
+          cp android/app/build/outputs/apk/release/app-release.apk "apk/Box-${{ github.ref_name }}-arm64.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: apk/*.apk
+          if-no-files-found: error
+
   publish:
     name: Attach artifacts to the release
-    needs: desktop
+    needs: [desktop, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -75,3 +118,4 @@ jobs:
             artifacts/*.exe
             artifacts/*.dmg
             artifacts/*.zip
+            artifacts/*.apk

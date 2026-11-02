@@ -1,6 +1,6 @@
 {
-  "name": "spacezen",
-  "productName": "SpaceZen",
+  "name": "box",
+  "productName": "Box",
   "private": true,
   "version": "0.1.0",
   "description": "A calm, offline-first second brain for notes, tasks, calendar and deep work. Persian-first, local database, optional cloud sync.",
@@ -10,13 +10,13 @@
     "email": "me@pixeler.ir",
     "url": "https://pixeler.ir"
   },
-  "homepage": "https://github.com/pixeler/SpaceZen#readme",
+  "homepage": "https://github.com/pixeler/Box#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pixeler/SpaceZen.git"
+    "url": "git+https://github.com/pixeler/Box.git"
   },
   "bugs": {
-    "url": "https://github.com/pixeler/SpaceZen/issues"
+    "url": "https://github.com/pixeler/Box/issues"
   },
   "keywords": [
     "second-brain",
@@ -40,8 +40,8 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "android:sync": "pnpm run build && npx cap sync android",
-    "android:build": "pnpm run android:sync && cmd /c \"cd /d android && .\\\\gradlew.bat assembleRelease --no-daemon\" && powershell -Command \"Copy-Item -Force android\\\\app\\\\build\\\\outputs\\\\apk\\\\release\\\\app-release.apk -Destination .\\\\SpaceZen-release.apk; Copy-Item -Force android\\\\app\\\\build\\\\outputs\\\\apk\\\\release\\\\app-release.apk -Destination .\\\\SpaceZen-debug.apk\"",
-    "android:install": "C:\\Android\\Sdk\\platform-tools\\adb.exe install -r SpaceZen-release.apk",
+    "android:build": "pnpm run android:sync && cmd /c \"cd /d android && .\\\\gradlew.bat assembleRelease --no-daemon\" && powershell -Command \"Copy-Item -Force android\\\\app\\\\build\\\\outputs\\\\apk\\\\release\\\\app-release.apk -Destination .\\\\Box-release.apk; Copy-Item -Force android\\\\app\\\\build\\\\outputs\\\\apk\\\\release\\\\app-release.apk -Destination .\\\\Box-debug.apk\"",
+    "android:install": "C:\\Android\\Sdk\\platform-tools\\adb.exe install -r Box-release.apk",
     "android:devices": "C:\\Android\\Sdk\\platform-tools\\adb.exe devices -l",
     "android:open": "npx cap open android",
     "android:run": "npx cap run android",
@@ -97,8 +97,8 @@
   },
   "main": "electron/main.cjs",
   "build": {
-    "appId": "com.pixeler.spacezen",
-    "productName": "SpaceZen",
+    "appId": "com.pixeler.box",
+    "productName": "Box",
     "asar": true,
     "compression": "maximum",
     "npmRebuild": false,
@@ -129,7 +129,7 @@
       "icon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "SpaceZen-${version}-portable.exe"
+      "artifactName": "Box-${version}-portable.exe"
     },
     "mac": {
       "target": [
@@ -151,7 +151,7 @@
       "icon": "build/icon.png",
       "category": "public.app-category.productivity",
       "darkModeSupport": true,
-      "artifactName": "SpaceZen-${version}-${arch}.${ext}"
+      "artifactName": "Box-${version}-${arch}.${ext}"
     }
   }
 }

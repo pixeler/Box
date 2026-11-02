@@ -1,4 +1,4 @@
-package com.pixeler.spacezen
+package com.pixeler.box
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -9,7 +9,7 @@ import android.content.Intent
 import android.widget.RemoteViews
 import org.json.JSONObject
 
-class SpaceZenWidgetProvider : AppWidgetProvider() {
+class BoxWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(
         context: Context,
@@ -25,7 +25,7 @@ class SpaceZenWidgetProvider : AppWidgetProvider() {
         super.onReceive(context, intent)
         if (intent.action == ACTION_UPDATE_WIDGET) {
             val appWidgetManager = AppWidgetManager.getInstance(context)
-            val thisWidget = ComponentName(context, SpaceZenWidgetProvider::class.java)
+            val thisWidget = ComponentName(context, BoxWidgetProvider::class.java)
             val allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
             for (widgetId in allWidgetIds) {
                 updateAppWidget(context, appWidgetManager, widgetId)
@@ -34,14 +34,14 @@ class SpaceZenWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        const val ACTION_UPDATE_WIDGET = "com.pixeler.spacezen.UPDATE_WIDGET"
+        const val ACTION_UPDATE_WIDGET = "com.pixeler.box.UPDATE_WIDGET"
 
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            val views = RemoteViews(context.packageName, R.layout.widget_spacezen)
+            val views = RemoteViews(context.packageName, R.layout.widget_box)
 
             // Read data from Capacitor Preferences (SharedPreferences named "CapacitorStorage")
             var todayTaskCount = 0

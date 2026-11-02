@@ -650,12 +650,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   }
 
   // ----------------------------------------------------------------------------------
-  // 7. Sub-page: درباره اسپیس (About Space)
+  // 7. Sub-page: درباره باکس (About Space)
   // ----------------------------------------------------------------------------------
   if (activeSubPage === 'about') {
     return (
       <div className={subPageShellClass} dir="rtl">
-        {renderSubPageHeader('درباره اسپیس')}
+        {renderSubPageHeader('درباره باکس')}
 
         <div className="p-4 rounded-2xl border border-border/60 bg-card/55 space-y-3.5 shadow-2xs">
           <div className="flex items-center gap-3">
@@ -663,13 +663,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <RiShieldCheckLine className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-bold text-foreground">اسپیس (Space) • نسخه ۱.۰.۰</p>
+              <p className="text-sm font-bold text-foreground">باکس (Box) • نسخه ۱.۰.۰</p>
               <p className="text-[10.5px] text-muted-foreground">دستیار شخصی مدیریت کارها و یادداشت‌های روزانه</p>
             </div>
           </div>
 
           <p className="text-xs text-muted-foreground leading-relaxed pt-1">
-            اسپیس با معماری ۱۰۰٪ محلی (Local-first) طراحی شده است؛ تمامی یادداشت‌ها، کارها و داده‌ها ابتدا روی حافظه امن دستگاه شما ذخیره می‌شوند و حتی بدون اتصال به اینترنت، با بالاترین سرعت و حریم خصوصی کامل در دسترس هستند.
+            باکس با معماری ۱۰۰٪ محلی (Local-first) طراحی شده است؛ تمامی یادداشت‌ها، کارها و داده‌ها ابتدا روی حافظه امن دستگاه شما ذخیره می‌شوند و حتی بدون اتصال به اینترنت، با بالاترین سرعت و حریم خصوصی کامل در دسترس هستند.
           </p>
         </div>
       </div>
@@ -712,21 +712,21 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
         <div className="p-4 rounded-2xl border border-border/60 bg-card/55 space-y-3.5 shadow-2xs">
           <p className="text-xs text-muted-foreground leading-relaxed">
-            نظرات و پیشنهادات شما به ما در ارتقای اسپیس کمک شایانی می‌کند. لطفاً پیام یا بازخورد خود را در زیر بنویسید:
+            نظرات و پیشنهادات شما به ما در ارتقای باکس کمک شایانی می‌کند. لطفاً پیام یا بازخورد خود را در زیر بنویسید:
           </p>
 
           {feedbackSent ? (
             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium text-center space-y-1">
               <RiSparklingLine className="w-6 h-6 mx-auto mb-1 animate-bounce" />
               <p className="font-bold">پیام شما با موفقیت ثبت شد!</p>
-              <p className="text-[11px] opacity-80">از اینکه برای بهتر شدن اسپیس وقت گذاشتید سپاسگزاریم.</p>
+              <p className="text-[11px] opacity-80">از اینکه برای بهتر شدن باکس وقت گذاشتید سپاسگزاریم.</p>
             </div>
           ) : (
             <div className="space-y-3">
               <textarea
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
-                placeholder="نظر یا پیشنهاد شما درباره اسپیس..."
+                placeholder="نظر یا پیشنهاد شما درباره باکس..."
                 rows={4}
                 className="w-full p-3 rounded-xl bg-secondary/60 border border-border text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary resize-none"
               />
@@ -1087,10 +1087,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         />
       </SettingsGroup>
 
-      <SettingsGroup title="اسپیس">
+      <SettingsGroup title="باکس">
         <SettingsRow
           icon={RiInformationLine}
-          title="درباره اسپیس"
+          title="درباره باکس"
           onClick={() => setActiveSubPage('about')}
         />
         <SettingsRow
@@ -1106,7 +1106,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       </SettingsGroup>
 
       <p className="pb-1 text-center text-[9.5px] text-muted-foreground/70">
-        اسپیس · نسخه ۱.۰.۰
+        باکس · نسخه ۱.۰.۰
       </p>
 
       <input

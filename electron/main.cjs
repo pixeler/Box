@@ -16,7 +16,7 @@ const fsSync = require('node:fs');
 
 // The renderer is loaded from a scheme instead of file:// so every absolute
 // path the web build already uses (/assets, /fonts, /Boxs) keeps working.
-const SCHEME = 'spacezen';
+const SCHEME = 'box';
 const DIST = path.join(__dirname, '..', 'dist');
 const DEV_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
 
@@ -80,14 +80,14 @@ async function serveApp(request) {
 
 let mainWindow = null;
 
-app.setName('SpaceZen');
+app.setName('Box');
 // A hard-coded AppUserModelID only resolves when a Start-menu shortcut carries
 // the same id. A portable build has none, and Windows then paints the taskbar
 // button with a blank document icon, so the window keeps the exe's own identity.
 
-// The app shipped as "Box" before the SpaceZen rename. Move the old profile
-// into place once, so existing notes, settings and sessions are not lost.
-for (const [legacyName, currentName] of [['Box', 'SpaceZen'], ['Box Dev', 'SpaceZen Dev']]) {
+// A build named SpaceZen shipped during development. Move that profile back
+// once, so notes, settings and sessions written there are not lost.
+for (const [legacyName, currentName] of [['SpaceZen', 'Box'], ['SpaceZen Dev', 'Box Dev']]) {
   const legacyProfile = path.join(app.getPath('appData'), legacyName);
   const currentProfile = path.join(app.getPath('appData'), currentName);
   try {
@@ -101,7 +101,7 @@ for (const [legacyName, currentName] of [['Box', 'SpaceZen'], ['Box Dev', 'Space
 
 // Keep local development away from the installed app's database and profile.
 if (!app.isPackaged) {
-  app.setPath('userData', path.join(app.getPath('appData'), 'SpaceZen Dev'));
+  app.setPath('userData', path.join(app.getPath('appData'), 'Box Dev'));
 }
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -118,7 +118,7 @@ if (!hasSingleInstanceLock) {
 
 /**
  * Only real web links leave the app. Note content could otherwise hand
- * `file:`, `spacezen:`, or any registered protocol handler to the OS.
+ * `file:`, `box:`, or any registered protocol handler to the OS.
  */
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
 
@@ -196,7 +196,7 @@ function createWindow() {
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8" />
-<title>SpaceZen — خطا</title>
+<title>Box — خطا</title>
 <style>
   * { box-sizing: border-box; }
   body {
@@ -282,7 +282,7 @@ function createWindow() {
 </head>
 <body>
   <div class="titlebar">
-    <span style="font-size:12px;color:#a3a3a3;">SpaceZen — گزارش خطای دسکتاپ</span>
+    <span style="font-size:12px;color:#a3a3a3;">Box — گزارش خطای دسکتاپ</span>
     <div class="controls" dir="ltr">
       <button class="ctrl-btn" onclick="window.desktop && window.desktop.minimize()">—</button>
       <button class="ctrl-btn" onclick="window.desktop && window.desktop.toggleMaximize()">□</button>
@@ -424,7 +424,7 @@ ipcMain.handle('note:save-pdf', async (event, payload) => {
 // chime, so the toast itself stays silent instead of stacking two sounds.
 ipcMain.on('app:notify', (_event, payload) => {
   if (!Notification.isSupported()) return;
-  const title = typeof payload?.title === 'string' ? payload.title : 'SpaceZen';
+  const title = typeof payload?.title === 'string' ? payload.title : 'Box';
   const body = typeof payload?.body === 'string' ? payload.body : '';
   new Notification({ title, body, silent: true }).show();
 });
@@ -446,10 +446,10 @@ ipcMain.on('focus:badge', (event, payload) => {
         nativeImage.createFromDataURL(dataUrl),
         label ? `${label} دقیقه تمرکز` : 'Focus timer'
       );
-      win.setTitle(label ? `SpaceZen — ${label} دقیقه` : 'SpaceZen');
+      win.setTitle(label ? `Box — ${label} دقیقه` : 'Box');
     } else {
       win.setOverlayIcon(null, '');
-      win.setTitle('SpaceZen');
+      win.setTitle('Box');
     }
   } catch (error) {
     console.warn('Focus badge could not be applied:', error);

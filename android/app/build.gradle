@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.pixeler.spacezen"
+    namespace = "com.pixeler.box"
     compileSdk = rootProject.ext.compileSdkVersion
     buildToolsVersion = "36.0.0"
     defaultConfig {
-        applicationId "com.pixeler.spacezen"
+        applicationId "com.pixeler.box"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

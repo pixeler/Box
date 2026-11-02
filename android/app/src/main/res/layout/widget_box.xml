@@ -18,7 +18,7 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@mipmap/ic_launcher_round"
-            android:contentDescription="SpaceZen" />
+            android:contentDescription="Box" />
 
         <TextView
             android:id="@+id/widget_app_title"
@@ -27,7 +27,7 @@
             android:layout_weight="1"
             android:layout_marginStart="8dp"
             android:fontFamily="sans-serif-medium"
-            android:text="SpaceZen"
+            android:text="Box"
             android:textColor="#F4F4F5"
             android:textSize="13sp" />
 

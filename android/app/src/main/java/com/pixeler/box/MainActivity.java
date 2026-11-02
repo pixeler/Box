@@ -1,4 +1,4 @@
-package com.pixeler.spacezen;
+package com.pixeler.box;
 
 import com.getcapacitor.BridgeActivity;
 

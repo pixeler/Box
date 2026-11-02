@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-SpaceZen is pre-1.0. Only the latest release receives security fixes.
+Box is pre-1.0. Only the latest release receives security fixes.
 
 | Version | Supported |
 | ------- | --------- |
@@ -20,7 +20,7 @@ Please **do not** open a public issue for security problems.
 
 ## Scope
 
-SpaceZen is local-first: notes, tasks and focus history live in the browser or
+Box is local-first: notes, tasks and focus history live in the browser or
 app profile (IndexedDB). Optional cloud sync stores a single encrypted-at-rest
 JSON document per user in Supabase, protected by row level security.
 
