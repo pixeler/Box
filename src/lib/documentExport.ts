@@ -18,12 +18,28 @@ const escapeHtml = (value: string): string =>
 const safeFileName = (title: string): string =>
   (title.trim() || 'یادداشت').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60);
 
+/** Exported links stay web links: `javascript:`, `file:` and friends do not. */
+const safeHref = (raw: string): string | null => {
+  try {
+    const parsed = new URL(raw);
+    return ['http:', 'https:', 'mailto:'].includes(parsed.protocol) ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
 const inline = (text: string): string =>
   escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, href: string) => {
+      // A note must never smuggle another scheme into an exported document, so
+      // an unsupported link keeps its text and loses the anchor.
+      const hrefAttr = href.trim();
+      const scheme = safeHref(hrefAttr.replace(/&amp;/g, '&'));
+      return scheme ? `<a href="${hrefAttr}">${label}</a>` : label;
+    });
 
 /** Deliberately small: headings, lists, quotes, code fences and paragraphs. */
 const markdownToHtml = (markdown: string): string =>

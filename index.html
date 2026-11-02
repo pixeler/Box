@@ -11,6 +11,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-visual" />
     <link rel="preload" href="/fonts/Dana/DanaVF.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/Darvish/Darvish VF.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- The renderer only ever runs its own bundle: no third-party script
+         origins, no eval, no plugins, no foreign frames. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'none'; frame-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https: wss:; manifest-src 'self'; worker-src 'self' blob:"
+    />
     <title>SpaceZen — ذهن دوم</title>
 
     <!-- Synchronous Theme Initializer (Prevents any Dark/Light mode flash/FOUC on startup) -->

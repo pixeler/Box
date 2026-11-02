@@ -7,6 +7,7 @@ const {
   ipcMain,
   nativeImage,
   protocol,
+  session,
   shell,
 } = require('electron');
 const path = require('node:path');
@@ -46,8 +47,20 @@ const MIME = {
 };
 
 async function serveApp(request) {
-  const { pathname } = new URL(request.url);
-  const relative = decodeURIComponent(pathname === '/' ? '/index.html' : pathname);
+  let pathname;
+  let relative;
+  try {
+    pathname = new URL(request.url).pathname;
+    relative = decodeURIComponent(pathname === '/' ? '/index.html' : pathname);
+  } catch {
+    // A malformed or non-decodable URL is a bad request, not a crashed handler.
+    return new Response('Bad request', { status: 400 });
+  }
+
+  if (relative.includes('\0')) {
+    return new Response('Not found', { status: 404 });
+  }
+
   const filePath = path.normalize(path.join(DIST, relative));
 
   if (filePath !== DIST && !filePath.startsWith(DIST + path.sep)) {
@@ -103,6 +116,23 @@ if (!hasSingleInstanceLock) {
   });
 }
 
+/**
+ * Only real web links leave the app. Note content could otherwise hand
+ * `file:`, `spacezen:`, or any registered protocol handler to the OS.
+ */
+const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:']);
+
+function openExternalSafely(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl));
+    if (!EXTERNAL_PROTOCOLS.has(parsed.protocol)) return false;
+    void shell.openExternal(parsed.toString());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440,
@@ -121,6 +151,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      // The renderer runs in the OS sandbox: no Node, no filesystem, no spawn.
+      sandbox: true,
     },
   });
 
@@ -250,7 +282,7 @@ function createWindow() {
 </head>
 <body>
   <div class="titlebar">
-    <span style="font-size:12px;color:#a3a3a3;">باکس — گزارش خطای دسکتاپ</span>
+    <span style="font-size:12px;color:#a3a3a3;">SpaceZen — گزارش خطای دسکتاپ</span>
     <div class="controls" dir="ltr">
       <button class="ctrl-btn" onclick="window.desktop && window.desktop.minimize()">—</button>
       <button class="ctrl-btn" onclick="window.desktop && window.desktop.toggleMaximize()">□</button>
@@ -290,8 +322,23 @@ function createWindow() {
   win.on('unmaximize', sendMaximized);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    openExternalSafely(url);
     return { action: 'deny' };
+  });
+
+  // The app window only ever shows the app. A link (or a redirect) that tried to
+  // replace it would load a foreign page with the desktop bridge in reach.
+  win.webContents.on('will-navigate', (event, url) => {
+    try {
+      const next = new URL(url);
+      // Reloads and in-app routes stay inside the app, dev server and all.
+      if (next.origin === new URL(targetUrl).origin) return;
+      if (next.protocol === `${SCHEME}:`) return;
+    } catch {
+      // An unparsable URL is never a place to go.
+    }
+    event.preventDefault();
+    openExternalSafely(url);
   });
 
   win.loadURL(targetUrl);
@@ -329,7 +376,11 @@ ipcMain.handle('note:save-pdf', async (event, payload) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const html = typeof payload?.html === 'string' ? payload.html : '';
   const suggested =
-    typeof payload?.fileName === 'string' && payload.fileName.trim() ? payload.fileName.trim() : 'note';
+    String(typeof payload?.fileName === 'string' ? payload.fileName : '')
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/^\.+/, '')
+      .trim()
+      .slice(0, 80) || 'note';
   if (!html) return { saved: false, error: 'empty document' };
 
   const options = {
@@ -340,9 +391,18 @@ ipcMain.handle('note:save-pdf', async (event, payload) => {
   const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options);
   if (result.canceled || !result.filePath) return { saved: false, canceled: true };
 
+  // The note document is untrusted input: it is printed with scripting off, in
+  // its own sandboxed renderer, so markup can never run code with the bridge.
   const hidden = new BrowserWindow({
     show: false,
-    webPreferences: { offscreen: true, contextIsolation: true, nodeIntegration: false },
+    webPreferences: {
+      offscreen: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      javascript: false,
+      webSecurity: true,
+    },
   });
 
   try {
@@ -398,6 +458,13 @@ ipcMain.on('focus:badge', (event, payload) => {
 
 if (hasSingleInstanceLock) {
   app.whenReady().then(async () => {
+    // Nothing in the app asks for the camera, microphone, location or MIDI, so
+    // every such request is refused instead of prompting.
+    const ALLOWED_PERMISSIONS = new Set(['clipboard-read', 'clipboard-sanitized-write']);
+    session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
+      callback(ALLOWED_PERMISSIONS.has(permission));
+    });
+
     Menu.setApplicationMenu(null);
     protocol.handle(SCHEME, serveApp);
     createWindow();

@@ -12,6 +12,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   contribution, security and conduct guides, issue and pull request templates,
   CI and release workflows.
 
+### Fixed
+- Typing a space in a note no longer throws the caret into a task list: the
+  note's task cards and add-task row can neither take focus nor swallow the
+  space bar, and the editor keeps the keyboard.
+
+### Security
+- The desktop window refuses to navigate away from the app, and only `http`,
+  `https` and `mailto` links reach the system browser, so note content can no
+  longer launch local files or registered protocol handlers.
+- The renderer runs in the OS sandbox, and camera, microphone, location and
+  MIDI permission requests are refused instead of prompted.
+- Note PDF export prints in a sandboxed renderer with scripting off, and
+  exported documents keep only web and mail links (`javascript:` and `file:`
+  links lose their anchor).
+- The app shell ships a Content-Security-Policy: own-bundle scripts, no
+  plugins, no foreign frames and no eval.
+- The PDF bridge sanitises its suggested file name instead of trusting the
+  renderer's string, and the app protocol handler rejects malformed URLs.
+
 ## [0.1.0] — 2026-11-02
 
 First public release. SpaceZen was built as a private second-brain app and this
