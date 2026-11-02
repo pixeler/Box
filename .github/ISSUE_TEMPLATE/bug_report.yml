@@ -1,0 +1,61 @@
+name: 🐞 Bug report
+description: Something does not work the way it should.
+title: "[Bug]: "
+labels: ["bug", "needs triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please do not include
+        personal note content or credentials in this report.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the behaviour you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Press ...
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where does it happen?
+      multiple: true
+      options:
+        - Web (browser)
+        - Windows desktop app
+        - macOS desktop app
+        - Android app
+        - Only in development (`pnpm dev`)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Release tag, or the commit you built from.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output or screenshots
+      description: DevTools console errors, a screen recording, or both.
+      render: shell
+    validations:
+      required: false

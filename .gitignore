@@ -7,8 +7,10 @@ dist-ssr
 *.local
 .env
 .env.*
+!.env.example
 .DS_Store
 thumbs.db
+*.log
 
 # Local build / profiling output used while tuning the bundle
 .build-check
@@ -31,6 +33,7 @@ thumbs.db
 .kilo/
 .workbuddy-ai/
 skills-lock.json
+AGENTS.md
 
 # ---------------------------------------------------------------------------
 # Documentation & notes
@@ -50,3 +53,5 @@ scratch/
 
 # Packaged Windows output
 release/
+
+release-new/

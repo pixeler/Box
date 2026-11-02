@@ -1,0 +1,11 @@
+# Categories used when GitHub generates release notes from merged pull requests.
+changelog:
+  categories:
+    - title: 🚀 Features
+      labels: [feature, enhancement]
+    - title: 🐞 Fixes
+      labels: [bug, fix]
+    - title: 🧹 Maintenance
+      labels: [chore, dependencies, refactor, docs]
+    - title: Other changes
+      labels: ["*"]
