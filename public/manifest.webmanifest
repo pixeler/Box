@@ -1,7 +1,7 @@
 {
-  "name": "Box :: جعبه",
-  "short_name": "Box",
-  "description": "دستیار و جعبه یادداشت و وظایف شخصی",
+  "name": "SpaceZen — ذهن دوم",
+  "short_name": "SpaceZen",
+  "description": "فضای کار آفلاین‌محور برای یادداشت، کار، تقویم شمسی و تمرکز",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#090812",

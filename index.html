@@ -11,7 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-visual" />
     <link rel="preload" href="/fonts/Dana/DanaVF.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/Darvish/Darvish VF.woff2" as="font" type="font/woff2" crossorigin />
-    <title>Box :: جعبه</title>
+    <title>SpaceZen — ذهن دوم</title>
 
     <!-- Synchronous Theme Initializer (Prevents any Dark/Light mode flash/FOUC on startup) -->
     <script>
@@ -113,6 +113,51 @@
           }
           meta.content = card;
         } catch(e) {}
+      })();
+
+      (function() {
+        function renderBootError(title, detail) {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) return;
+          var isDesktop = Boolean(window.desktop);
+          var safeTitle = String(title || 'خطا در راه‌اندازی برنامه').replace(/[<>&]/g, '');
+          var safeDetail = String(detail || '').replace(/[<>&]/g, '');
+          root.innerHTML =
+            '<div dir="rtl" style="min-height:100vh;display:flex;flex-direction:column;background:#171717;color:#f5f5f5;font-family:Tahoma,system-ui,sans-serif;">' +
+              (isDesktop
+                ? '<div style="height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#121212;border-bottom:1px solid #262626;-webkit-app-region:drag;user-select:none;">' +
+                    '<span style="font-size:12px;color:#a3a3a3;">SpaceZen — گزارش خطا</span>' +
+                    '<div dir="ltr" style="display:flex;gap:6px;-webkit-app-region:no-drag;">' +
+                      '<button onclick="window.desktop&&window.desktop.minimize()" style="background:transparent;border:1px solid #303030;color:#d4d4d4;border-radius:6px;padding:3px 9px;cursor:pointer;">—</button>' +
+                      '<button onclick="window.desktop&&window.desktop.toggleMaximize()" style="background:transparent;border:1px solid #303030;color:#d4d4d4;border-radius:6px;padding:3px 9px;cursor:pointer;">□</button>' +
+                      '<button onclick="window.desktop&&window.desktop.close()" style="background:#e11d48;border:1px solid #e11d48;color:#fff;border-radius:6px;padding:3px 9px;cursor:pointer;">✕</button>' +
+                    '</div>' +
+                  '</div>'
+                : '') +
+              '<div style="flex:1;display:flex;align-items:center;justify-content:center;padding:24px;">' +
+                '<div style="width:100%;max-width:560px;background:#1f1f1f;border:1px solid #2e2e2e;border-radius:12px;padding:24px;">' +
+                  '<h1 style="margin:0 0 8px;font-size:16px;color:#fda4af;">' + safeTitle + '</h1>' +
+                  '<p style="margin:0 0 14px;font-size:12.5px;color:#a3a3a3;line-height:1.7;">یک خطای زمان راه‌اندازی مانع نمایش رابط کاربری شد. جزئیات خطا در زیر قابل مشاهده است.</p>' +
+                  '<pre dir="ltr" style="margin:0 0 16px;padding:12px;background:#141414;border:1px solid #262626;border-radius:8px;color:#e5e5e5;font-size:11.5px;text-align:left;overflow:auto;max-height:240px;white-space:pre-wrap;word-break:break-word;">' + safeDetail + '</pre>' +
+                  '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                    '<button onclick="window.desktop&&window.desktop.reload?window.desktop.reload():location.reload()" style="background:#f5f5f5;color:#171717;border:1px solid #f5f5f5;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;">بارگذاری مجدد</button>' +
+                    (isDesktop
+                      ? '<button onclick="window.desktop&&window.desktop.toggleDevTools&&window.desktop.toggleDevTools()" style="background:#262626;color:#f5f5f5;border:1px solid #383838;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;">ابزار توسعه‌دهنده (F12)</button>'
+                      : '') +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+        }
+        window.addEventListener('error', function(e) {
+          var msg = (e && e.error && (e.error.stack || e.error.message)) || (e && e.message) || 'Unknown error';
+          renderBootError('خطا در بارگذاری ماژول‌های برنامه', msg);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = e && e.reason;
+          var msg = (reason && (reason.stack || reason.message)) || String(reason || 'Unhandled promise rejection');
+          renderBootError('خطای ناهمگام در راه‌اندازی برنامه', msg);
+        });
       })();
     </script>
 
