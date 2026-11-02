@@ -8,7 +8,7 @@ import { getTodayJalaliKey } from '@/lib/jalali';
 import { TaskItemRow } from '@/components/stream/TaskItemRow';
 import { QuickCaptureInput } from '@/components/capture/QuickCaptureInput';
 import { RiAddLine } from '@remixicon/react';
-import { swallowTypingKeys } from './keyGuards';
+import { keepKeyboardInTheNote, swallowTypingKeys } from './keyGuards';
 
 export interface TaskAddRowProps {
   dueDate: string;
@@ -26,7 +26,13 @@ export const TaskAddRow: React.FC<TaskAddRowProps> = ({ dueDate, onCreated }) =>
 
   if (expanded) {
     return (
-      <div contentEditable={false} dir="rtl" className="my-1">
+      <div
+        contentEditable={false}
+        dir="rtl"
+        className="my-1"
+        onKeyDownCapture={swallowTypingKeys}
+        onMouseDownCapture={keepKeyboardInTheNote}
+      >
         <QuickCaptureInput
           variant="inline"
           currentSelectedDateKey={dateKey}
@@ -45,6 +51,7 @@ export const TaskAddRow: React.FC<TaskAddRowProps> = ({ dueDate, onCreated }) =>
       dir="rtl"
       className="my-0.5"
       onKeyDownCapture={swallowTypingKeys}
+      onMouseDownCapture={keepKeyboardInTheNote}
     >
       <button
         type="button"
@@ -149,6 +156,7 @@ const NoteTaskList: React.FC<{ scope: string }> = ({ scope }) => {
       dir="rtl"
       className="my-2 w-full"
       onKeyDownCapture={swallowTypingKeys}
+      onMouseDownCapture={keepKeyboardInTheNote}
     >
       <p className="mb-1 px-1 text-[11.5px] font-medium text-muted-foreground">
         {TASK_LIST_TITLES[scope] ?? TASK_LIST_TITLES.today}

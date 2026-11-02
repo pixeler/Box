@@ -5,7 +5,7 @@ import { taskRepo } from '@/repositories';
 import { extractDateOnly, getTodayJalaliKey } from '@/lib/jalali';
 import { TaskItemRow } from '@/components/stream/TaskItemRow';
 import { RiLoader4Line } from '@remixicon/react';
-import { swallowTypingKeys } from './keyGuards';
+import { keepKeyboardInTheNote, swallowTypingKeys } from './keyGuards';
 
 /**
  * A task from the app, embedded in a note. The block stores only the task id and
@@ -99,6 +99,7 @@ const TaskRefView: React.FC<{ taskId: string }> = ({ taskId }) => {
       contentEditable={false}
       className="my-0 w-full"
       onKeyDownCapture={swallowTypingKeys}
+      onMouseDownCapture={keepKeyboardInTheNote}
     >
       <TaskItemRow
         task={displayTask ?? task}

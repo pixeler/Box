@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createReactBlockSpec } from '@blocknote/react';
 import type { BlockNoteEditor } from '@blocknote/core';
 import { RiExternalLinkLine, RiLinkM } from '@remixicon/react';
+import { keepKeyboardInTheNote, swallowTypingKeys } from './keyGuards';
 
 /** "www.notion.so/page" -> "notion.so", used as the card's caption. */
 const domainOf = (url: string) => {
@@ -72,7 +73,13 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ url, title, description, on
 
   if (!url) {
     return (
-      <div contentEditable={false} dir="rtl" className="my-1">
+      <div
+        contentEditable={false}
+        dir="rtl"
+        className="my-1"
+        onKeyDownCapture={swallowTypingKeys}
+        onMouseDownCapture={keepKeyboardInTheNote}
+      >
         <div className="flex items-center gap-2 rounded-xl border border-dashed border-border/70 bg-secondary/20 px-3 py-2">
           <RiLinkM className="size-4 shrink-0 text-muted-foreground" />
           <input
@@ -96,7 +103,13 @@ const BookmarkCard: React.FC<BookmarkCardProps> = ({ url, title, description, on
   const domain = domainOf(url);
 
   return (
-    <div contentEditable={false} dir="rtl" className="my-1">
+    <div
+      contentEditable={false}
+      dir="rtl"
+      className="my-1"
+      onKeyDownCapture={swallowTypingKeys}
+      onMouseDownCapture={keepKeyboardInTheNote}
+    >
       <a
         href={url}
         target="_blank"
