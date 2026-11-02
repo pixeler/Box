@@ -5,6 +5,7 @@ import type { Tag, Box, TimeOfDay } from '@/types/models';
 import { entryRepo, taskRepo, noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
 import { cn } from '@/lib/utils';
+import { useMediaQuery } from '@/lib/device';
 import { extractQuickTokens } from '@/lib/quick-parser';
 import { JalaliDatePicker } from '../calendar/LazyJalaliDatePicker';
 import { PriorityPickerSheet } from '../pickers/PriorityPickerSheet';
@@ -46,6 +47,7 @@ import { ReminderPickerSheet } from '../pickers/ReminderPickerSheet';
 
 import { toast } from '@/lib/toast';
 import { playPencilWriteSound } from '@/lib/sound';
+import { isNative } from '@/lib/capacitor';
 
 interface QuickCaptureInputProps {
   currentSelectedDateKey: string;
@@ -63,6 +65,8 @@ interface QuickCaptureInputProps {
   variant?: 'modal' | 'inline';
   /** Which composer the surface opens with. The popup is task-first. */
   initialTab?: 'task' | 'note';
+  /** Tighter spacing and typography for narrow calendar week columns. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -78,6 +82,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   initialTimeOfDay,
   variant = 'modal',
   initialTab = 'task',
+  compact = false,
   className,
 }) => {
   const isInline = variant === 'inline';
@@ -108,6 +113,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
   const [reminder, setReminder] = useState<string | null>(null);
   const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [pickerAnchor, setPickerAnchor] = useState<{ top: number; left: number; right: number; bottom: number; width: number; height: number } | null>(null);
+  const isDesktopPicker = useMediaQuery('(min-width: 768px)');
+
 
   // Slash commands and # tag autocomplete states
   const [tagSuggestQuery, setTagSuggestQuery] = useState<string | null>(null);
@@ -169,7 +177,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
     }
 
     let cleanup: (() => void) | undefined;
-    import('@capacitor/keyboard')
+    // The web/desktop build has no keyboard plugin; calling it rejects with
+    // "not implemented on web", so it only runs on a real native shell.
+    if (isNative()) import('@capacitor/keyboard')
       .then(({ Keyboard }) => {
         const showSub = Keyboard.addListener('keyboardWillShow', (info) => {
           if (info.keyboardHeight > 0) {
@@ -756,7 +766,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           }`}
         >
           {/* Main Top Input Area */}
-          <div className="flex-1 flex flex-col pt-3 min-h-0">
+          <div className={cn('flex-1 flex flex-col min-h-0', isInline ? 'pt-0.5' : 'pt-3')}>
             {/* Title Textarea Container with Mirrored Backdrop */}
             <div className="relative w-full">
               {/* Mirrored Backdrop for in-place token highlighting */}
@@ -766,7 +776,11 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   aria-hidden="true"
                   className={cn(
                     'absolute inset-0 pointer-events-none overflow-hidden select-none whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-snug px-0 pt-0',
-                    isInline ? 'text-[15px] font-semibold' : 'text-xl font-bold'
+                    isInline
+                      ? compact
+                        ? 'text-[13px] font-semibold'
+                        : 'text-[15px] font-semibold'
+                      : 'text-xl font-bold'
                   )}
                   dir="rtl"
                 >
@@ -834,7 +848,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                   isFullscreen && activeTab === 'note'
                     ? 'text-2xl md:text-3xl font-bold'
                     : isInline
-                    ? 'text-[15px] font-semibold'
+                    ? compact
+                      ? 'text-[13px] font-semibold'
+                      : 'text-[15px] font-semibold'
                     : 'text-xl font-bold'
                 )}
                 dir="rtl"
@@ -926,7 +942,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* تاریخ */}
                 <button
                   type="button"
-                  onClick={() => setDatePickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setDatePickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     dueDate
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -942,7 +958,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* برچسب */}
                 <button
                   type="button"
-                  onClick={() => setTagPickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setTagPickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -964,7 +980,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* جعبه */}
                 <button
                   type="button"
-                  onClick={() => setBoxPickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setBoxPickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     selectedBox
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -1023,7 +1039,9 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 className={cn(
                   'focus-quiet w-full resize-none text-foreground/85 bg-transparent outline-none placeholder:text-muted-foreground/45 dark:placeholder:text-zinc-500 placeholder:font-normal leading-relaxed',
                   isInline
-                    ? 'mt-1.5 min-h-[24px] max-h-[72px] text-[12.5px]'
+                    ? compact
+                      ? 'mt-1 min-h-[20px] max-h-[60px] text-[11.5px]'
+                      : 'mt-1.5 min-h-[24px] max-h-[72px] text-[12.5px]'
                     : 'mt-2.5 min-h-[46px] max-h-[92px] text-sm'
                 )}
                 dir="rtl"
@@ -1055,7 +1073,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* امروز */}
                 <button
                   type="button"
-                  onClick={() => setDatePickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setDatePickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     dueDate
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -1071,7 +1089,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* اولویت */}
                 <button
                   type="button"
-                  onClick={() => setPriorityPickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setPriorityPickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     priority === 3
                       ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold shadow-2xs'
@@ -1105,7 +1123,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* بخش زمانی روز (صبح / ظهر / عصر و شب / هر زمان) */}
                 <button
                   type="button"
-                  onClick={() => setTimeOfDayPickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setTimeOfDayPickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     timeOfDay && timeOfDay !== 'anytime'
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -1139,7 +1157,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* برچسب */}
                 <button
                   type="button"
-                  onClick={() => setTagPickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setTagPickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     selectedTags.length > 0
                       ? 'bg-secondary border-border text-foreground font-semibold dark:bg-white/10 dark:border-white/20 shadow-2xs'
@@ -1161,7 +1179,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
                 {/* یادآور */}
                 <button
                   type="button"
-                  onClick={() => setReminderPickerOpen(true)}
+                  onClick={(event) => { setPickerAnchor(event.currentTarget.getBoundingClientRect()); setReminderPickerOpen(true); }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition cursor-pointer border active:scale-95 shrink-0 ${
                     reminder
                       ? 'bg-primary/15 border-primary/40 text-primary font-bold shadow-2xs'
@@ -1233,27 +1251,35 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
             {/* Bottom bar: the modal keeps the compact check, inline exposes both actions */}
             {isInline ? (
-              <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+              <div className="flex items-center justify-between gap-1.5 border-t border-border pt-2">
                 <div className="flex items-center gap-2">
                   <button
                     type="submit"
                     disabled={!title.trim()}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-30 active:scale-95 cursor-pointer"
+                    className={cn(
+                      'inline-flex shrink-0 items-center gap-1 rounded-full bg-primary font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-30 active:scale-95 cursor-pointer',
+                      compact ? 'h-7 px-2.5 text-[11px]' : 'h-8 gap-1.5 px-3.5 text-xs'
+                    )}
                     title="افزودن تسک"
                   >
-                    <RiCheckLine className="size-3.5 stroke-[2.5]" />
+                    <RiCheckLine className={cn('stroke-[2.5]', compact ? 'size-3' : 'size-3.5')} />
                     افزودن
                   </button>
-                  <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">
-                    Enter برای افزودن
-                  </span>
+                  {!compact && (
+                    <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">
+                      Enter برای افزودن
+                    </span>
+                  )}
                 </div>
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground active:scale-95 cursor-pointer"
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-1 rounded-full font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground active:scale-95 cursor-pointer',
+                    compact ? 'h-7 px-2 text-[11px]' : 'h-8 px-2.5 text-xs'
+                  )}
                 >
-                  <RiCloseLine className="size-3.5" />
+                  <RiCloseLine className={compact ? 'size-3' : 'size-3.5'} />
                   بستن
                 </button>
               </div>
@@ -1277,6 +1303,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
         {/* Date Picker Modal (Full-width bottom sheet) */}
         {datePickerOpen && (
           <JalaliDatePicker
+            variant={isDesktopPicker ? 'popover' : 'sheet'}
+            anchorRect={pickerAnchor}
             value={dueDate}
             timeValue={dueTime}
             durationMinutes={durationMinutes}
@@ -1306,6 +1334,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
         {/* Priority Picker Sheet */}
         <PriorityPickerSheet
+          variant={isDesktopPicker ? 'popover' : 'sheet'}
+          anchorRect={pickerAnchor}
           isOpen={priorityPickerOpen}
           onClose={() => setPriorityPickerOpen(false)}
           value={priority}
@@ -1317,6 +1347,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
         {/* Time of Day Picker Sheet */}
         <TimeOfDayPickerSheet
+          variant={isDesktopPicker ? 'popover' : 'sheet'}
+          anchorRect={pickerAnchor}
           isOpen={timeOfDayPickerOpen}
           onClose={() => setTimeOfDayPickerOpen(false)}
           value={timeOfDay}
@@ -1325,6 +1357,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
         {/* Box Picker Sheet */}
         <BoxPickerSheet
+          variant={isDesktopPicker ? 'popover' : 'sheet'}
+          anchorRect={pickerAnchor}
           isOpen={boxPickerOpen}
           onClose={() => setBoxPickerOpen(false)}
           boxes={boxes}
@@ -1334,6 +1368,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
         {/* Reminder Picker Sheet */}
         <ReminderPickerSheet
+          variant={isDesktopPicker ? 'popover' : 'sheet'}
+          anchorRect={pickerAnchor}
           isOpen={reminderPickerOpen}
           onClose={() => setReminderPickerOpen(false)}
           value={reminder}
@@ -1342,6 +1378,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
 
         {/* Tag Picker Sheet */}
         <TagPickerSheet
+          variant={isDesktopPicker ? 'popover' : 'sheet'}
+          anchorRect={pickerAnchor}
           isOpen={tagPickerOpen}
           onClose={() => setTagPickerOpen(false)}
           selectedTagIds={tagIds}
@@ -1359,6 +1397,7 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
       <div
         ref={inlineRef}
         dir="rtl"
+        onClick={(event) => event.stopPropagation()}
         onMouseDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (event.key !== 'Escape') return;
@@ -1368,7 +1407,8 @@ export const QuickCaptureInput: React.FC<QuickCaptureInputProps> = ({
           handleClose();
         }}
         className={cn(
-          'w-full overflow-visible rounded-2xl border border-border/70 bg-card px-4 pb-2 pt-3 font-sans text-right text-card-foreground shadow-sm',
+          'w-full overflow-visible border border-border/70 bg-card font-sans text-right text-card-foreground shadow-sm',
+          compact ? 'rounded-xl px-2.5 pb-2 pt-2' : 'rounded-2xl px-4 pb-2 pt-3',
           className
         )}
       >

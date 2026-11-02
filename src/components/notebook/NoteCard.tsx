@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { stripMarkdownForPreview } from '@/lib/markdown';
 import { getNoteColorPreset, NOTE_COLOR_PRESETS, formatNoteDate } from './noteTheme';
-import { BOX_ICONS_LIST } from '@/components/boxes/BoxIconRenderer';
+import { NOTE_ICON_BY_ID } from './noteIconData';
 import {
   noteMenuContentClass,
   noteMenuDangerClass,
@@ -68,7 +68,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
 }) => {
   const isPinned = !!note.pinned;
   const NoteIcon = note.icon
-    ? BOX_ICONS_LIST.find((item) => item.id === note.icon)?.Icon || null
+    ? NOTE_ICON_BY_ID[note.icon]?.Icon || null
     : null;
 
   const coverImage =

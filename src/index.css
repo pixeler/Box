@@ -21,14 +21,6 @@
 }
 
 @font-face {
-  font-family: 'NastaliqSky';
-  src: url('/fonts/Nastaliq/NotoNastaliqUrdu.woff2') format('woff2');
-  font-weight: 400 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: 'Darvish';
   src: url('/fonts/Darvish/Darvish VF.woff2') format('woff2-variations'),
        url('/fonts/Darvish/Darvish VF.woff2') format('woff2');
@@ -63,6 +55,8 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
+    --success: 160 84% 32%;
+    --warning: 32 95% 42%;
     --radius: 0.75rem;
   }
 
@@ -156,6 +150,8 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+    --success: 160 70% 48%;
+    --warning: 38 92% 58%;
     --radius: 0.75rem;
   }
 
@@ -606,6 +602,29 @@ body {
   background: rgba(255, 255, 255, 0.35);
 }
 
+/* Sidebar: the scrollbar only shows while the list is being scrolled. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.sidebar-scroll.is-scrolling {
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+.sidebar-scroll.is-scrolling::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+.dark .sidebar-scroll.is-scrolling,
+[data-theme*="-dark"] .sidebar-scroll.is-scrolling {
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.dark .sidebar-scroll.is-scrolling::-webkit-scrollbar-thumb,
+[data-theme*="-dark"] .sidebar-scroll.is-scrolling::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 /* Hide native scrollbar utility */
 .no-scrollbar::-webkit-scrollbar {
   display: none !important;
@@ -615,76 +634,6 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
-}
-
-/* ===== Desktop Shell (sidebar frame + rounded wallpaper canvas) ===== */
-.desktop-shell {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-}
-.desktop-canvas {
-  /* thin inner rim and subtle outer border inheriting from theme */
-  box-shadow:
-    inset 0 0 0 1px hsl(var(--border) / 0.6),
-    0 0 0 1px hsl(var(--border) / 0.35),
-    0 12px 32px -8px rgba(0, 0, 0, 0.12);
-}
-.dark .desktop-canvas,
-[data-theme*="-dark"] .desktop-canvas,
-[data-theme="tokyo-night"] .desktop-canvas,
-[data-theme="one-dark"] .desktop-canvas {
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 0 1px rgba(0, 0, 0, 0.7),
-    0 20px 48px -12px rgba(0, 0, 0, 0.5);
-}
-.desktop-canvas::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 30px rgba(0, 0, 0, 0.06);
-  z-index: 40;
-}
-
-/* Glass search pill (top corner of the canvas) */
-.desktop-search-pill {
-  color: hsl(var(--foreground));
-  background: rgba(255, 255, 255, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-}
-.desktop-search-pill:hover {
-  background: rgba(255, 255, 255, 0.55);
-}
-.desktop-search-kbd {
-  background: hsl(var(--foreground) / 0.08);
-  color: hsl(var(--foreground) / 0.7);
-}
-.dark .desktop-search-pill,
-[data-theme*="-dark"] .desktop-search-pill,
-[data-theme="tokyo-night"] .desktop-search-pill,
-[data-theme="one-dark"] .desktop-search-pill {
-  color: hsl(var(--foreground));
-  background: rgba(20, 20, 24, 0.45);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-.dark .desktop-search-pill:hover,
-[data-theme*="-dark"] .desktop-search-pill:hover,
-[data-theme="tokyo-night"] .desktop-search-pill:hover,
-[data-theme="one-dark"] .desktop-search-pill:hover {
-  background: rgba(20, 20, 24, 0.65);
-}
-.dark .desktop-search-kbd,
-[data-theme*="-dark"] .desktop-search-kbd,
-[data-theme="tokyo-night"] .desktop-search-kbd,
-[data-theme="one-dark"] .desktop-search-kbd {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
 }
 
 /* Bottom Sheet & Backdrop Animations */
@@ -790,117 +739,6 @@ body {
 /* Persian number font feature */
 .persian-nums {
   font-feature-settings: "ss01";
-}
-
-/* Apple Liquid Glass aesthetic */
-.liquid-glass-dock {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(2px) saturate(200%);
-  -webkit-backdrop-filter: blur(2px) saturate(200%);
-  border: 1px solid rgb(241, 241, 241);
-  box-shadow: 
-    0 1px 6px -2px rgba(0, 0, 0, 0.06),
-    0 1px 2px 0px rgba(0, 0, 0, 0.03),
-    inset 0 0.1px 0.5px 0 rgba(255, 255, 255, 0.4);
-  position: relative;
-}
-
-.dark .liquid-glass-dock,
-/* Glass Card and Dock - styled and controlled dynamically by --glass-opacity */
-.figma-glass-card,
-.figma-glass-dock {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, var(--glass-opacity, 0.18)) 0%,
-    rgba(255, 255, 255, calc(var(--glass-opacity, 0.18) * 0.22)) 50%,
-    rgba(255, 255, 255, calc(var(--glass-opacity, 0.18) * 0.55)) 100%
-  ) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.65) !important;
-  box-shadow: 
-    inset 1px 1px 2px 0px rgba(255, 255, 255, 0.8),
-    inset -0.5px -0.5px 1.5px 0px rgba(255, 255, 255, 0.35),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 18px 48px -12px rgba(0, 0, 0, 0.28),
-    0 8px 24px -6px rgba(0, 0, 0, 0.14),
-    0 2px 6px -1px rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Bright lens rim: a lit edge along the top/right and a cool edge below,
-   the way a thick slab of glass catches a room's light. */
-.figma-glass-rim {
-  box-shadow:
-    inset 0 1.5px 1px -0.5px rgba(255, 255, 255, 0.85),
-    inset 1.5px 0 1px -0.5px rgba(255, 255, 255, 0.55),
-    inset 0 -1.5px 2px -1px rgba(255, 255, 255, 0.45),
-    inset -1.5px 0 2px -1px rgba(255, 255, 255, 0.32),
-    inset 0 0 22px -8px rgba(255, 255, 255, 0.5);
-  mix-blend-mode: screen;
-}
-
-.figma-glass-bloom {
-  mix-blend-mode: screen;
-  opacity: 0.75;
-}
-
-.dark .figma-glass-rim,
-[data-theme*="-dark"] .figma-glass-rim {
-  box-shadow:
-    inset 0 1px 1px -0.5px rgba(255, 255, 255, 0.45),
-    inset 1px 0 1px -0.5px rgba(255, 255, 255, 0.2),
-    inset 0 -1px 1.5px -0.5px rgba(255, 255, 255, 0.16),
-    inset 0 0 26px -10px rgba(255, 255, 255, 0.22);
-}
-
-.dark .figma-glass-bloom,
-[data-theme*="-dark"] .figma-glass-bloom {
-  opacity: 0.42;
-}
-
-[data-theme*="-dark"] .liquid-glass-dock,
-.dark .figma-glass-dock,
-[data-theme*="-dark"] .figma-glass-dock,
-.dark .figma-glass-card,
-[data-theme*="-dark"] .figma-glass-card {
-  background: linear-gradient(
-    135deg,
-    rgba(18, 20, 28, calc(var(--glass-opacity, 0.18) * 2)) 0%,
-    rgba(10, 11, 16, calc(var(--glass-opacity, 0.18) * 1.35)) 55%,
-    rgba(24, 26, 36, calc(var(--glass-opacity, 0.18) * 2.2)) 100%
-  ) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  box-shadow: 
-    0 18px 48px -12px rgba(0, 0, 0, 0.65),
-    0 4px 20px -4px rgba(0, 0, 0, 0.5),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.1) !important;
-}
-
-/* Tone down bright specular sheen overlay in dark mode */
-.dark .figma-glass-dock > div.pointer-events-none,
-[data-theme*="-dark"] .figma-glass-dock > div.pointer-events-none,
-.dark .figma-glass-sheen,
-[data-theme*="-dark"] .figma-glass-sheen {
-  opacity: 0.3 !important;
-}
-
-.liquid-glass-pill-active {
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  box-shadow: 
-    0 2px 6px 0 rgba(0, 0, 0, 0.06),
-    inset 0 1px 1.5px 0 rgba(255, 255, 255, 1);
-  position: relative;
-  z-index: 2;
-}
-
-.dark .liquid-glass-pill-active,
-[data-theme*="-dark"] .liquid-glass-pill-active {
-  background: hsl(var(--card) / 0.6) !important;
-  border: 1px solid hsl(var(--border) / 0.5) !important;
-  box-shadow: 
-    0 2px 6px 0 rgba(0, 0, 0, 0.3),
-    inset 0 0.5px 1px 0 rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Custom 4px dash, 2px gap dashed dividers */
@@ -1545,6 +1383,20 @@ body {
   color: #6b7280;
 }
 
+/* Links read as links: a quiet accent color and an understated underline */
+.blocknote-editor-wrapper .bn-inline-content a[href] {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: hsl(var(--primary) / 0.35);
+  cursor: pointer;
+}
+
+.blocknote-editor-wrapper .bn-inline-content a[href]:hover {
+  text-decoration-color: hsl(var(--primary) / 0.8);
+}
+
 /* Ensure BlockNote popups and menus also inherit Estedad font and RTL */
 .bn-menu-dropdown,
 .bn-toolbar,
@@ -1592,8 +1444,8 @@ body {
 
 /* Minimal slash menu, matched to the app's popover tokens */
 .bn-mantine .bn-suggestion-menu {
-  min-width: 248px !important;
-  max-width: 300px !important;
+  min-width: 198px !important;
+  max-width: 248px !important;
   padding: 4px !important;
   border: 1px solid hsl(var(--border) / 0.7) !important;
   border-radius: 12px !important;
@@ -1610,9 +1462,9 @@ body {
 }
 
 .bn-mantine .bn-suggestion-menu-item {
-  min-height: 38px !important;
+  min-height: 32px !important;
   gap: 8px;
-  padding: 4px 8px !important;
+  padding: 3px 8px !important;
   border-radius: 8px !important;
 }
 
@@ -1640,10 +1492,9 @@ body {
   line-height: 1.6 !important;
 }
 
+/* One title per row: the long descriptions made the menu read like a manual. */
 .bn-mt-suggestion-menu-item-subtitle {
-  color: hsl(var(--muted-foreground)) !important;
-  font-size: 10px !important;
-  line-height: 1.5 !important;
+  display: none !important;
 }
 
 /* Rich drag handle menu: block actions in the app's own popover styling */
@@ -2024,4 +1875,26 @@ body {
 .tod-pill-evening:hover {
   background-color: color-mix(in srgb, hsl(var(--secondary) / 0.75) 94%, #8b5cf6 6%);
   border-color: color-mix(in srgb, hsl(var(--border) / 0.65) 88%, #8b5cf6 12%);
+}
+
+/* A fresh note rises into place, so creating one is felt rather than guessed. */
+@keyframes noteCreateIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.note-create-enter {
+  animation: noteCreateIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-create-enter {
+    animation: none;
+  }
 }

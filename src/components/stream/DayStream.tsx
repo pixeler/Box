@@ -846,6 +846,68 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
     </button>
   );
 
+  /** The quiet empty day card, shared by the flat and time-sectioned views. */
+  const renderEmptyDayState = () => (
+    <div
+      onDragEnter={(e) => {
+        e.preventDefault();
+        dragEnterCountRef.current += 1;
+        setIsDragOverEmpty(true);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!isDragOverEmpty) setIsDragOverEmpty(true);
+      }}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        dragEnterCountRef.current -= 1;
+        if (dragEnterCountRef.current <= 0) {
+          dragEnterCountRef.current = 0;
+          setIsDragOverEmpty(false);
+        }
+      }}
+      onDrop={(e) => {
+        dragEnterCountRef.current = 0;
+        setIsDragOverEmpty(false);
+        handleDropAtSlot(e, 0);
+      }}
+      className={`my-2 flex w-auto select-none flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center transition-colors duration-200 ${
+        isDragOverEmpty
+          ? 'border-border bg-foreground/[0.03]'
+          : 'border-border/60 bg-transparent'
+      }`}
+    >
+      {isDragOverEmpty ? (
+        <p className="text-[12.5px] text-muted-foreground animate-in fade-in duration-150">
+          {isToday
+            ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
+            : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
+        </p>
+      ) : (
+        <div className="flex flex-col items-center gap-1.5">
+          <p className="text-[13px] font-medium text-foreground">
+            {isToday ? 'امروز خالی است' : 'برای این روز کاری ثبت نشده'}
+          </p>
+          <p className="text-[12px] leading-6 text-subtle">
+            <button
+              type="button"
+              onClick={() => openComposer('anytime')}
+              className="font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
+            >
+              یک کار اضافه کن
+            </button>
+            <span>
+              {isToday
+                ? ' یا کارهای عقب‌افتاده را روی امروز بکش.'
+                : ' یا کارهای دیگر را روی این روز بکش.'}
+            </span>
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="w-full flex-1 flex flex-col justify-between">
       <div>
@@ -863,7 +925,10 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
             {TIME_OF_DAY_SECTIONS.map((sec) => {
               const secItems = itemsBySection[sec.key];
               const isComposing = inlineAddSection === sec.key;
-              const isOpen = isComposing || (sectionOverrides[sec.key] ?? secItems.length > 0);
+              const isOpen =
+                isComposing ||
+                (sec.key === 'anytime' && !hasAnyItems) ||
+                (sectionOverrides[sec.key] ?? secItems.length > 0);
               const activeDragIndex = draggedIndex !== null ? draggedIndex : touchDragIndex;
               const isExternalDragging = externalTouchDragInfo !== null;
               const isDraggingActive = activeDragIndex !== null || isExternalDragging;
@@ -918,7 +983,11 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                       {secItems.length === 0 ? (
                         <div className="pb-1">
                           {isSectionDragOver && <CardDropPreview />}
-                          {isComposing ? renderInlineComposer(sec.key) : renderAddRow(sec.key)}
+                          {isComposing
+                            ? renderInlineComposer(sec.key)
+                            : sec.key === 'anytime' && !hasAnyItems
+                            ? renderEmptyDayState()
+                            : renderAddRow(sec.key)}
                         </div>
                       ) : (
                         secItems.map((item, itemIdx) => {
@@ -1176,68 +1245,9 @@ export const DayStream: React.FC<DayStreamProps> = React.memo(({
                 ? renderInlineComposer(inlineAddSection)
                 : renderAddRow('anytime'))}
 
-            {/* پیش‌نمایش در حالت خالی بودن لیست فقط اگر آیتم درگی غیر از روی کامپوننت خالی هست */}
-            {/* Empty state when no items */}
-            {!hasAnyItems && (
-              <div
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  dragEnterCountRef.current += 1;
-                  setIsDragOverEmpty(true);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                  if (!isDragOverEmpty) setIsDragOverEmpty(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  dragEnterCountRef.current -= 1;
-                  if (dragEnterCountRef.current <= 0) {
-                    dragEnterCountRef.current = 0;
-                    setIsDragOverEmpty(false);
-                  }
-                }}
-                onDrop={(e) => {
-                  dragEnterCountRef.current = 0;
-                  setIsDragOverEmpty(false);
-                  handleDropAtSlot(e, 0);
-                }}
-                className={`my-2 flex w-auto select-none flex-col items-center justify-center rounded-xl border border-dashed py-8 text-center transition-colors duration-200 ${
-                  isDragOverEmpty
-                    ? 'border-border bg-foreground/[0.03]'
-                    : 'border-border/60 bg-transparent'
-                }`}
-              >
-                {isDragOverEmpty ? (
-                  <p className="text-[12.5px] text-muted-foreground animate-in fade-in duration-150">
-                    {isToday
-                      ? 'اینجا رها کن تا کار برای امروز برنامه‌ریزی بشه'
-                      : 'اینجا رها کن تا کار برای این روز برنامه‌ریزی بشه'}
-                  </p>
-                ) : (
-                  <div className="flex flex-col items-center gap-1.5">
-                    <p className="text-[13px] font-medium text-foreground">
-                      {isToday ? 'امروز خالی است' : 'برای این روز کاری ثبت نشده'}
-                    </p>
-                    <p className="text-[12px] leading-6 text-subtle">
-                      <button
-                        type="button"
-                        onClick={() => openComposer('anytime')}
-                        className="font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
-                      >
-                        یک کار اضافه کن
-                      </button>
-                      <span>
-                        {isToday
-                          ? ' یا کارهای عقب‌افتاده را روی امروز بکش.'
-                          : ' یا کارهای دیگر را روی این روز بکش.'}
-                      </span>
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Empty day: the composer replaces the card while typing. */}
+            {!hasAnyItems && inlineAddSection && renderInlineComposer(inlineAddSection)}
+            {!hasAnyItems && !inlineAddSection && renderEmptyDayState()}
           </div>
         )}
 

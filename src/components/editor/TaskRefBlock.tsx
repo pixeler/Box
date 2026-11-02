@@ -5,6 +5,7 @@ import { taskRepo } from '@/repositories';
 import { extractDateOnly, getTodayJalaliKey } from '@/lib/jalali';
 import { TaskItemRow } from '@/components/stream/TaskItemRow';
 import { RiLoader4Line } from '@remixicon/react';
+import { swallowTypingKeys } from './keyGuards';
 
 /**
  * A task from the app, embedded in a note. The block stores only the task id and
@@ -94,12 +95,17 @@ const TaskRefView: React.FC<{ taskId: string }> = ({ taskId }) => {
   // Cards in a note sit flush against each other instead of being spaced apart
   // like standalone rows in the day stream.
   return (
-    <div contentEditable={false} className="my-0 w-full">
+    <div
+      contentEditable={false}
+      className="my-0 w-full"
+      onKeyDownCapture={swallowTypingKeys}
+    >
       <TaskItemRow
         task={displayTask ?? task}
         currentDateKey={getTodayJalaliKey()}
         onStatusChanged={load}
         className="px-2 py-1.5"
+        hideNoteLink
       />
     </div>
   );
@@ -115,5 +121,12 @@ export const TaskRefBlock = createReactBlockSpec(
   },
   {
     render: ({ block }) => <TaskRefView taskId={block.props.taskId} />,
+    /** Markdown/HTML export must never scrape this component: its loading state
+     *  would be written into the note body as text. */
+    toExternalHTML: () => (
+      <p dir="rtl" contentEditable={false}>
+        ☐ تسک
+      </p>
+    ),
   }
 );

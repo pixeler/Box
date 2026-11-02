@@ -4,14 +4,10 @@ import { taskRepo } from '@/repositories';
 import type { Task } from '@/types/models';
 import {
   addJalaliDays,
-  extractDateOnly,
-  formatJalaliKey,
-  getJalaliDate,
-  getTodayJalaliKey,
   formatTaskDateDisplay,
   toPersianDigits,
 } from '@/lib/jalali';
-import { isTaskOccurringOnDate } from '@/lib/recurrence';
+import { buildTaskGroups } from '@/lib/taskGroups';
 import {
   RiAlarmWarningLine,
   RiCalendarEventLine,
@@ -52,30 +48,6 @@ const matchesQuery = (task: Task, query: string) =>
   !query ||
   task.title.toLowerCase().includes(query) ||
   (task.description || '').toLowerCase().includes(query);
-
-const isRecurring = (task: Task) => !!task.recurrence_rule && task.recurrence_rule !== 'none';
-
-/** The task's due date as a Jalali key (YYYY/MM/DD), whatever format it was stored in. */
-const taskDueKey = (task: Task): string | null => {
-  const raw = task.due_date?.trim();
-  if (!raw) return null;
-
-  const key = extractDateOnly(raw);
-  const year = parseInt(key.slice(0, 4), 10);
-  if (!year) return null;
-
-  // Stored as a Gregorian date: convert it to the app's Jalali keys.
-  if (year >= 1900) {
-    const date = new Date(raw);
-    if (isNaN(date.getTime())) return null;
-    return formatJalaliKey(getJalaliDate(date));
-  }
-
-  return key;
-};
-
-const occursOn = (task: Task, dateKey: string) =>
-  isRecurring(task) ? isTaskOccurringOnDate(task, dateKey) : taskDueKey(task) === dateKey;
 
 interface TaskGroupPreset {
   key: string;
@@ -128,44 +100,34 @@ export const TaskPickerPanel: React.FC<TaskPickerPanelProps> = ({
   }, []);
 
   const groups = useMemo<TaskGroupPreset[]>(() => {
-    const today = getTodayJalaliKey();
-    const tomorrow = addJalaliDays(today, 1);
-    const open = tasks.filter((task) => task.status !== 'done');
+    const buckets = buildTaskGroups(tasks);
 
     const presets: TaskGroupPreset[] = [
       {
         key: 'today',
         label: 'تسک‌های امروز',
         Icon: RiSunLine,
-        tasks: open.filter((task) => occursOn(task, today)),
-        addDueDate: today,
+        tasks: buckets.today,
+        addDueDate: buckets.todayKey,
       },
       {
         key: 'tomorrow',
         label: 'تسک‌های فردا',
         Icon: RiCalendarEventLine,
-        tasks: open.filter((task) => occursOn(task, tomorrow)),
+        tasks: buckets.tomorrow,
       },
       {
         key: 'overdue',
         label: 'تسک‌های عقب‌افتاده',
         Icon: RiAlarmWarningLine,
-        tasks: open.filter((task) => {
-          if (isRecurring(task)) return false;
-          const key = taskDueKey(task);
-          return !!key && key < today;
-        }),
+        tasks: buckets.overdue,
       },
       {
         key: 'future',
         label: 'تسک‌های آینده',
         Icon: RiCalendarScheduleLine,
-        tasks: open.filter((task) => {
-          if (isRecurring(task)) return false;
-          const key = taskDueKey(task);
-          return !!key && key > tomorrow;
-        }),
-        addDueDate: addJalaliDays(today, 7),
+        tasks: buckets.future,
+        addDueDate: addJalaliDays(buckets.todayKey, 7),
       },
     ];
 
@@ -235,6 +197,11 @@ export const TaskPickerPanel: React.FC<TaskPickerPanelProps> = ({
   }, [onClose]);
 
   const style = useMemo<React.CSSProperties>(() => {
+    // The note window is a stacked overlay above z=200, so a fixed 160 would
+    // hide this panel behind it in the desktop shell.
+    const noteLayer = document.querySelector('[data-overlay-root]');
+    const noteZ = noteLayer ? Number(getComputedStyle(noteLayer).zIndex) : 0;
+    const zIndex = Number.isFinite(noteZ) && noteZ > 0 ? noteZ + 30 : 160;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const spaceBelow = vh - anchor.bottom;
@@ -258,7 +225,7 @@ export const TaskPickerPanel: React.FC<TaskPickerPanelProps> = ({
           bottom: Math.max(EDGE_MARGIN, vh - anchor.top + 6),
           width: PANEL_WIDTH,
           maxHeight,
-          zIndex: 160,
+          zIndex,
         }
       : {
           position: 'fixed',
@@ -266,7 +233,7 @@ export const TaskPickerPanel: React.FC<TaskPickerPanelProps> = ({
           top: Math.max(EDGE_MARGIN, anchor.bottom + 6),
           width: PANEL_WIDTH,
           maxHeight,
-          zIndex: 160,
+          zIndex,
         };
   }, [anchor]);
 

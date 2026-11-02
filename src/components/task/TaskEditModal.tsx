@@ -5,7 +5,14 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { Clock01Icon, Sun01Icon } from '@hugeicons/core-free-icons';
 import { MorningSunriseIcon, EveningMoonIcon } from '../stream/timeOfDayConfig';
 import { taskRepo, tagRepo, boxRepo, noteRepo } from '@/repositories';
-import { parseJalaliKey, formatJalaliDisplay, getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
+import {
+  parseJalaliKey,
+  formatJalaliDisplay,
+  getTodayJalaliKey,
+  toPersianDigits,
+  addJalaliDays,
+  nextWeekendFrom,
+} from '@/lib/jalali';
 import { useMediaQuery } from '@/lib/device';
 import { JalaliDatePicker } from '@/components/calendar/LazyJalaliDatePicker';
 import { TagPickerSheet } from '../pickers/TagPickerSheet';
@@ -22,6 +29,10 @@ import {
   RiMoreLine,
   RiCheckLine,
   RiCalendarLine,
+  RiSunLine,
+  RiCloudyLine,
+  RiUmbrellaLine,
+  RiForbid2Line,
   RiFlagLine,
   RiFlagFill,
   RiPriceTag3Line,
@@ -38,6 +49,7 @@ import {
 } from '@remixicon/react';
 import { ReminderPickerSheet } from '../pickers/ReminderPickerSheet';
 import { useNotebook } from '@/components/notebook/NotebookContext';
+import { useOverlayLayer } from '@/lib/overlayLayer';
 
 export interface TaskEditModalProps {
   task: Task | null;
@@ -106,7 +118,12 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
 
   // The desktop window needs room for two panes; below that the bottom sheet stays.
   const isWindow = useMediaQuery('(min-width: 768px)');
+  // Opened from a note (or opening one), so it takes the layer above it.
+  const { zIndex: overlayZ } = useOverlayLayer(isOpen);
   const todayKey = getTodayJalaliKey();
+  const tomorrowKey = addJalaliDays(todayKey, 1);
+  const nextWeekKey = addJalaliDays(todayKey, 7);
+  const weekendKey = nextWeekendFrom(todayKey);
 
   const lastSavedRef = useRef<{
     title: string;
@@ -1293,51 +1310,82 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
           </div>
         </button>
 
-        <button
-          type="button"
-          onClick={openDatePicker}
-          className="group w-full border-b border-border/50 px-4 py-3 text-right transition-colors hover:bg-foreground/[0.03] cursor-pointer"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-medium text-muted-foreground">تاریخ</span>
-            <RiArrowLeftSLine className="size-3.5 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-          <div className="mt-1 flex min-h-[22px] items-center gap-2 text-[13px] font-medium">
-            <RiCalendarLine
-              className={`size-4 shrink-0 ${dueDate ? 'text-primary' : 'text-muted-foreground'}`}
-            />
-            <span className={dueDate ? 'text-primary' : 'text-muted-foreground'}>
-              {dueDate ? renderDateText() : 'بدون تاریخ'}
-            </span>
-          </div>
-        </button>
-
-        {/* Priority: four options fit in a segmented control, so no menu. */}
-        <div className="border-b border-border/50 px-4 py-3">
-          <span className="text-[11px] font-medium text-muted-foreground">اولویت</span>
-          <div className="mt-1.5 grid grid-cols-4 gap-1 rounded-lg border border-border/50 bg-secondary/60 p-1 dark:bg-white/5">
-            {([
-              { level: undefined, label: 'بدون' },
-              { level: 1 as const, label: 'کم' },
-              { level: 2 as const, label: 'متوسط' },
-              { level: 3 as const, label: 'فوری' },
-            ] as const).map((option) => {
-              const isSelected = priority === option.level;
+        {/* Date: icon quick picks with captions, like the card context menu. */}
+        <div className="border-b border-border/50 px-3 py-2.5">
+          <span className="px-1 text-[11px] font-medium text-muted-foreground">تاریخ</span>
+          <div className="mt-1.5 grid grid-cols-6 gap-0.5 rounded-lg border border-border/50 bg-secondary/60 p-1 dark:bg-white/5">
+            {[
+              { key: todayKey, label: 'امروز', Icon: RiSunLine },
+              { key: tomorrowKey, label: 'فردا', Icon: RiCloudyLine },
+              { key: nextWeekKey, label: 'هفته', Icon: RiCalendarLine },
+              { key: weekendKey, label: 'آخر هفته', Icon: RiUmbrellaLine },
+              { key: null as string | null, label: 'بدون', Icon: RiForbid2Line },
+            ].map(({ key, label, Icon }) => {
+              const isSelected = key ? dueDate === key : !dueDate;
               return (
                 <button
-                  key={option.label}
+                  key={label}
                   type="button"
+                  title={label}
                   onClick={() => {
-                    setPriority(option.level);
-                    performSave({ priority: option.level ?? null });
+                    setDueDate(key);
+                    performSave({ dueDate: key });
                   }}
-                  className={`rounded-md py-1.5 text-[11px] font-medium transition-colors cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-1.5 text-[9.5px] font-medium transition-colors cursor-pointer ${
                     isSelected
                       ? 'bg-card text-foreground shadow-xs dark:bg-white/10'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {option.label}
+                  <Icon className="size-4" />
+                  <span className="truncate leading-tight">{label}</span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              title="تقویم"
+              onClick={openDatePicker}
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-1.5 text-[9.5px] font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+            >
+              <RiMoreLine className="size-4" />
+              <span className="truncate leading-tight">تقویم</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Priority: flag icons with captions, same language as the task card. */}
+        <div className="border-b border-border/50 px-3 py-2.5">
+          <span className="px-1 text-[11px] font-medium text-muted-foreground">اولویت</span>
+          <div className="mt-1.5 grid grid-cols-4 gap-0.5 rounded-lg border border-border/50 bg-secondary/60 p-1 dark:bg-white/5">
+            {[
+              { level: undefined, label: 'بدون', color: 'text-muted-foreground' },
+              { level: 1 as const, label: 'کم', color: 'text-blue-500' },
+              { level: 2 as const, label: 'متوسط', color: 'text-warning' },
+              { level: 3 as const, label: 'فوری', color: 'text-destructive' },
+            ].map((option) => {
+              const isSelected = priority === option.level;
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  title={option.label}
+                  onClick={() => {
+                    setPriority(option.level);
+                    performSave({ priority: option.level ?? null });
+                  }}
+                  className={`flex flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1.5 text-[10.5px] font-medium transition-colors cursor-pointer ${
+                    isSelected
+                      ? 'bg-card text-foreground shadow-xs dark:bg-white/10'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {option.level ? (
+                    <RiFlagFill className={`size-4 ${option.color}`} />
+                  ) : (
+                    <RiFlagLine className={`size-4 ${option.color}`} />
+                  )}
+                  <span className="truncate leading-tight">{option.label}</span>
                 </button>
               );
             })}
@@ -1431,9 +1479,10 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
   return createPortal(
     <div
       data-overlay-root=""
-      className={`fixed inset-0 z-[160] select-none bg-black/60 backdrop-blur-2xs ${
+      className={`fixed inset-0 select-none bg-black/60 backdrop-blur-2xs ${
         isWindow ? 'flex items-center justify-center p-6' : 'flex flex-col justify-end'
       } ${isClosing ? 'animate-panel-backdrop-out' : 'animate-panel-backdrop-in'}`}
+      style={{ zIndex: overlayZ }}
       onClick={handleClose}
     >
       <div

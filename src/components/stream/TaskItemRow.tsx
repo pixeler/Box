@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import type { Task, Tag, TimeOfDay } from '@/types/models';
-import { taskRepo } from '@/repositories';
+import React, { useEffect, useState } from 'react';
+import type { Task, Tag, TimeOfDay, Note } from '@/types/models';
+import { taskRepo, noteRepo } from '@/repositories';
 import {
   getTodayJalaliKey,
   addJalaliDays,
@@ -24,6 +24,7 @@ import { RecurringDeleteSheet } from '@/components/task/RecurringDeleteSheet';
 import { DeleteConfirmSheet } from '@/components/common/DeleteConfirmSheet';
 import { JalaliDatePicker } from '@/components/calendar/LazyJalaliDatePicker';
 import { useIsMobile } from '@/lib/device';
+import { useNotebook } from '@/components/notebook/NotebookContext';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Clock01Icon,
@@ -47,8 +48,11 @@ import {
   RiPushpin2Line,
   RiPushpin2Fill,
   RiRepeatLine,
+  RiStickyNoteLine,
+  RiTimerLine,
 } from '@remixicon/react';
 import { playTaskDoneSound } from '@/lib/sound';
+import { requestFocusTask } from '@/components/focus/focusBus';
 
 interface TaskItemRowProps {
   task: Task;
@@ -65,6 +69,8 @@ interface TaskItemRowProps {
   isLast?: boolean;
   /** Denser card for tight calendar grids (week view): smaller title and meta. */
   compact?: boolean;
+  /** Set on cards rendered inside their own note, where the note chip is redundant. */
+  hideNoteLink?: boolean;
   className?: string;
 }
 
@@ -83,6 +89,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
   isNewlyAdded = false,
   isLast = false,
   compact = false,
+  hideNoteLink = false,
   className = '',
 }) => {
   const isMobile = useIsMobile();
@@ -92,6 +99,9 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
   const [recurringDeleteOpen, setRecurringDeleteOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const { setEditingNote, setNoteViewModeOverride, setNoteEditModalOpen } = useNotebook();
+  const [linkedNote, setLinkedNote] = useState<Note | null>(null);
+  const linkedNoteId = task.linked_note_ids?.[0];
   const isDone = task.status === 'done' || isCompleting;
   const isPinned = !!task.pinned;
   const isRecurring = Boolean(task.recurrence_rule && task.recurrence_rule !== 'none');
@@ -111,6 +121,24 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
         task.due_time,
         task.duration_minutes
       );
+
+  // The note this task belongs to, if any: shown as a quiet chip that opens it.
+  useEffect(() => {
+    if (!linkedNoteId) {
+      setLinkedNote(null);
+      return;
+    }
+    let cancelled = false;
+    noteRepo
+      .getById(linkedNoteId)
+      .then((note) => {
+        if (!cancelled) setLinkedNote(note ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedNoteId]);
 
   const handleToggle = async () => {
     if (!isDone) {
@@ -227,6 +255,30 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     </span>
                   )}
 
+                  {task.priority && (
+                    <span
+                      title={
+                        task.priority === 3
+                          ? 'اولویت فوری'
+                          : task.priority === 2
+                          ? 'اولویت متوسط'
+                          : 'اولویت کم'
+                      }
+                      className="flex shrink-0 items-center"
+                    >
+                      <RiFlagFill
+                        className={cn(
+                          'size-3.5',
+                          task.priority === 3
+                            ? 'text-destructive'
+                            : task.priority === 2
+                            ? 'text-warning'
+                            : 'text-blue-500'
+                        )}
+                      />
+                    </span>
+                  )}
+
                   <h3
                     className={cn(
                       'font-medium leading-relaxed transition-colors break-words line-clamp-2',
@@ -276,16 +328,54 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     {recurringTime && <span>{recurringTime}</span>}
                     <RiRepeatLine className="size-3.5 text-muted-foreground/80 shrink-0" />
                   </div>
-                ) : dateDisplay ? (
+                ) : dateDisplay || (task.time_of_day && task.time_of_day !== 'anytime') ? (
                   <div
                     className={cn(
                       'flex items-center gap-1.5 text-subtle font-normal select-none',
                       compact ? 'mt-1 text-[10.5px]' : 'mt-1.5 text-[11px]'
                     )}
                   >
-                    <span>{dateDisplay}</span>
+                    {dateDisplay && (
+                      <>
+                        <RiCalendarLine className="size-3.5 shrink-0 text-muted-foreground/80" />
+                        <span>{dateDisplay}</span>
+                      </>
+                    )}
+                    {(task.time_of_day || 'anytime') !== 'anytime' && (
+                      <HugeiconsIcon
+                        icon={
+                          task.time_of_day === 'morning'
+                            ? MorningSunriseIcon
+                            : task.time_of_day === 'day'
+                            ? Sun01Icon
+                            : EveningMoonIcon
+                        }
+                        size={14}
+                        className="shrink-0 text-muted-foreground/80"
+                      />
+                    )}
                   </div>
                 ) : null}
+
+                {linkedNote && !hideNoteLink && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingNote(linkedNote);
+                      setNoteViewModeOverride(null);
+                      setNoteEditModalOpen(true);
+                    }}
+                    title={`یادداشت: ${linkedNote.title?.trim() || 'بدون عنوان'}`}
+                    className={cn(
+                      'mt-1 flex max-w-full cursor-pointer items-center gap-1 self-start rounded px-0.5 text-muted-foreground transition-colors hover:text-foreground',
+                      compact ? 'text-[10px]' : 'text-[11px]'
+                    )}
+                  >
+                    <RiStickyNoteLine className="size-3 shrink-0" />
+                    <span className="truncate">{linkedNote.title?.trim() || 'بدون عنوان'}</span>
+                  </button>
+                )}
               </div>
 
               {/* 2. LEFT SIDE in RTL (reading end): optional illustration, then the done circle at the far edge */}
@@ -351,6 +441,23 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
             <span>ویرایش</span>
           </ContextMenuItem>
 
+          {!isDone && (
+            <ContextMenuItem
+              className="gap-2 cursor-pointer"
+              onClick={() => {
+                setContextMenuOpen(false);
+                requestFocusTask({
+                  id: task.id,
+                  title: task.title,
+                  minutes: task.duration_minutes,
+                });
+              }}
+            >
+              <RiTimerLine className="size-4 text-muted-foreground" />
+              <span>شروع تمرکز</span>
+            </ContextMenuItem>
+          )}
+
           <ContextMenuItem
             className="gap-2 cursor-pointer"
             onClick={() => {
@@ -402,7 +509,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  task.due_date === todayKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  task.due_date === todayKey && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiSunLine className="size-4" />
@@ -418,7 +525,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  task.due_date === tomorrowKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  task.due_date === tomorrowKey && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiCloudyLine className="size-4" />
@@ -434,7 +541,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  task.due_date === nextWeekKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  task.due_date === nextWeekKey && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiCalendarLine className="size-4" />
@@ -450,7 +557,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  task.due_date === weekendKey && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  task.due_date === weekendKey && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiUmbrellaLine className="size-4" />
@@ -466,7 +573,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  !task.due_date && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  !task.due_date && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiForbid2Line className="size-4" />
@@ -505,7 +612,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  task.priority === 3 && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  task.priority === 3 && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiFlagFill className="size-4 text-destructive" />
@@ -521,7 +628,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  task.priority === 2 && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  task.priority === 2 && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiFlagFill className="size-4 text-amber-500" />
@@ -537,7 +644,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  task.priority === 1 && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  task.priority === 1 && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiFlagLine className="size-4 text-blue-500" />
@@ -553,7 +660,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                 }}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                  !task.priority && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                  !task.priority && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                 )}
               >
                 <RiForbid2Line className="size-4" />
@@ -585,7 +692,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     }}
                     className={cn(
                       'flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground cursor-pointer',
-                      isSelected && 'bg-accent text-accent-foreground ring-1 ring-ring/30'
+                      isSelected && 'bg-transparent text-foreground ring-1 ring-foreground/25'
                     )}
                   >
                     <HugeiconsIcon icon={item.icon} size={16} />

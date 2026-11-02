@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { toPersianDigits } from '@/lib/jalali';
 
 export interface NoteColorPreset {
@@ -13,6 +14,52 @@ export interface NoteColorPreset {
   darkText: string;
   darkSubtext: string;
 }
+
+export interface NoteBackgroundPreset {
+  id: string;
+  name: string;
+  kind: 'gradient' | 'pattern';
+  style: CSSProperties;
+}
+
+/** Gradients and paper textures for the note cover strip. */
+export const NOTE_BACKGROUND_PRESETS: NoteBackgroundPreset[] = [
+  { id: 'bg-sunrise', name: 'طلوع', kind: 'gradient', style: { backgroundImage: 'linear-gradient(135deg, #FFD3A5 0%, #FD6585 100%)' } },
+  { id: 'bg-ocean', name: 'اقیانوس', kind: 'gradient', style: { backgroundImage: 'linear-gradient(135deg, #89F7FE 0%, #66A6FF 100%)' } },
+  { id: 'bg-meadow', name: 'چمن‌زار', kind: 'gradient', style: { backgroundImage: 'linear-gradient(135deg, #D4FC79 0%, #96E6A1 100%)' } },
+  { id: 'bg-lilac', name: 'یاس', kind: 'gradient', style: { backgroundImage: 'linear-gradient(135deg, #E0C3FC 0%, #8EC5FC 100%)' } },
+  { id: 'bg-ember', name: 'اخگر', kind: 'gradient', style: { backgroundImage: 'linear-gradient(135deg, #F6D365 0%, #FDA085 100%)' } },
+  { id: 'bg-midnight', name: 'نیمه‌شب', kind: 'gradient', style: { backgroundImage: 'linear-gradient(135deg, #2b3038 0%, #4b5563 100%)' } },
+  { id: 'bg-kraft', name: 'کاغذ کرافت', kind: 'pattern', style: {
+    backgroundColor: '#D8C3A5',
+    backgroundImage:
+      'repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0 2px, transparent 2px 5px), repeating-linear-gradient(-45deg, rgba(110,84,56,0.12) 0 2px, transparent 2px 6px)',
+  } },
+  { id: 'bg-lined', name: 'کاغذ خط‌دار', kind: 'pattern', style: {
+    backgroundColor: '#FFFDF6',
+    backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0 15px, #DCE6EE 15px 16px)',
+  } },
+  { id: 'bg-grid', name: 'کاغذ شطرنجی', kind: 'pattern', style: {
+    backgroundColor: '#FCFDFE',
+    backgroundImage:
+      'repeating-linear-gradient(to right, #DCE7EF 0 1px, transparent 1px 16px), repeating-linear-gradient(to bottom, #DCE7EF 0 1px, transparent 1px 16px)',
+  } },
+  { id: 'bg-dots', name: 'کاغذ نقطه‌ای', kind: 'pattern', style: {
+    backgroundColor: '#FBFBF9',
+    backgroundImage: 'radial-gradient(#CBD5DC 1.1px, transparent 1.1px)',
+    backgroundSize: '14px 14px',
+  } },
+  { id: 'bg-margin', name: 'دفتر یادداشت', kind: 'pattern', style: {
+    backgroundColor: '#FFFCF4',
+    backgroundImage:
+      'linear-gradient(to left, transparent 0 26px, #F3B6B6 26px 27px, transparent 27px), repeating-linear-gradient(to bottom, transparent 0 15px, #E3E9F0 15px 16px)',
+  } },
+  { id: 'bg-canvas', name: 'بوم هنری', kind: 'pattern', style: {
+    backgroundColor: '#F4EFE6',
+    backgroundImage:
+      'repeating-linear-gradient(0deg, rgba(160,140,110,0.10) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(160,140,110,0.10) 0 1px, transparent 1px 3px)',
+  } },
+];
 
 export const NOTE_COLOR_PRESETS: NoteColorPreset[] = [
   {

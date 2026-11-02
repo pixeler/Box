@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { RiCloseLine } from '@remixicon/react';
+import { useOverlayLayer } from '@/lib/overlayLayer';
 
 interface SettingsDialogProps extends Omit<ProfileViewProps, 'variant'> {
   open: boolean;
@@ -24,9 +25,18 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   open,
   onOpenChange,
   ...profileProps
-}) => (
+}) => {
+  // Settings opens above an open note (and anything the note opened on top of
+  // itself), because every window takes the next overlay layer.
+  const { zIndex } = useOverlayLayer(open);
+
+  return (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="flex h-[min(720px,calc(100dvh-32px))] w-[calc(100vw-24px)] max-w-[900px] flex-col gap-0 overflow-hidden p-0 max-sm:h-dvh max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0 [&>button]:hidden">
+    <DialogContent
+      overlayProps={{ style: { zIndex } }}
+      style={{ zIndex: zIndex + 1 }}
+      className="flex h-[min(720px,calc(100dvh-32px))] w-[calc(100vw-24px)] max-w-[900px] flex-col gap-0 overflow-hidden p-0 max-sm:h-dvh max-sm:w-screen max-sm:max-w-none max-sm:rounded-none max-sm:border-0 [&>button]:hidden"
+    >
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/70 px-4">
         <div className="min-w-0">
           <DialogTitle className="text-[16px] font-semibold leading-tight text-foreground">
@@ -52,4 +62,5 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       </div>
     </DialogContent>
   </Dialog>
-);
+  );
+};

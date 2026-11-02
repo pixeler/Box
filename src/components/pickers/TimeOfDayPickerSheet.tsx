@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getOverlayPortalTarget } from '@/lib/overlay';
+import { PickerPopover, type PickerAnchor } from './PickerPopover';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Clock01Icon,
@@ -14,6 +15,8 @@ import type { TimeOfDay } from '@/types/models';
 interface TimeOfDayPickerSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  variant?: 'sheet' | 'popover';
+  anchorRect?: PickerAnchor | null;
   value?: TimeOfDay;
   onChange: (val: TimeOfDay) => void;
 }
@@ -55,6 +58,8 @@ const TIME_OF_DAY_OPTIONS: TimeOfDayOption[] = [
 export const TimeOfDayPickerSheet: React.FC<TimeOfDayPickerSheetProps> = ({
   isOpen,
   onClose,
+  variant = 'sheet',
+  anchorRect = null,
   value = 'anytime',
   onChange,
 }) => {
@@ -86,6 +91,38 @@ export const TimeOfDayPickerSheet: React.FC<TimeOfDayPickerSheetProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
+
+  if (variant === 'popover') {
+    if (!isOpen) return null;
+    return (
+      <PickerPopover anchorRect={anchorRect} onClose={onClose} width={290}>
+        <div className="p-1.5" dir="rtl">
+          {TIME_OF_DAY_OPTIONS.map((item) => {
+            const isSelected = (value || 'anytime') === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => {
+                  onChange(item.key);
+                  onClose();
+                }}
+                className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-foreground/[0.06] text-foreground'
+                    : 'text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground'
+                }`}
+              >
+                <HugeiconsIcon icon={item.icon} size={16} />
+                <span className="flex-1 text-right">{item.label}</span>
+                {isSelected && <RiCheckLine className="size-3.5 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </PickerPopover>
+    );
+  }
 
   if (!isOpen && !isClosing) return null;
 

@@ -229,7 +229,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
               onClick={onOpenAdd}
               aria-label="افزودن کار"
               title="افزودن کار"
-              className="hidden size-8 items-center justify-center rounded-md bg-primary text-primary-foreground transition-opacity hover:opacity-90 cursor-pointer sm:flex"
+              className="hidden size-8 items-center justify-center rounded-md border border-border/70 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground cursor-pointer sm:flex"
             >
               <RiAddLine className="size-[18px]" />
             </button>

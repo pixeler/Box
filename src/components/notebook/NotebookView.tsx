@@ -12,6 +12,7 @@ import { toast } from '@/lib/toast';
 import { toPersianDigits } from '@/lib/jalali';
 import {
   RiAddLine,
+  RiArrowDownSLine,
   RiArrowRightLine,
   RiCheckLine,
   RiDeleteBinLine,
@@ -22,9 +23,11 @@ import {
   RiFolderOpenLine,
   RiFolderTransferLine,
   RiFileCopyLine,
+  RiFileTextLine,
   RiPushpinLine,
   RiPushpinFill,
   RiSortAsc,
+  RiSunLine,
 } from '@remixicon/react';
 import {
   ContextMenu,
@@ -38,10 +41,25 @@ import {
 } from '@/components/ui/context-menu';
 import { NOTE_COLOR_PRESETS } from './noteTheme';
 import {
+  createNoteTemplate,
+  deleteNoteTemplate,
+  duplicateNoteTemplate,
+  folderUsage,
+  JOURNAL_TEMPLATE_ID,
+  loadNoteTemplates,
+  setTemplateUsage,
+  templateFolderId,
+  templateUsageKind,
+  type NoteTemplate,
+} from '@/lib/noteTemplates';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -58,6 +76,7 @@ interface TrailItem {
 
 type NoteSort = 'newest' | 'oldest' | 'updated' | 'title';
 type FolderSort = 'newest' | 'title' | 'count';
+type NoteGroup = 'none' | 'folder' | 'date';
 
 const NOTE_SORT_OPTIONS: { value: NoteSort; label: string }[] = [
   { value: 'newest', label: 'تازه‌ترین' },
@@ -70,6 +89,12 @@ const FOLDER_SORT_OPTIONS: { value: FolderSort; label: string }[] = [
   { value: 'newest', label: 'تازه‌ترین' },
   { value: 'title', label: 'عنوان (الفبا)' },
   { value: 'count', label: 'بیشترین یادداشت' },
+];
+
+const NOTE_GROUP_OPTIONS: { value: NoteGroup; label: string }[] = [
+  { value: 'none', label: 'بدون گروه‌بندی' },
+  { value: 'folder', label: 'پوشه' },
+  { value: 'date', label: 'تاریخ ویرایش' },
 ];
 
 const readStored = <T extends string>(key: string, allowed: readonly T[], fallback: T): T => {
@@ -108,12 +133,14 @@ const NewNoteCard: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     type="button"
     onClick={onClick}
     title="یادداشت جدید"
-    className="group flex aspect-[4/5] w-full flex-col items-center justify-center gap-2.5 rounded-xl border border-border/50 bg-card p-3 text-center shadow-[0_4px_16px_rgba(15,15,13,0.05)] outline-none transition-shadow hover:shadow-[0_8px_24px_rgba(15,15,13,0.09)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:shadow-none dark:hover:shadow-none"
+    className="group flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/70 px-2 py-3 text-center outline-none transition-colors hover:border-border hover:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-ring"
   >
-    <span className="flex size-9 items-center justify-center rounded-full border border-border/70 bg-background text-muted-foreground transition-colors group-hover:border-foreground/30 group-hover:text-foreground">
-      <RiAddLine className="size-4" />
+    <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border/60 text-muted-foreground transition-colors group-hover:border-foreground/30 group-hover:text-foreground">
+      <RiAddLine className="size-5" />
     </span>
-    <span className="text-[12px] font-medium text-foreground">یادداشت جدید</span>
+    <span className="block w-full truncate text-[12.5px] font-medium leading-5 text-foreground">
+      یادداشت جدید
+    </span>
   </button>
 );
 
@@ -135,6 +162,8 @@ export const NotebookView: React.FC = () => {
     setTargetParentBoxId,
     loadData,
     handleCreateNewNote,
+    setEditingTemplate,
+    setTemplateEditorOpen,
     handleOpenCreateBox,
     handleDropOnBox,
   } = useNotebook();
@@ -143,6 +172,8 @@ export const NotebookView: React.FC = () => {
   const [moveNoteModalOpen, setMoveNoteModalOpen] = useState(false);
   const [noteToMove, setNoteToMove] = useState<Note | null>(null);
   const [boxToDelete, setBoxToDelete] = useState<Box | null>(null);
+  const [templatesMenuOpen, setTemplatesMenuOpen] = useState(false);
+  const [templates, setTemplates] = useState<NoteTemplate[]>([]);
 
   const [noteSort, setNoteSort] = useState<NoteSort>(() =>
     readStored('notebook.noteSort', ['newest', 'oldest', 'updated', 'title'], 'newest')
@@ -150,6 +181,10 @@ export const NotebookView: React.FC = () => {
 
   const [folderSort, setFolderSort] = useState<FolderSort>(() =>
     readStored('notebook.folderSort', ['newest', 'title', 'count'], 'newest')
+  );
+
+  const [noteGroup, setNoteGroup] = useState<NoteGroup>(() =>
+    readStored('notebook.noteGroup', ['none', 'folder', 'date'], 'none')
   );
 
   const changeNoteSort = (value: NoteSort) => {
@@ -167,6 +202,15 @@ export const NotebookView: React.FC = () => {
       window.localStorage.setItem('notebook.folderSort', value);
     } catch {
       // storage unavailable: sorting still works for this session
+    }
+  };
+
+  const changeNoteGroup = (value: NoteGroup) => {
+    setNoteGroup(value);
+    try {
+      window.localStorage.setItem('notebook.noteGroup', value);
+    } catch {
+      // storage unavailable: grouping still works for this session
     }
   };
 
@@ -286,6 +330,56 @@ export const NotebookView: React.FC = () => {
     return result;
   }, [notes, currentFolderId, noteSort]);
 
+  /** The same notes, split into explorer-like groups in the chosen order. */
+  const groupedNotes = useMemo(() => {
+    if (noteGroup === 'none') {
+      return [{ key: 'all', title: '', notes: displayedNotes }];
+    }
+
+    if (noteGroup === 'folder') {
+      const groups = new Map<string, Note[]>();
+      displayedNotes.forEach((note) => {
+        const key = note.box_id || 'root';
+        const list = groups.get(key) ?? [];
+        list.push(note);
+        groups.set(key, list);
+      });
+      return [...groups.entries()].map(([key, notes]) => ({
+        key,
+        title: key === 'root' ? 'بدون پوشه' : boxesMap[key]?.title || 'پوشه حذف‌شده',
+        notes,
+      }));
+    }
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const day = 24 * 60 * 60 * 1000;
+    const ageInDays = (iso?: string) => {
+      if (!iso) return Number.POSITIVE_INFINITY;
+      const then = new Date(iso).getTime();
+      if (Number.isNaN(then)) return Number.POSITIVE_INFINITY;
+      const startOfThen = new Date(then);
+      startOfThen.setHours(0, 0, 0, 0);
+      return Math.floor((startOfToday - startOfThen.getTime()) / day);
+    };
+
+    const buckets: { key: string; title: string; matches: (age: number) => boolean }[] = [
+      { key: 'today', title: 'امروز', matches: (age) => age <= 0 },
+      { key: 'yesterday', title: 'دیروز', matches: (age) => age === 1 },
+      { key: 'week', title: 'این هفته', matches: (age) => age > 1 && age < 7 },
+      { key: 'month', title: 'این ماه', matches: (age) => age >= 7 && age < 30 },
+      { key: 'older', title: 'قدیمی‌تر', matches: (age) => age >= 30 },
+    ];
+
+    return buckets
+      .map((bucket) => ({
+        key: bucket.key,
+        title: bucket.title,
+        notes: displayedNotes.filter((note) => bucket.matches(ageInDays(note.updated_at))),
+      }))
+      .filter((group) => group.notes.length > 0);
+  }, [displayedNotes, noteGroup, boxesMap]);
+
   /** The newest notes anywhere, for the overview on the first page. */
   const latestNotes = useMemo(
     () =>
@@ -340,6 +434,111 @@ export const NotebookView: React.FC = () => {
     const { noteRepo } = await import('@/repositories');
     await noteRepo.update(note.id, { color: colorId });
     loadData();
+  };
+
+  /** A template fills the body; the note lands in the folder being viewed. */
+  const handleCreateFromTemplate = async (template: NoteTemplate) => {
+    const { noteRepo } = await import('@/repositories');
+    const targetBoxId =
+      currentFolderId && currentFolderId !== 'all_notes' ? currentFolderId : null;
+    const created = await noteRepo.create({
+      entry_id: null,
+      box_id: targetBoxId,
+      type: 'note',
+      title: template.name,
+      body: template.body,
+      tag_ids: [],
+      ...(template.icon ? { icon: template.icon } : {}),
+      ...(template.cover ? { cover: template.cover } : {}),
+      ...(template.cover && !template.cover.startsWith('data:')
+        ? { color: template.cover }
+        : {}),
+    });
+    await loadData();
+    setEditingNote(created);
+    setNoteEditModalOpen(true);
+  };
+
+  const refreshTemplates = async () => {
+    try {
+      setTemplates(await loadNoteTemplates());
+    } catch (err) {
+      console.error('Failed to load note templates:', err);
+    }
+  };
+
+  // The chevron menu reads the stored templates each time it opens, so edits
+  // made in the template editor show up here without a reload.
+  useEffect(() => {
+    if (templatesMenuOpen) void refreshTemplates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [templatesMenuOpen]);
+
+  const openTemplateEditor = (template: NoteTemplate) => {
+    setTemplatesMenuOpen(false);
+    setEditingTemplate(template);
+    setTemplateEditorOpen(true);
+  };
+
+  const handleCreateFromTemplateClick = async (template: NoteTemplate) => {
+    setTemplatesMenuOpen(false);
+    await handleCreateFromTemplate(template);
+  };
+
+  const handleNewTemplate = async () => {
+    try {
+      const draft = await createNoteTemplate();
+      await refreshTemplates();
+      openTemplateEditor(draft);
+    } catch (err) {
+      console.error('Failed to create a template:', err);
+      toast.show('ساخت تمپلیت انجام نشد');
+    }
+  };
+
+  const handleDuplicateTemplate = async (template: NoteTemplate) => {
+    try {
+      await duplicateNoteTemplate(template.id);
+      await refreshTemplates();
+      toast.show('یک نسخهٔ کپی ساخته شد');
+    } catch (err) {
+      console.error('Failed to duplicate a template:', err);
+      toast.show('تکثیر تمپلیت انجام نشد');
+    }
+  };
+
+  const handleDeleteTemplate = async (template: NoteTemplate) => {
+    try {
+      await deleteNoteTemplate(template.id);
+      await refreshTemplates();
+      toast.show('تمپلیت حذف شد');
+    } catch (err) {
+      console.error('Failed to delete a template:', err);
+      toast.show('حذف تمپلیت انجام نشد');
+    }
+  };
+
+  const handleTemplateUsage = async (template: NoteTemplate, usage: string) => {
+    try {
+      await setTemplateUsage(template.id, usage || null);
+      await refreshTemplates();
+      toast.show(usage ? 'محل استفادهٔ تمپلیت ذخیره شد' : 'پیش‌فرض تمپلیت برداشته شد');
+    } catch (err) {
+      console.error('Failed to set the template usage:', err);
+      toast.show('ذخیرهٔ محل استفاده انجام نشد');
+    }
+  };
+
+  /** The small caption on a template row: where it is the default. */
+  const templateUsageCaption = (template: NoteTemplate) => {
+    const kind = templateUsageKind(template);
+    if (kind === 'journal') return 'روزنوشت';
+    if (kind === 'new-note') return 'یادداشت جدید';
+    if (kind === 'folder') {
+      const folderId = templateFolderId(template);
+      return (folderId && boxesMap[folderId]?.title) || 'پوشه';
+    }
+    return '';
   };
 
   /** A folder takes its subfolders with it; notes and tasks inside stay safe. */
@@ -487,18 +686,19 @@ export const NotebookView: React.FC = () => {
         {/* PAGE HEADER: the same title treatment as the Today view */}
       <div className="w-full shrink-0 px-5 pt-10 sm:px-6 sm:pt-12">
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <button
-            type="button"
-            onClick={goUp}
-            disabled={currentFolderId === null}
-            aria-label="بازگشت به پوشه بالاتر"
-            title="بازگشت به پوشه بالاتر"
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-25 sm:size-10"
-          >
-            <RiArrowRightLine className="size-[22px] sm:size-[24px]" />
-          </button>
+          {currentFolderId !== null && (
+            <button
+              type="button"
+              onClick={goUp}
+              aria-label="بازگشت به پوشه بالاتر"
+              title="بازگشت به پوشه بالاتر"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:size-10"
+            >
+              <RiArrowRightLine className="size-[22px] sm:size-[24px]" />
+            </button>
+          )}
 
-          <h1 className="truncate font-darvish text-[26px] font-bold tracking-normal text-foreground sm:text-[30px]">
+          <h1 className="truncate font-darvish text-[22px] font-semibold leading-8 tracking-normal text-foreground sm:text-[24px]">
             {currentTitle}
           </h1>
         </div>
@@ -570,20 +770,7 @@ export const NotebookView: React.FC = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            currentFolderId !== 'all_notes' && (
-              <button
-                type="button"
-                onClick={() => handleOpenCreateBox(null)}
-                aria-label="پوشه جدید"
-                title="پوشه جدید"
-                className="flex h-8 items-center gap-1.5 rounded-md px-1.5 text-[12px] font-medium text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring sm:px-2.5"
-              >
-                <RiFolderAddLine className="size-[18px]" />
-                <span className="hidden sm:inline">پوشه</span>
-              </button>
-            )
-          )}
+          ) : null}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -631,19 +818,182 @@ export const NotebookView: React.FC = () => {
                   )}
                 </DropdownMenuItem>
               ))}
+
+              <DropdownMenuSeparator className={noteMenuSeparatorClass} />
+
+              <div className="px-2 pb-1 pt-0.5 text-[10px] font-medium text-muted-foreground">
+                گروه‌بندی یادداشت‌ها
+              </div>
+              {NOTE_GROUP_OPTIONS.map((option) => (
+                <DropdownMenuItem
+                  key={option.value}
+                  className={noteMenuItemClass}
+                  onClick={() => changeNoteGroup(option.value)}
+                >
+                  <span className="flex-1">{option.label}</span>
+                  {noteGroup === option.value && (
+                    <RiCheckLine className="size-3.5 text-foreground" />
+                  )}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <button
-            type="button"
-            onClick={handleCreateNewNote}
-            aria-label="یادداشت جدید"
-            title="یادداشت جدید"
-            className="flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <RiAddLine className="size-4" />
-            <span>یادداشت</span>
-          </button>
+          {/* One control for a new note: the note itself, or the templates it
+              can start from — managed right here, as in Notion. */}
+          <div className="flex h-8 items-stretch overflow-hidden rounded-md border border-border/70">
+            <button
+              type="button"
+              onClick={handleCreateNewNote}
+              aria-label="یادداشت جدید"
+              title="یادداشت جدید"
+              className="flex items-center gap-1.5 px-3 text-[12.5px] font-medium text-foreground outline-none transition-colors hover:bg-foreground/[0.05] focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <RiAddLine className="size-4" />
+              <span>یادداشت</span>
+            </button>
+
+            <DropdownMenu open={templatesMenuOpen} onOpenChange={setTemplatesMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="ساخت یادداشت از تمپلیت"
+                  title="تمپلیت‌ها"
+                  className="flex w-6 items-center justify-center border-s border-border/70 text-muted-foreground outline-none transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <RiArrowDownSLine className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                align="end"
+                sideOffset={6}
+                className={`${noteMenuContentClass} w-72`}
+              >
+                <div className="px-2 pb-1 pt-0.5 text-[10px] font-medium text-muted-foreground">
+                  تمپلیت‌های {currentTitle}
+                </div>
+
+                {templates.map((template) => (
+                  <div key={template.id} className="flex items-center gap-0.5">
+                    <DropdownMenuItem
+                      className={`${noteMenuItemClass} min-w-0 flex-1`}
+                      onClick={() => void handleCreateFromTemplateClick(template)}
+                    >
+                      <RiFileTextLine className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {template.name?.trim() || 'بدون نام'}
+                      </span>
+                      <span className="shrink-0 text-[10px] text-subtle">
+                        {templateUsageCaption(template)}
+                      </span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger
+                        aria-label={`مدیریت تمپلیت ${template.name?.trim() || 'بدون نام'}`}
+                        className="size-7 justify-center rounded-md p-0 text-subtle"
+                      >
+                        <RiMoreLine className="size-3.5" />
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className={`${noteMenuContentClass} w-56`}>
+                        <DropdownMenuItem
+                          className={noteMenuItemClass}
+                          onClick={() => openTemplateEditor(template)}
+                        >
+                          <RiEditLine className="size-3.5 text-muted-foreground" />
+                          <span>ویرایش تمپلیت</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className={noteMenuItemClass}
+                          onClick={() => void handleDuplicateTemplate(template)}
+                        >
+                          <RiFileCopyLine className="size-3.5 text-muted-foreground" />
+                          <span>تکثیر</span>
+                        </DropdownMenuItem>
+                        {template.id !== JOURNAL_TEMPLATE_ID && (
+                          <DropdownMenuItem
+                            className={`${noteMenuItemClass} ${noteMenuDangerClass}`}
+                            onClick={() => void handleDeleteTemplate(template)}
+                          >
+                            <RiDeleteBinLine className="size-3.5" />
+                            <span>حذف</span>
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuSeparator className={noteMenuSeparatorClass} />
+
+                        <div className="px-2 py-1 text-[10px] font-medium text-muted-foreground">
+                          برای چه منظوری؟
+                        </div>
+                        <DropdownMenuItem
+                          className={noteMenuItemClass}
+                          onClick={() => void handleTemplateUsage(template, 'journal')}
+                        >
+                          <RiSunLine className="size-3.5 text-muted-foreground" />
+                          <span className="flex-1">روزنوشت</span>
+                          {templateUsageKind(template) === 'journal' && (
+                            <RiCheckLine className="size-3.5" />
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className={noteMenuItemClass}
+                          onClick={() => void handleTemplateUsage(template, 'new-note')}
+                        >
+                          <RiAddLine className="size-3.5 text-muted-foreground" />
+                          <span className="flex-1">یادداشت جدید</span>
+                          {templateUsageKind(template) === 'new-note' && (
+                            <RiCheckLine className="size-3.5" />
+                          )}
+                        </DropdownMenuItem>
+                        {currentBox && (
+                          <DropdownMenuItem
+                            className={noteMenuItemClass}
+                            onClick={() =>
+                              void handleTemplateUsage(template, folderUsage(currentBox.id))
+                            }
+                          >
+                            <RiFolderOpenLine className="size-3.5 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 flex-1 truncate">
+                              پیش‌فرض «{currentBox.title}»
+                            </span>
+                            {templateFolderId(template) === currentBox.id && (
+                              <RiCheckLine className="size-3.5" />
+                            )}
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem
+                          className={noteMenuItemClass}
+                          onClick={() => void handleTemplateUsage(template, '')}
+                        >
+                          <span className="flex-1">بدون پیش‌فرض</span>
+                          {templateUsageKind(template) === 'manual' && (
+                            <RiCheckLine className="size-3.5" />
+                          )}
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  </div>
+                ))}
+
+                {templates.length === 0 && (
+                  <p className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                    هنوز تمپلیتی نساخته‌ای.
+                  </p>
+                )}
+
+                <DropdownMenuSeparator className={noteMenuSeparatorClass} />
+
+                <DropdownMenuItem
+                  className={noteMenuItemClass}
+                  onClick={() => void handleNewTemplate()}
+                >
+                  <RiAddLine className="size-3.5 text-muted-foreground" />
+                  <span>تمپلیت جدید</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           </div>
         </div>
       </div>
@@ -761,11 +1111,26 @@ export const NotebookView: React.FC = () => {
           <section className="flex flex-col gap-2">
             <SectionHeading title="یادداشت‌ها" count={displayedNotes.length} />
 
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-3">
-              {displayedNotes.map(renderNoteCard)}
+            {groupedNotes.map((group, groupIndex) => (
+              <div key={group.key} className="flex flex-col gap-2">
+                {noteGroup !== 'none' && (
+                  <h3 className="flex items-baseline gap-1.5 px-0.5 pt-1 text-[11.5px] font-medium text-muted-foreground">
+                    <span>{group.title}</span>
+                    <span className="text-[10.5px] tabular-nums">
+                      {toPersianDigits(group.notes.length)}
+                    </span>
+                  </h3>
+                )}
 
-              <NewNoteCard onClick={handleCreateNewNote} />
-            </div>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-3">
+                  {group.notes.map(renderNoteCard)}
+
+                  {groupIndex === groupedNotes.length - 1 && (
+                    <NewNoteCard onClick={handleCreateNewNote} />
+                  )}
+                </div>
+              </div>
+            ))}
           </section>
 
         </div>
@@ -804,6 +1169,27 @@ export const NotebookView: React.FC = () => {
                 >
                   <span className="flex-1">{option.label}</span>
                   {noteSort === option.value && (
+                    <span className="size-1.5 rounded-full bg-foreground" />
+                  )}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+
+          <ContextMenuSub>
+            <ContextMenuSubTrigger className={noteMenuItemClass}>
+              <RiFolderOpenLine className="size-3.5 text-muted-foreground" />
+              <span>گروه‌بندی یادداشت‌ها</span>
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-48">
+              {NOTE_GROUP_OPTIONS.map((option) => (
+                <ContextMenuItem
+                  key={option.value}
+                  className={noteMenuItemClass}
+                  onClick={() => changeNoteGroup(option.value)}
+                >
+                  <span className="flex-1">{option.label}</span>
+                  {noteGroup === option.value && (
                     <span className="size-1.5 rounded-full bg-foreground" />
                   )}
                 </ContextMenuItem>

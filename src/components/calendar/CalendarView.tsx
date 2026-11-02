@@ -404,6 +404,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     [weekDays, todayKey]
   );
 
+  useEffect(() => {
+    const handleCalendarInlineAdd = () => {
+      if (viewMode === 'week') {
+        const targetDate = weekDays.some((d) => d.formattedDate === selectedDateKey)
+          ? selectedDateKey
+          : currentDateKey;
+        setWeekComposer({ dateKey: targetDate, timeOfDay: 'anytime' });
+      } else {
+        onOpenAddForDate?.(selectedDateKey || currentDateKey);
+      }
+    };
+    window.addEventListener('box:calendar-inline-add', handleCalendarInlineAdd);
+    return () =>
+      window.removeEventListener('box:calendar-inline-add', handleCalendarInlineAdd);
+  }, [viewMode, weekDays, selectedDateKey, currentDateKey, onOpenAddForDate]);
+
   // The selected day is a rounded card. Suppress the 1px rules on its own
   // edge and on the edge its previous column draws, so no straight line cuts
   // through the rounded top. The horizontal rules of section rows stay.
@@ -727,16 +743,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       />
     ));
 
-  const renderWeekInlineComposer = (dateKey: string, timeOfDay: TimeOfDay) => (
-    <QuickCaptureInput
-      key={`${dateKey}-${timeOfDay}`}
-      variant="inline"
-      currentSelectedDateKey={dateKey}
-      initialTimeOfDay={timeOfDay}
-      onItemCreated={handleWeekItemCreated}
-      onClose={() => setWeekComposer(null)}
-    />
-  );
+  /* A week cell is too narrow for inline typing, so every add opens the popup
+     composer for that cell's date and time-of-day section. */
 
   return (
     <div
@@ -756,7 +764,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         onModeChange={handleModeChange}
         onPickMonth={handlePickMonth}
         onOpenAdd={
-          onOpenAddForDate ? () => onOpenAddForDate(currentDateKey) : undefined
+          viewMode === 'week'
+            ? () => {
+                const targetDate = weekDays.some(
+                  (d) => d.formattedDate === selectedDateKey
+                )
+                  ? selectedDateKey
+                  : currentDateKey;
+                setWeekComposer({ dateKey: targetDate, timeOfDay: 'anytime' });
+              }
+            : onOpenAddForDate
+            ? () => onOpenAddForDate(currentDateKey)
+            : undefined
         }
       />
 
@@ -893,16 +912,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     )}
 
                     <div className={cn('p-2', dayTasks.length > 0 && 'border-t border-border/40')}>
-                      {weekComposer?.dateKey === day.formattedDate ? (
-                        renderWeekInlineComposer(day.formattedDate, weekComposer.timeOfDay)
-                      ) : (
-                        <CalendarAddRow
-                          onClick={() =>
-                            setWeekComposer({ dateKey: day.formattedDate, timeOfDay: 'anytime' })
-                          }
-                          ariaLabel={`افزودن کار برای ${day.dayName}`}
-                        />
-                      )}
+                      <CalendarAddRow
+                        onClick={() =>
+                          setWeekComposer({ dateKey: day.formattedDate, timeOfDay: 'anytime' })
+                        }
+                        ariaLabel={`افزودن کار برای ${day.dayName}`}
+                      />
                     </div>
                   </div>
                 );
@@ -1049,27 +1064,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 })}
               </div>
 
-              {weekComposer && (
-                <div className="shrink-0 border-b border-border/40 bg-secondary/15 px-3 py-2">
-                  <div className="mx-auto w-full max-w-[720px]">
-                    <div className="mb-1 flex items-center justify-between px-0.5">
-                      <span className="text-[11px] font-medium text-foreground">
-                        افزودن کار برای{' '}
-                        {formatJalaliDisplay(parseJalaliKey(weekComposer.dateKey))}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {
-                          TIME_OF_DAY_SECTIONS.find(
-                            (section) => section.key === weekComposer.timeOfDay
-                          )?.label
-                        }
-                      </span>
-                    </div>
-                    {renderWeekInlineComposer(weekComposer.dateKey, weekComposer.timeOfDay)}
-                  </div>
-                </div>
-              )}
-
               {!enableDaySections && (
                 <div className="grid shrink-0 grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] gap-px bg-background">
                   <div className={cn('flex items-start justify-center bg-background pt-2.5 text-[10px] font-semibold text-muted-foreground', firstDaySelected ? '' : cellRuleX)}>
@@ -1116,13 +1110,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           </div>
                         ))}
 
-                        <div className={cn('mt-auto shrink-0 pt-0.5', weekAddRevealClass)}>
+                        <div className={cn('shrink-0 pt-0.5', weekAddRevealClass)}>
                           <CalendarAddRow
                             compact
                             onClick={() =>
                               setWeekComposer({ dateKey: day.formattedDate, timeOfDay: 'anytime' })
                             }
-                            label={anytimeTasks.length === 0 ? 'افزودن کار' : ''}
+                            label="افزودن کار"
                             ariaLabel={`افزودن کار برای ${day.dayName}`}
                           />
                         </div>
@@ -1201,7 +1195,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 </div>
                               ))}
 
-                              <div className={cn('mt-auto shrink-0 pt-0.5', weekAddRevealClass)}>
+                              <div className={cn('shrink-0 pt-0.5', weekAddRevealClass)}>
                                 <CalendarAddRow
                                   compact
                                   onClick={() =>
@@ -1210,7 +1204,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                       timeOfDay: section.key,
                                     })
                                   }
-                                  label={sectionTasks.length === 0 ? 'افزودن کار' : ''}
+                                  label="افزودن کار"
                                   ariaLabel={`افزودن کار به ${section.label} برای ${day.dayName}`}
                                 />
                               </div>
@@ -1524,6 +1518,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           isOpen={Boolean(editingTask)}
           onClose={() => setEditingTask(null)}
           onSaved={handleStatusChanged}
+        />
+      )}
+
+      {weekComposer && (
+        <QuickCaptureInput
+          key={`${weekComposer.dateKey}-${weekComposer.timeOfDay}`}
+          currentSelectedDateKey={weekComposer.dateKey}
+          initialTimeOfDay={weekComposer.timeOfDay}
+          isOpen
+          onClose={() => setWeekComposer(null)}
+          onItemCreated={handleWeekItemCreated}
         />
       )}
     </div>

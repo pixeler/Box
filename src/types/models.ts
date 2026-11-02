@@ -143,3 +143,23 @@ export interface FocusSession {
   created_at: string;
 }
 
+export type DocumentVersionCause = "autosave" | "manual" | "restore";
+
+/**
+ * One immutable snapshot of a document. Restoring writes a new version, so the
+ * history is append-only and never loses what a person actually wrote.
+ * `actor_*` is recorded now and becomes meaningful when documents go shared.
+ */
+export interface DocumentVersion {
+  id: string;
+  entity_type: "note" | "task";
+  entity_id: string;
+  title: string;
+  body: string;
+  body_json?: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  cause: DocumentVersionCause;
+  created_at: string;
+}
+

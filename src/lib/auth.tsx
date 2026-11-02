@@ -17,6 +17,29 @@ interface AuthContextType {
   signOut: () => Promise<{ error: AuthError | null }>;
 }
 
+/**
+ * A signed-out device must not keep the previous account's content.
+ * The tombstones and last-sync stamp go with it, or the next account would
+ * inherit the previous one's deletions.
+ */
+async function clearLocalUserData(): Promise<void> {
+  const { db } = await import('./db/dexie');
+  await Promise.all([
+    db.entries.clear(),
+    db.tasks.clear(),
+    db.events.clear(),
+    db.notes.clear(),
+    db.habits.clear(),
+    db.tags.clear(),
+    db.relations.clear(),
+    db.boxes.clear(),
+    db.focus_sessions.clear(),
+    db.document_versions.clear(),
+  ]);
+  localStorage.removeItem('second_brain_deleted_ids');
+  localStorage.removeItem('second_brain_last_sync');
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -155,6 +178,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!error) {
       setSession(null);
       setUser(null);
+      // Only a completed sign-out gets here; offline or failed sign-outs keep
+      // the local copy. Reload so no in-memory state survives the wipe.
+      try {
+        await clearLocalUserData();
+        window.location.reload();
+      } catch (err) {
+        console.warn('Failed to clear local data after sign-out:', err);
+      }
     }
     return { error };
   }, []);

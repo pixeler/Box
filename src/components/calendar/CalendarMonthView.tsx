@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Task, Tag } from '@/types/models';
 import { TaskItemRow } from '@/components/stream/TaskItemRow';
+import { QuickCaptureInput } from '@/components/capture/QuickCaptureInput';
+import { CalendarAddRow } from './CalendarAddRow';
 import {
   getJalaliMonthLength,
   getJalaliMonthFirstDayOfWeek,
@@ -61,7 +63,6 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   tagsMap,
   onStatusChanged,
   onOpenDay,
-  onOpenAddForDate,
   dragOverCell,
   onCellDragOver,
   onCellDragLeave,
@@ -70,9 +71,11 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
 }) => {
   const isMobile = useIsMobile();
   const [previewDateKey, setPreviewDateKey] = useState<string | null>(null);
+  const [inlineAddOpen, setInlineAddOpen] = useState(false);
 
   useEffect(() => {
     setPreviewDateKey(null);
+    setInlineAddOpen(false);
   }, [jy, jm]);
 
   const cells = useMemo<MonthCell[]>(() => {
@@ -386,7 +389,7 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
             <div className="flex shrink-0 items-center gap-1">
               <button
                 type="button"
-                onClick={() => onOpenAddForDate?.(previewKey)}
+                onClick={() => setInlineAddOpen(true)}
                 aria-label="افزودن کار به این روز"
                 title="افزودن کار"
                 className="flex size-8 items-center justify-center rounded-full border border-border/60 bg-card/60 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground cursor-pointer active:scale-95"
@@ -406,14 +409,25 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
 
           {previewTasks.length === 0 ? (
             <div className="px-2 pb-2 pt-1">
-              <button
-                type="button"
-                onClick={() => onOpenAddForDate?.(previewKey)}
-                className="flex w-full items-center justify-between rounded-xl border border-dashed border-border/70 bg-secondary/20 px-3.5 py-2.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground cursor-pointer"
-              >
-                <span>کاری برای این روز برنامه‌ریزی نشده</span>
-                <RiAddLine className="size-4" />
-              </button>
+              {inlineAddOpen ? (
+                <QuickCaptureInput
+                  key={previewKey}
+                  variant="inline"
+                  currentSelectedDateKey={previewKey}
+                  initialTimeOfDay="anytime"
+                  onItemCreated={() => onStatusChanged()}
+                  onClose={() => setInlineAddOpen(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setInlineAddOpen(true)}
+                  className="flex w-full items-center justify-between rounded-xl border border-dashed border-border/70 bg-secondary/20 px-3.5 py-2.5 text-xs text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground cursor-pointer"
+                >
+                  <span>کاری برای این روز برنامه‌ریزی نشده</span>
+                  <RiAddLine className="size-4" />
+                </button>
+              )}
             </div>
           ) : (
             <div>
@@ -436,6 +450,23 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                   و {toPersianDigits(previewTasks.length - 3)} کار دیگر
                 </button>
               )}
+              <div className="px-2 pt-1.5">
+                {inlineAddOpen ? (
+                  <QuickCaptureInput
+                    key={previewKey}
+                    variant="inline"
+                    currentSelectedDateKey={previewKey}
+                    initialTimeOfDay="anytime"
+                    onItemCreated={() => onStatusChanged()}
+                    onClose={() => setInlineAddOpen(false)}
+                  />
+                ) : (
+                  <CalendarAddRow
+                    onClick={() => setInlineAddOpen(true)}
+                    ariaLabel="افزودن کار به این روز"
+                  />
+                )}
+              </div>
             </div>
           )}
         </div>

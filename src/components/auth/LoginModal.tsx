@@ -1,23 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { syncManager } from '@/lib/sync';
 import {
-  RiCloseLine,
-  RiCheckLine,
   RiArrowRightLine,
-  RiMailLine,
-  RiMailCheckLine,
-  RiLogoutBoxRLine,
-  RiInformationLine,
+  RiCheckLine,
+  RiCloseLine,
   RiEyeLine,
   RiEyeOffLine,
-  RiKeyLine,
+  RiInformationLine,
+  RiLogoutBoxRLine,
+  RiMailCheckLine,
+  RiMailLine,
 } from '@remixicon/react';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const inputClass =
+  'h-12 w-full rounded-xl border border-border/70 bg-background/60 px-3.5 text-[13px] text-foreground placeholder:text-subtle transition-colors focus:border-foreground/25 focus:outline-none focus:ring-2 focus:ring-foreground/10 disabled:opacity-60';
+
+const primaryClass =
+  'flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[13px] font-semibold text-background transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-70';
+
+const GoogleMark = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    className="size-[18px] shrink-0"
+    aria-hidden="true"
+  >
+    <path
+      fill="#4285F4"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+    />
+  </svg>
+);
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const {
@@ -40,7 +72,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // If user just got signed in, auto sync and close
+  // If user just got signed in, auto sync and close.
   useEffect(() => {
     if (user && isOpen && viewMode !== 'main') {
       syncManager.performSync();
@@ -50,7 +82,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  // Unified Smart Login / Registration
+  // Unified smart sign-in / sign-up: try login, then create the account.
   const handleSmartContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedEmail = email.trim();
@@ -68,7 +100,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     setLoading(true);
 
     try {
-      // 1. Attempt Sign In
       const { error: signInErr } = await signInWithPassword(trimmedEmail, password);
       if (!signInErr) {
         setSuccessMessage('با موفقیت وارد شدید!');
@@ -81,8 +112,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       }
 
       const signInMsg = (signInErr.message || '').toLowerCase();
-
-      // 2. If credentials not found, attempt seamless Sign Up
       const isInvalidCredentials =
         signInMsg.includes('invalid login credentials') ||
         signInMsg.includes('invalid credentials');
@@ -100,12 +129,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         }
 
         const signUpMsg = (signUpErr.message || '').toLowerCase();
-        // If user already exists in DB, it means their password was incorrect!
         if (
           signUpMsg.includes('already registered') ||
           signUpMsg.includes('user already exists')
         ) {
-          setErrorMessage('این ایمیل قبلاً ثبت شده است، اما رمز عبور وارد شده اشتباه است. لطفاً رمز صحیح را وارد کنید یا گزینه فراموشی رمز را بزنید.');
+          setErrorMessage(
+            'این ایمیل قبلاً ثبت شده است، اما رمز عبور وارد شده اشتباه است. لطفاً رمز صحیح را وارد کنید یا گزینه فراموشی رمز را بزنید.'
+          );
           return;
         }
 
@@ -114,7 +144,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       }
 
       if (signInMsg.includes('email not confirmed')) {
-        setErrorMessage('ایمیل شما تایید نشده است. لطفاً در پنل Supabase بخش Providers > Email گزینه Confirm email را غیرفعال کنید یا ایمیل خود را تایید نمایید.');
+        setErrorMessage(
+          'ایمیل شما تایید نشده است. لطفاً در پنل Supabase بخش Providers > Email گزینه Confirm email را غیرفعال کنید یا ایمیل خود را تایید نمایید.'
+        );
         return;
       }
 
@@ -126,7 +158,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Forgot Password submit
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedEmail = email.trim();
@@ -136,6 +167,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
 
     setErrorMessage(null);
+    setSuccessMessage(null);
     setLoading(true);
 
     try {
@@ -143,7 +175,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       if (error) {
         setErrorMessage(error.message);
       } else {
-        setSuccessMessage('لینک بازیابی رمز عبور به ایمیل شما فرستاده شد. لطفاً صندوق ورودی یا اسپم را بررسی کنید.');
+        setSuccessMessage(
+          'لینک بازیابی رمز عبور به ایمیل شما فرستاده شد. لطفاً صندوق ورودی یا اسپم را بررسی کنید.'
+        );
       }
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'خطا در ارسال ایمیل بازیابی');
@@ -152,7 +186,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Magic Link submit
   const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedEmail = email.trim();
@@ -162,6 +195,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
 
     setErrorMessage(null);
+    setSuccessMessage(null);
     setLoading(true);
 
     try {
@@ -178,7 +212,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // OTP Verification
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpToken || otpToken.trim().length < 6) {
@@ -187,6 +220,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
 
     setErrorMessage(null);
+    setSuccessMessage(null);
     setLoading(true);
 
     try {
@@ -211,6 +245,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   const handleGoogleLogin = async () => {
     setErrorMessage(null);
+    setSuccessMessage(null);
     setLoading(true);
     try {
       const { error } = await signInWithGoogle();
@@ -239,151 +274,136 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     setLoading(true);
     await signOut();
     setLoading(false);
+    setViewMode('main');
+  };
+
+  const resetToMain = () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setViewMode('main');
   };
 
   return (
     <div
-      className="absolute inset-0 z-40 w-full h-full bg-card text-card-foreground flex flex-col overflow-y-auto no-scrollbar animate-in fade-in duration-200"
+      className="fixed inset-0 z-20 overflow-y-auto bg-background font-sans text-foreground"
       dir="rtl"
     >
-      <div className="relative w-full flex flex-col min-h-full">
-        {/* Floating Back / Close Button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-3 left-3 z-30 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition cursor-pointer backdrop-blur-md shadow-md active:scale-95"
-          title="بازگشت به برنامه"
-        >
-          <RiCloseLine className="w-5 h-5 stroke-[2.5]" />
-        </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed left-5 top-14 z-10 flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        title="بازگشت به برنامه"
+        aria-label="بازگشت به برنامه"
+      >
+        <RiCloseLine className="size-4" />
+      </button>
 
-        {/* If user is already logged in */}
-        {user ? (
-          <div className="p-6 text-center space-y-5 my-auto max-w-md mx-auto w-full">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center border border-emerald-500/30 shadow-xs">
-              <RiCheckLine className="w-8 h-8" />
-            </div>
+      <div className="flex min-h-full items-center justify-center px-5 py-12">
+        <div className="w-full max-w-[420px]">
+          <div className="flex flex-col items-center text-center">
+            <img
+              src="/Boxs/Box 2.png"
+              alt=""
+              className="size-14 rounded-2xl object-contain"
+            />
+            <h1 className="mt-4 font-darvish text-[34px] font-semibold leading-tight tracking-tight text-foreground">
+              جعبه
+            </h1>
+            <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+              ذهن دوم تو، برای کارهای بزرگ.
+            </p>
+          </div>
 
-            <div>
-              <h2 className="text-xl font-bold text-foreground">شما وارد شده‌اید</h2>
-              <p className="text-sm text-muted-foreground mt-1 dir-ltr font-mono">{user.email}</p>
-              <div className="mt-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/20">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                متصل به پایگاه ابری Supabase
+          {user ? (
+            <div className="mt-8 rounded-[24px] border border-border/70 bg-card p-6 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <RiCheckLine className="size-6" />
+              </div>
+              <h2 className="mt-4 text-[16px] font-semibold text-foreground">وارد شدی</h2>
+              <p
+                dir="ltr"
+                className="mt-1 truncate font-mono text-[11.5px] text-muted-foreground"
+              >
+                {user.email}
+              </p>
+              <div className="mt-5 space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    syncManager.performSync();
+                    onClose();
+                  }}
+                  className={primaryClass}
+                >
+                  همگام‌سازی و بازگشت به برنامه
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  disabled={loading}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/10 text-[12.5px] font-medium text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-60"
+                >
+                  <RiLogoutBoxRLine className="size-4" />
+                  <span>خروج از حساب</span>
+                </button>
               </div>
             </div>
-
-            <div className="pt-4 space-y-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  syncManager.performSync();
-                  onClose();
-                }}
-                className="w-full py-3 px-4 rounded-xl bg-foreground text-background font-bold text-sm transition cursor-pointer shadow-sm hover:opacity-90 active:scale-[0.99]"
-              >
-                همگام‌سازی و بازگشت به برنامه
-              </button>
-
-              <button
-                type="button"
-                onClick={handleSignOut}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive text-sm font-semibold transition-colors cursor-pointer border border-destructive/20"
-              >
-                <RiLogoutBoxRLine className="w-4 h-4" />
-                <span>خروج از حساب کاربری</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col w-full flex-1">
-            {/* Top Illustration Banner */}
-            <div className="w-full bg-zinc-900 border-b border-border/40 shrink-0 overflow-hidden">
-              <img
-                src="/login-banner.png"
-                alt="MiniPini Space Office"
-                className="w-full h-auto object-cover select-none pointer-events-none block max-h-56"
-              />
-            </div>
-
-            {/* Dotted Line Divider */}
-            <div className="px-5 pt-3 pb-1">
-              <div
-                className="w-full h-3 select-none pointer-events-none opacity-50"
-                style={{
-                  backgroundImage: 'radial-gradient(circle, #71717a 1.25px, transparent 1.25px)',
-                  backgroundSize: '6.5px 6px',
-                }}
-              />
-            </div>
-
-            {/* Content Area */}
-            <div className="px-5 pb-8 pt-1 flex-1 flex flex-col justify-between text-right space-y-4 max-w-md mx-auto w-full">
-              <div className="space-y-3.5">
-                {/* Heading & Subtitle */}
-                <div>
-                  <h1 className="text-2xl font-black text-foreground tracking-tight flex items-center gap-1">
-                    <span>#مینی‌پینی!</span>
-                  </h1>
-                  <p className="text-xs text-muted-foreground font-normal mt-1">
-                    یادداشت‌ها، کارها و عادت‌ها در یک فضا!
-                  </p>
-                </div>
-
-                {/* Status / Error Alerts */}
+          ) : (
+            <>
+              <div className="mt-8 rounded-[24px] border border-border/70 bg-card p-5 sm:p-6">
                 {errorMessage && (
-                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs leading-relaxed text-right flex items-start gap-2 animate-in fade-in">
-                    <RiInformationLine className="w-4 h-4 shrink-0 mt-0.5" />
+                  <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-[11.5px] leading-6 text-destructive">
+                    <RiInformationLine className="mt-0.5 size-4 shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
                 {successMessage && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs leading-relaxed text-right animate-in fade-in">
+                  <div className="mb-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-[11.5px] leading-6 text-emerald-600 dark:text-emerald-400">
                     {successMessage}
                   </div>
                 )}
 
-                {/* VIEW 1: UNIFIED EMAIL + PASSWORD FORM */}
                 {viewMode === 'main' && (
-                  <form onSubmit={handleSmartContinue} className="space-y-3 pt-1">
-                    {/* Email Input */}
-                    <div className="space-y-1.5 text-right">
-                      <label htmlFor="auth-email-input" className="block text-xs font-semibold text-foreground/90">
-                        ایمیل
-                      </label>
-                      <input
-                        id="auth-email-input"
-                        type="email"
-                        required
-                        disabled={loading}
-                        autoComplete="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
-                      />
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={loading}
+                      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-border/70 bg-secondary/40 text-[13px] font-medium text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <span>ادامه با گوگل</span>
+                      <GoogleMark />
+                    </button>
+
+                    <div className="my-4 flex items-center gap-3">
+                      <span className="h-px flex-1 bg-border/60" />
+                      <span className="text-[10px] text-subtle">یا</span>
+                      <span className="h-px flex-1 bg-border/60" />
                     </div>
 
-                    {/* Password Input with show/hide toggle */}
-                    <div className="space-y-1.5 text-right">
-                      <div className="flex items-center justify-between">
-                        <label htmlFor="auth-pwd-input" className="block text-xs font-semibold text-foreground/90">
+                    <form onSubmit={handleSmartContinue} className="space-y-3">
+                      <div>
+                        <label htmlFor="auth-email-input" className="sr-only">
+                          ایمیل
+                        </label>
+                        <input
+                          id="auth-email-input"
+                          type="email"
+                          required
+                          disabled={loading}
+                          autoComplete="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="ایمیل"
+                          dir="ltr"
+                          className={`${inputClass} text-left`}
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <label htmlFor="auth-pwd-input" className="sr-only">
                           رمز عبور
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setErrorMessage(null);
-                            setSuccessMessage(null);
-                            setViewMode('forgot_password');
-                          }}
-                          className="text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                        >
-                          فراموشی رمز عبور؟
-                        </button>
-                      </div>
-                      <div className="relative flex items-center">
                         <input
                           id="auth-pwd-input"
                           type={showPassword ? 'text' : 'password'}
@@ -392,107 +412,79 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                           autoComplete="current-password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          placeholder="حداقل ۶ کاراکتر"
-                          className="w-full h-11 pr-3.5 pl-10 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
+                          placeholder="رمز عبور"
+                          dir="ltr"
+                          className={`${inputClass} pl-10 text-left`}
                         />
                         <button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute left-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          onClick={() => setShowPassword((visible) => !visible)}
+                          className="absolute left-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                           title={showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'}
+                          aria-label={showPassword ? 'مخفی کردن رمز' : 'نمایش رمز'}
                         >
-                          {showPassword ? <RiEyeOffLine className="w-4 h-4" /> : <RiEyeLine className="w-4 h-4" />}
+                          {showPassword ? (
+                            <RiEyeOffLine className="size-4" />
+                          ) : (
+                            <RiEyeLine className="size-4" />
+                          )}
                         </button>
                       </div>
-                    </div>
 
-                    {/* Primary Button: ادامه */}
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full h-11 mt-2 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-75 disabled:cursor-wait"
-                    >
-                      {loading ? (
-                        <>
-                          <span className="w-4 h-4 border-2 border-white/30 border-t-white dark:border-zinc-900/30 dark:border-t-zinc-900 rounded-full animate-spin" />
-                          <span className="text-xs">در حال ورود یا ثبت‌نام...</span>
-                        </>
-                      ) : (
-                        'ادامه'
-                      )}
-                    </button>
+                      <div className="flex items-center justify-between gap-3 pb-0.5">
+                        <span className="text-[10.5px] text-subtle">ورود یا ساخت حساب</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setErrorMessage(null);
+                            setSuccessMessage(null);
+                            setViewMode('forgot_password');
+                          }}
+                          className="rounded-sm text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          فراموشی رمز عبور؟
+                        </button>
+                      </div>
 
-                    {/* Subtle Divider Line */}
-                    <div className="w-full border-t border-border/70 my-2" />
-
-                    {/* Google OAuth Button: ورود با گوگل */}
-                    <button
-                      type="button"
-                      onClick={handleGoogleLogin}
-                      disabled={loading}
-                      className="w-full h-11 rounded-xl bg-card hover:bg-secondary/70 border border-border text-foreground text-sm font-semibold flex items-center justify-center gap-2.5 transition cursor-pointer shadow-xs active:scale-[0.99] disabled:opacity-50"
-                    >
-                      <span>ورود با گوگل</span>
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        className="w-5 h-5 shrink-0"
-                        style={{ width: '20px', height: '20px', minWidth: '20px', minHeight: '20px', maxWidth: '20px', maxHeight: '20px' }}
-                      >
-                        <path
-                          fill="#4285F4"
-                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        />
-                        <path
-                          fill="#34A853"
-                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        />
-                        <path
-                          fill="#FBBC05"
-                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                        />
-                        <path
-                          fill="#EA4335"
-                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                        />
-                      </svg>
-                    </button>
-
-                    {/* Secondary Link: ورود با لینک جادویی */}
-                    <div className="pt-2 text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setErrorMessage(null);
-                          setSuccessMessage(null);
-                          setViewMode('magic_link');
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                      >
-                        <RiMailLine className="w-3.5 h-3.5" />
-                        <span>ورود بدون رمز (لینک یک‌بار مصرف ایمیل)</span>
+                      <button type="submit" disabled={loading} className={primaryClass}>
+                        {loading ? (
+                          <>
+                            <span className="size-4 animate-spin rounded-full border-2 border-background/30 border-t-background" />
+                            <span>در حال ورود یا ثبت‌نام...</span>
+                          </>
+                        ) : (
+                          'ادامه با ایمیل'
+                        )}
                       </button>
-                    </div>
-                  </form>
+
+                      <p className="text-center text-[10.5px] leading-5 text-subtle">
+                        اگر حساب نداری، با همین ایمیل ساخته می‌شود.
+                      </p>
+                    </form>
+                  </>
                 )}
 
-                {/* VIEW 2: FORGOT PASSWORD */}
                 {viewMode === 'forgot_password' && (
-                  <form onSubmit={handleForgotPassword} className="space-y-3.5 pt-1 animate-in fade-in duration-200">
-                    <div className="p-3.5 rounded-2xl bg-secondary/40 border border-border/80 text-right space-y-1.5">
-                      <div className="flex items-center gap-2 text-foreground font-bold text-sm">
-                        <RiKeyLine className="w-4 h-4 text-primary" />
-                        <span>بازیابی رمز عبور</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        ایمیل خود را وارد کنید تا لینک تغییر رمز برای شما ارسال شود.
-                      </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={resetToMain}
+                        className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        aria-label="بازگشت به ورود"
+                      >
+                        <RiArrowRightLine className="size-4" />
+                      </button>
+                      <h2 className="text-[15px] font-semibold text-foreground">
+                        بازیابی رمز عبور
+                      </h2>
                     </div>
-
-                    <div className="space-y-1.5 text-right">
-                      <label htmlFor="auth-forgot-email" className="block text-xs font-semibold text-foreground/90">
-                        ایمیل حساب کاربری
+                    <p className="text-[11.5px] leading-6 text-muted-foreground">
+                      ایمیل حسابت را وارد کن تا لینک تغییر رمز برایت بفرستیم.
+                    </p>
+                    <form onSubmit={handleForgotPassword} className="space-y-3">
+                      <label htmlFor="auth-forgot-email" className="sr-only">
+                        ایمیل
                       </label>
                       <input
                         id="auth-forgot-email"
@@ -501,51 +493,35 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         disabled={loading}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
+                        placeholder="ایمیل"
+                        dir="ltr"
+                        className={`${inputClass} text-left`}
                       />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full h-11 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-50"
-                    >
-                      {loading ? 'در حال ارسال ایمیل بازیابی...' : 'ارسال لینک تغییر رمز'}
-                    </button>
-
-                    <div className="pt-1 text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setErrorMessage(null);
-                          setSuccessMessage(null);
-                          setViewMode('main');
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <RiArrowRightLine className="w-3.5 h-3.5" />
-                        <span>بازگشت به صفحه ورود</span>
+                      <button type="submit" disabled={loading} className={primaryClass}>
+                        {loading ? 'در حال ارسال...' : 'ارسال لینک تغییر رمز'}
                       </button>
-                    </div>
-                  </form>
+                    </form>
+                  </div>
                 )}
 
-                {/* VIEW 3: MAGIC LINK */}
                 {viewMode === 'magic_link' && (
-                  <form onSubmit={handleMagicLinkSubmit} className="space-y-3.5 pt-1 animate-in fade-in duration-200">
-                    <div className="p-3.5 rounded-2xl bg-secondary/40 border border-border/80 text-right space-y-1.5">
-                      <div className="flex items-center gap-2 text-foreground font-bold text-sm">
-                        <RiMailLine className="w-4 h-4 text-primary" />
-                        <span>ورود بدون رمز با لینک جادویی</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        لینکی به ایمیل شما ارسال می‌شود که با کلیک روی آن مستقیماً وارد برنامه می‌شوید.
-                      </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={resetToMain}
+                        className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        aria-label="بازگشت به ورود"
+                      >
+                        <RiArrowRightLine className="size-4" />
+                      </button>
+                      <h2 className="text-[15px] font-semibold text-foreground">ورود بدون رمز</h2>
                     </div>
-
-                    <div className="space-y-1.5 text-right">
-                      <label htmlFor="auth-magic-email" className="block text-xs font-semibold text-foreground/90">
+                    <p className="text-[11.5px] leading-6 text-muted-foreground">
+                      یک لینک یک‌بار مصرف به ایمیلت می‌فرستیم؛ با کلیک روی آن وارد می‌شوی.
+                    </p>
+                    <form onSubmit={handleMagicLinkSubmit} className="space-y-3">
+                      <label htmlFor="auth-magic-email" className="sr-only">
                         ایمیل
                       </label>
                       <input
@@ -555,55 +531,43 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         disabled={loading}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
-                        className="w-full h-11 px-3.5 rounded-xl bg-background border border-border text-foreground text-sm text-right placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition disabled:opacity-60"
+                        placeholder="ایمیل"
+                        dir="ltr"
+                        className={`${inputClass} text-left`}
                       />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full h-11 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer shadow-sm active:scale-[0.99] disabled:opacity-50"
-                    >
-                      {loading ? 'در حال ارسال لینک...' : 'ارسال لینک ورود'}
-                    </button>
-
-                    <div className="pt-1 text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setErrorMessage(null);
-                          setSuccessMessage(null);
-                          setViewMode('main');
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <RiArrowRightLine className="w-3.5 h-3.5" />
-                        <span>بازگشت به ورود با رمز عبور</span>
+                      <button type="submit" disabled={loading} className={primaryClass}>
+                        {loading ? 'در حال ارسال لینک...' : 'ارسال لینک ورود'}
                       </button>
-                    </div>
-                  </form>
+                    </form>
+                  </div>
                 )}
 
-                {/* VIEW 4: OTP CONFIRMATION */}
                 {viewMode === 'otp' && (
-                  <div className="space-y-4 pt-1 text-right animate-in fade-in duration-200">
-                    <div className="p-4 rounded-2xl bg-secondary/40 border border-border/80 text-center space-y-2.5">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center border border-primary/20">
-                        <RiMailCheckLine className="w-6 h-6" />
-                      </div>
-                      <h3 className="text-base font-bold text-foreground">لینک ورود ارسال شد!</h3>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        یک ایمیل حاوی لینک و کد تایید به آدرس زیر فرستاده شد:
-                      </p>
-                      <div className="py-1 px-3 rounded-lg bg-background border border-border/60 font-mono text-xs text-foreground dir-ltr font-semibold inline-block">
-                        {email}
-                      </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={resetToMain}
+                        className="flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        aria-label="بازگشت به ورود"
+                      >
+                        <RiArrowRightLine className="size-4" />
+                      </button>
+                      <h2 className="text-[15px] font-semibold text-foreground">
+                        کد ورود را وارد کن
+                      </h2>
                     </div>
 
-                    <form onSubmit={handleVerifyOtp} className="space-y-2.5 pt-1">
-                      <label htmlFor="auth-otp-input" className="block text-xs font-semibold text-foreground/90">
-                        یا کد تایید ۶ رقمی را وارد کنید:
+                    <div className="flex items-start gap-2.5 rounded-xl bg-secondary/40 p-3 text-[11.5px] leading-6 text-muted-foreground">
+                      <RiMailCheckLine className="mt-0.5 size-4 shrink-0" />
+                      <span>
+                        کد ۶ رقمی به <span dir="ltr" className="font-mono">{email}</span> فرستادیم.
+                      </span>
+                    </div>
+
+                    <form onSubmit={handleVerifyOtp} className="space-y-3">
+                      <label htmlFor="auth-otp-input" className="sr-only">
+                        کد تایید
                       </label>
                       <input
                         id="auth-otp-input"
@@ -614,37 +578,58 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         value={otpToken}
                         onChange={(e) => setOtpToken(e.target.value.replace(/\D/g, ''))}
                         placeholder="• • • • • •"
-                        className="w-full h-11 px-4 rounded-xl bg-background border border-border text-foreground text-center font-mono tracking-widest text-lg placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition"
+                        dir="ltr"
                         autoFocus
+                        className={`${inputClass} text-center text-lg tracking-[0.4em]`}
                       />
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full h-10 rounded-xl bg-[#18181b] hover:bg-black text-white dark:bg-white dark:text-zinc-900 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm disabled:opacity-50"
-                      >
+                      <button type="submit" disabled={loading} className={primaryClass}>
                         {loading ? 'در حال بررسی...' : 'تایید کد و ورود'}
                       </button>
                     </form>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-border/60">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setViewMode('main');
-                          setOtpToken('');
-                        }}
-                        className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer"
-                      >
-                        <RiArrowRightLine className="w-3.5 h-3.5" />
-                        <span>بازگشت به ورود با رمز</span>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={resetToMain}
+                      className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      بازگشت به ورود با رمز
+                    </button>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        )}
+
+              {viewMode === 'main' && (
+                <div className="mt-5 flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorMessage(null);
+                      setSuccessMessage(null);
+                      setViewMode('magic_link');
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11.5px] text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <RiMailLine className="size-3.5" />
+                    <span>ورود بدون رمز با لینک ایمیل</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-border/70 text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary"
+                  >
+                    ادامه بدون حساب
+                    <span className="text-[10.5px] font-normal text-subtle">استفادهٔ آفلاین</span>
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          <p className="mt-8 text-center text-[10.5px] leading-5 text-subtle">
+            جعبه آفلاین کار می‌کند؛ ورود فقط برای همگام‌سازی است.
+          </p>
+        </div>
       </div>
     </div>
   );

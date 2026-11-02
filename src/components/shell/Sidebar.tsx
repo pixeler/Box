@@ -13,10 +13,15 @@ import {
   formatTaskDateDisplay,
   getJalaliDate,
   getTodayJalaliKey,
+  toPersianDigits,
 } from '@/lib/jalali';
 import { shortcutAria, shortcutLabel } from '@/lib/platform';
+import { desktop } from '@/lib/desktop';
+import { CHROME_MENU_Z } from '@/lib/overlayLayer';
 import { useNotebook } from '@/components/notebook/NotebookContext';
 import { SidebarFolderTree } from './SidebarFolderTree';
+import { NoteGlyph } from '@/components/notebook/NoteGlyph';
+import { getNoteColorPreset } from '@/components/notebook/noteTheme';
 import { useRecentItems, type RecentItem } from '@/hooks/useRecentItems';
 import {
   ArrowUpDown,
@@ -26,42 +31,52 @@ import {
   ChevronDown,
   CircleCheck,
   CircleHelp,
+  Code,
   Copy,
   Database,
   Ellipsis,
-  Focus,
+  Files,
   Folder,
   Info,
   ListTodo,
-  LogIn,
   LogOut,
   Palette,
   PanelRight,
   Pin,
   PinOff,
   Plus,
+  RotateCcw,
   Search,
   Settings,
   SquareCheck,
   SquareText,
   Sun,
+  Timer,
+  Trash,
   User,
   X,
   type LucideIcon,
 } from 'lucide-react';
+import { useFocusTimer } from '@/components/focus/FocusTimerContext';
+import { formatCountdown } from '@/components/focus/format';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { RiArrowLeftSLine, RiArrowRightSLine, RiLoginBoxLine } from '@remixicon/react';
 
 export interface SidebarProps {
   activeTab: ActiveTab;
@@ -71,9 +86,17 @@ export interface SidebarProps {
   onTabChange: (tab: ActiveTab) => void;
   onOpenAdd: () => void;
   onOpenNote: () => void;
+  onOpenSearch?: () => void;
   onOpenSettings: (section?: SettingsSection) => void;
   onOpenAuth: () => void;
   onOpenTask: (task: Task) => void;
+  /** False on desktop, where the window titlebar owns history and the toggle. */
+  showNavControls?: boolean;
+  /** Browser-style history, kept in the sidebar next to the collapse button. */
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
   /** Called after a navigation action, so the mobile sheet can close itself. */
   onNavigate?: () => void;
   /** Only supplied inside the mobile sheet. */
@@ -87,8 +110,40 @@ const NAV_ITEMS = [
 
 const TOOL_ITEMS = [
   { id: 'todo' as const, label: 'همه کارها', icon: ListTodo },
-  { id: 'focus' as const, label: 'تمرکز', icon: Focus },
+  { id: 'focus' as const, label: 'تمرکز', icon: Timer },
 ];
+
+/** Live countdown next to the focus entry, so the timer is visible from any tab. */
+const FocusSidebarBadge: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
+  const { timerState, remainingSeconds } = useFocusTimer();
+  if (timerState !== 'running' && timerState !== 'paused') return null;
+
+  const running = timerState === 'running';
+
+  if (compact) {
+    return (
+      <span
+        className={cn(
+          'flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold leading-none tabular-nums text-white shadow-xs',
+          running ? 'bg-success' : 'bg-warning'
+        )}
+      >
+        {toPersianDigits(Math.max(1, Math.ceil(remainingSeconds / 60)))}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        'rounded-md px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums',
+        running ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'
+      )}
+    >
+      {formatCountdown(remainingSeconds)}
+    </span>
+  );
+};
 
 const RECENT_SORTS = [
   { id: 'recent' as const, label: 'آخرین تغییر' },
@@ -212,6 +267,11 @@ const RecentRow: React.FC<{
   const hoverTimer = useRef<number | null>(null);
 
   const TypeIcon = item.type === 'note' ? SquareText : SquareCheck;
+  const noteGlyph = item.type === 'note' ? item.note.icon : undefined;
+  const noteColor =
+    item.type === 'note' && item.note.color && item.note.color !== 'default'
+      ? getNoteColorPreset(item.note.color, 0)
+      : null;
   const title = item.title;
 
   const clearPreview = () => {
@@ -297,6 +357,32 @@ const RecentRow: React.FC<{
     }
   };
 
+  const duplicateItem = async () => {
+    try {
+      if (item.type === 'note') await noteRepo.duplicate(item.note.id);
+      else await taskRepo.duplicate(item.task.id);
+      toast.show('یک نسخهٔ کپی ساخته شد');
+      await refresh();
+      clearPreview();
+    } catch (error) {
+      console.error('Failed to duplicate the item:', error);
+      toast.show('تکثیر انجام نشد');
+    }
+  };
+
+  const deleteItem = async () => {
+    try {
+      if (item.type === 'note') await noteRepo.softDelete(item.note.id);
+      else await taskRepo.softDelete(item.task.id);
+      toast.show(item.type === 'note' ? 'یادداشت حذف شد' : 'کار حذف شد');
+      await refresh();
+      clearPreview();
+    } catch (error) {
+      console.error('Failed to delete the item:', error);
+      toast.show('حذف انجام نشد');
+    }
+  };
+
   const pinned = item.type === 'note' ? item.note.pinned : item.task.pinned;
 
   return (
@@ -318,7 +404,28 @@ const RecentRow: React.FC<{
         onClick={openItem}
         className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-sm text-right outline-none"
       >
-        <TypeIcon className="size-4 shrink-0 text-subtle" />
+        <span
+          aria-hidden="true"
+          title={noteColor?.name}
+          className="flex size-6 shrink-0 items-center justify-center"
+        >
+          {/* The colour is a soft tint behind the glyph, tight enough that the
+              title stays in line with every other row. */}
+          <span
+            className={
+              noteColor
+                ? 'flex size-[19px] items-center justify-center rounded-[6px]'
+                : 'flex items-center justify-center'
+            }
+            style={noteColor ? { backgroundColor: `${noteColor.dot}26` } : undefined}
+          >
+            {noteGlyph ? (
+              <NoteGlyph icon={noteGlyph} className="size-3.5" emojiClassName="text-[12px]" />
+            ) : (
+              <TypeIcon className="size-4 shrink-0 text-subtle" />
+            )}
+          </span>
+        </span>
         <span className="min-w-0 flex-1 truncate text-[14px] leading-5 text-muted-foreground group-hover/recent:text-foreground">
           {title}
         </span>
@@ -342,7 +449,12 @@ const RecentRow: React.FC<{
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" sideOffset={6} className="w-48 p-1">
+        <DropdownMenuContent
+          align="end"
+          sideOffset={6}
+          className="w-48 p-1"
+          style={{ zIndex: CHROME_MENU_Z }}
+        >
           <DropdownMenuItem onSelect={openItem}>
             <TypeIcon className="size-3.5 text-subtle" />
             <span>باز کردن</span>
@@ -365,6 +477,18 @@ const RecentRow: React.FC<{
             <Copy className="size-3.5 text-subtle" />
             <span>کپی عنوان</span>
           </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void duplicateItem()}>
+            <Files className="size-3.5 text-subtle" />
+            <span>تکثیر</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => void deleteItem()}
+            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+          >
+            <Trash className="size-3.5 text-subtle" />
+            <span>{item.type === 'note' ? 'حذف یادداشت' : 'حذف کار'}</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -379,7 +503,7 @@ const RecentRow: React.FC<{
         </div>
       </ContextMenuTrigger>
 
-      <ContextMenuContent className="w-48 p-1">
+      <ContextMenuContent className="w-48 p-1" style={{ zIndex: CHROME_MENU_Z }}>
         <ContextMenuItem onSelect={openItem}>
           <TypeIcon className="size-3.5 text-subtle" />
           <span>باز کردن</span>
@@ -402,6 +526,18 @@ const RecentRow: React.FC<{
           <Copy className="size-3.5 text-subtle" />
           <span>کپی عنوان</span>
         </ContextMenuItem>
+        <ContextMenuItem onSelect={() => void duplicateItem()}>
+          <Files className="size-3.5 text-subtle" />
+          <span>تکثیر</span>
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onSelect={() => void deleteItem()}
+          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+        >
+          <Trash className="size-3.5" />
+          <span>{item.type === 'note' ? 'حذف یادداشت' : 'حذف کار'}</span>
+        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -415,13 +551,17 @@ const AccountMenu: React.FC<{
   const { user, signOut } = useAuth();
   const settingsShortcut = shortcutLabel(',');
   const [avatarError, setAvatarError] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [syncState, setSyncState] = useState<SyncState>(() => syncManager.getState().state);
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(() => syncManager.getState().message || null);
   const [lastSyncLabel, setLastSyncLabel] = useState<string>(() => syncManager.getFormattedLastSync());
   const [online, setOnline] = useState<boolean>(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
 
   useEffect(() => {
     const unsub = syncManager.subscribe(() => {
-      setSyncState(syncManager.getState().state);
+      const current = syncManager.getState();
+      setSyncState(current.state);
+      setSyncErrorMessage(current.message || null);
       setLastSyncLabel(syncManager.getFormattedLastSync());
     });
     const onOnline = () => setOnline(true);
@@ -439,7 +579,7 @@ const AccountMenu: React.FC<{
     };
   }, []);
 
-  const avatarUrl = user?.user_metadata?.avatar_url || '/avatar.png';
+  const avatarUrl = user?.user_metadata?.avatar_url || null;
   const displayName: string =
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
@@ -452,14 +592,21 @@ const AccountMenu: React.FC<{
     else toast.show('از حساب خارج شدی');
   };
 
+  const syncFailed = !online || syncState === 'error' || syncState === 'table_missing';
+
   const syncLabel = !online
     ? 'آفلاین'
     : syncState === 'syncing'
-    ? 'در حال همگام‌سازی…'
-    : lastSyncLabel;
+    ? 'در حال همگام‌سازی'
+    : syncState === 'error' || syncState === 'table_missing'
+    ? 'همگام‌سازی ناموفق'
+    : user
+    ? `همگام‌سازی ${lastSyncLabel}`
+    : 'همگام‌سازی نشده';
 
   return (
-    <DropdownMenu>
+    <div className="relative">
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -489,29 +636,62 @@ const AccountMenu: React.FC<{
                   {displayName}
                 </span>
                 <span
+                  title={syncErrorMessage || undefined}
                   className={cn(
                     'flex min-w-0 items-center gap-1.5 truncate text-[11px] leading-4',
-                    online ? 'text-subtle' : 'text-amber-600 dark:text-amber-400'
+                    !online || syncState === 'error' || syncState === 'table_missing'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-subtle'
                   )}
                 >
-                  {!online && (
+                  {(!online || syncState === 'error' || syncState === 'table_missing') && (
                     <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden="true" />
                   )}
                   <span className="truncate">{syncLabel}</span>
                 </span>
               </div>
-              <ChevronDown className="size-3.5 shrink-0 text-subtle transition-transform duration-150 group-data-[state=open]/account:rotate-180" />
+              {!syncFailed && (
+                <ChevronDown className="size-3.5 shrink-0 text-subtle transition-transform duration-150 group-data-[state=open]/account:rotate-180" />
+              )}
             </>
           )}
           {compact && <RailTip label={displayName} />}
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent side="top" align="start" sideOffset={8} className="w-[268px] p-1.5">
-        <div className="px-2 py-1.5">
-          <p className="truncate text-[11px] text-subtle">{user?.email || 'حساب مهمان'}</p>
-          <p className="mt-0.5 truncate text-[13px] font-medium text-foreground">{displayName}</p>
+      <DropdownMenuContent
+        side="top"
+        align="start"
+        sideOffset={8}
+        className="w-[286px] p-1.5"
+        style={{ zIndex: CHROME_MENU_Z }}
+      >
+        <div className="flex items-start justify-between gap-3 px-2 py-1.5">
+          <div className="min-w-0">
+            <p className="truncate text-[11px] text-subtle">{user?.email || 'حساب مهمان'}</p>
+            <p className="mt-0.5 truncate text-[13px] font-medium text-foreground">{displayName}</p>
+          </div>
+          {!user && (
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenAuth();
+              }}
+              className="mt-0.5 shrink-0 rounded-full border border-border/70 px-2.5 py-1 text-[10.5px] font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              ورود / ثبت‌نام
+            </button>
+          )}
         </div>
+        {syncErrorMessage && (syncState === 'error' || syncState === 'table_missing') && (
+          <div className="mx-1.5 mb-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] leading-4 text-amber-600 dark:text-amber-400">
+            <div className="font-medium">خطای همگام‌سازی</div>
+            <div dir="ltr" className="mt-0.5 truncate text-left font-mono text-[10px] opacity-90">
+              {syncErrorMessage}
+            </div>
+          </div>
+        )}
 
         <DropdownMenuSeparator />
 
@@ -523,22 +703,45 @@ const AccountMenu: React.FC<{
           <span className="flex-1">تنظیمات</span>
           <Shortcut>{settingsShortcut}</Shortcut>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenSettings('theme')}>
-          <Palette className="size-4 text-subtle" />
-          <span>تم و ظاهر</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenSettings('backup')}>
-          <Database className="size-4 text-subtle" />
-          <span>پشتیبان‌گیری و داده</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenSettings('feedback')}>
-          <CircleHelp className="size-4 text-subtle" />
-          <span>راهنما و بازخورد</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onOpenSettings('about')}>
-          <Info className="size-4 text-subtle" />
-          <span>درباره جعبه</span>
-        </DropdownMenuItem>
+        {/* Two everyday entries stay here; everything else — including the
+            desktop-only tools — lives one level down. */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Ellipsis className="size-4 text-subtle" />
+            <span>سایر</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="min-w-52">
+            <DropdownMenuItem onSelect={() => onOpenSettings('theme')}>
+              <Palette className="size-4 text-subtle" />
+              <span>تم و ظاهر</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onOpenSettings('backup')}>
+              <Database className="size-4 text-subtle" />
+              <span>پشتیبان‌گیری و داده</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onOpenSettings('feedback')}>
+              <CircleHelp className="size-4 text-subtle" />
+              <span>راهنما و بازخورد</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onOpenSettings('about')}>
+              <Info className="size-4 text-subtle" />
+              <span>درباره جعبه</span>
+            </DropdownMenuItem>
+            {desktop && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  aria-keyshortcuts="Control+Shift+I"
+                  onSelect={() => desktop?.toggleDevTools?.()}
+                >
+                  <Code className="size-4 text-subtle" />
+                  <span className="flex-1">ابزار برنامه‌نویسان</span>
+                  <Shortcut>Ctrl+Shift+I</Shortcut>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
 
         <DropdownMenuSeparator />
 
@@ -552,12 +755,28 @@ const AccountMenu: React.FC<{
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem onSelect={onOpenAuth}>
-            <LogIn className="size-4 text-subtle" />
+            <RiLoginBoxLine className="size-4 text-subtle" />
             <span>ورود به حساب</span>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+
+    {syncFailed && (
+      <button
+        type="button"
+        onClick={() => void syncManager.performSync()}
+        title="تلاش مجدد برای همگام‌سازی"
+        aria-label="تلاش مجدد برای همگام‌سازی"
+        className={cn(
+          'absolute flex items-center justify-center rounded-md text-amber-600 transition-colors hover:bg-foreground/[0.07] hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300',
+          compact ? 'left-0 top-0 size-4' : 'left-0 top-1/2 size-6 -translate-y-1/2'
+        )}
+      >
+        <RotateCcw className={compact ? 'size-3' : 'size-3.5'} />
+      </button>
+    )}
+    </div>
   );
 };
 
@@ -574,9 +793,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   onOpenAdd,
   onOpenNote,
+  onOpenSearch,
   onOpenSettings,
   onOpenAuth,
   onOpenTask,
+  showNavControls = true,
+  canGoBack,
+  canGoForward,
+  onBack,
+  onForward,
   onNavigate,
   onClose,
 }) => {
@@ -596,6 +821,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     refresh,
   } = useRecentItems(20);
   const [notesOpen, setNotesOpen] = useState(activeTab === 'notebook');
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [recentsExpanded, setRecentsExpanded] = useState(true);
   const [recentsOpen, setRecentsOpen] = useState(false);
@@ -605,6 +831,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     if (activeTab === 'notebook') setNotesOpen(true);
   }, [activeTab]);
+
+  // The global "/" shortcut asks this menu to open instead of the search modal.
+  useEffect(() => {
+    const openNewMenu = () => setNewMenuOpen(true);
+    window.addEventListener('box:open-new-menu', openNewMenu);
+    return () => window.removeEventListener('box:open-new-menu', openNewMenu);
+  }, []);
 
   const navigate = (tab: ActiveTab) => {
     onTabChange(tab);
@@ -678,11 +911,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
+  // The sidebar's scrollbar is invisible until the list is actually scrolling.
+  const [isSidebarScrolling, setIsSidebarScrolling] = useState(false);
+  const scrollbarTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (scrollbarTimer.current) window.clearTimeout(scrollbarTimer.current);
+    },
+    []
+  );
+
+  const handleSidebarScroll = () => {
+    setIsSidebarScrolling(true);
+    if (scrollbarTimer.current) window.clearTimeout(scrollbarTimer.current);
+    scrollbarTimer.current = window.setTimeout(() => setIsSidebarScrolling(false), 700);
+  };
+
   return (
     <aside
-      className="flex h-full w-full flex-col overflow-visible bg-sidebar px-2 pb-2 pt-3 text-sidebar-foreground [&_svg]:stroke-[1.75]"
+      className={cn(
+        'flex h-full w-full flex-col bg-sidebar px-2 pb-2 pt-3 text-sidebar-foreground [&_svg]:stroke-[1.75]',
+        compact ? 'overflow-visible' : 'overflow-hidden'
+      )}
       aria-label="ناوبری اصلی"
     >
+      {/* Everything except the account row scrolls; the account stays pinned. */}
+      <div
+        onScroll={compact ? undefined : handleSidebarScroll}
+        className={cn(
+          'flex min-h-0 flex-1 flex-col',
+          compact
+            ? 'overflow-visible'
+            : cn(
+                'sidebar-scroll overflow-y-auto overflow-x-hidden',
+                isSidebarScrolling && 'is-scrolling'
+              )
+        )}
+      >
       <div
         className={cn(
           'flex h-10 shrink-0 items-center',
@@ -706,18 +971,80 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <PanelRight className="absolute size-[18px] text-muted-foreground opacity-0 transition-opacity group-hover/brand:opacity-100" />
           </button>
         ) : (
-          <div className={cn('flex min-w-0 items-center gap-2.5 ps-2.5', compact && 'justify-center')}>
-            <img src="/Boxs/Box 2.png" alt="" className="size-7 shrink-0 rounded-md object-contain" />
-            {!compact && (
-              <span className="truncate font-darvish text-[18px] font-semibold leading-none text-foreground">
+          <div
+            className={cn(
+              'flex min-w-0 flex-1 items-center justify-between gap-3 ps-2.5',
+              compact && 'justify-center'
+            )}
+          >
+            <span className="group/brand flex min-w-0 items-center gap-1.5">
+              <img
+                src="/Boxs/Box 2.png"
+                alt="جعبه"
+                className="size-7 shrink-0 rounded-md object-contain"
+              />
+              <span className="max-w-0 overflow-hidden whitespace-nowrap text-[13px] font-medium text-foreground opacity-0 transition-all duration-200 group-hover/brand:max-w-12 group-hover/brand:opacity-100">
                 جعبه
               </span>
+            </span>
+
+            {!compact && onOpenSearch && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenSearch();
+                  onNavigate?.();
+                }}
+                title={`جستجو (${shortcutLabel('P')})`}
+                aria-label="جستجوی همه‌کاره"
+                aria-keyshortcuts={shortcutAria('P')}
+                className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+              >
+                <Search className="size-4" />
+                <Shortcut>{shortcutLabel('P')}</Shortcut>
+              </button>
             )}
           </div>
         )}
 
-        {!compact && onClose && (
+        {!compact && (
           <div className="flex shrink-0 items-center gap-0.5">
+            {showNavControls && (
+              <>
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={!canGoBack}
+              title="بازگشت"
+              aria-label="بازگشت"
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+            >
+              <RiArrowRightSLine className="size-[18px]" />
+            </button>
+            <button
+              type="button"
+              onClick={onForward}
+              disabled={!canGoForward}
+              title="جلو"
+              aria-label="جلو"
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+            >
+              <RiArrowLeftSLine className="size-[18px]" />
+            </button>
+            {canCollapse && onToggleCollapsed && (
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                title={`بستن سایدبار (${collapseShortcut})`}
+                aria-label="بستن سایدبار"
+                aria-keyshortcuts={shortcutAria('B')}
+                className="flex size-8 items-center justify-center rounded-md text-subtle transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+              >
+                <PanelRight className="size-[17px]" />
+              </button>
+            )}
+              </>
+            )}
             {onClose && (
               <button
                 type="button"
@@ -733,61 +1060,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      <div className={cn('mt-4 flex flex-col gap-1.5', compact && 'items-center gap-1')}>
-        {compact ? (
-          <>
-            <button
-              type="button"
-              onClick={onOpenAdd}
-              title="کار (T)"
-              aria-label="کار"
-              className="group relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
-            >
-              <Plus className="size-[18px]" />
-              <RailTip label="کار (T)" />
-            </button>
-            <button
-              type="button"
-              onClick={onOpenNote}
-              title="یادداشت (N)"
-              aria-label="یادداشت"
-              className="group relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
-            >
-              <SquareText className="size-[18px]" />
-              <RailTip label="یادداشت (N)" />
-            </button>
-          </>
-        ) : (
-          <div className="flex w-full items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onOpenAdd}
-              title="کار (T)"
-              className="flex h-9 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
-            >
-              <span className="flex items-center gap-1.5">
-                <Plus className="size-4 shrink-0" />
-                کار
-              </span>
-              <Shortcut>T</Shortcut>
-            </button>
-            <button
-              type="button"
-              onClick={onOpenNote}
-              title="یادداشت (N)"
-              className="flex h-9 flex-1 items-center justify-between gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
-            >
-              <span className="flex items-center gap-1.5">
-                <SquareText className="size-4 shrink-0" />
-                یادداشت
-              </span>
-              <Shortcut>N</Shortcut>
-            </button>
-          </div>
-        )}
-      </div>
-
       <nav className={cn('mt-4 flex flex-col gap-0.5', compact && 'items-center')} aria-label="صفحه‌ها">
+        <DropdownMenu open={newMenuOpen} onOpenChange={setNewMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title="جدید (/)"
+              aria-label="جدید"
+              className={cn(
+                'group relative flex h-9 w-full items-center rounded-md text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground data-[state=open]:bg-foreground/[0.06] data-[state=open]:text-foreground',
+                compact ? 'justify-center' : 'gap-2.5 px-2.5'
+              )}
+            >
+              <Plus className="size-[18px] shrink-0" />
+              {compact ? (
+                <RailTip label="جدید (/)" />
+              ) : (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-right leading-5">جدید</span>
+                  <Shortcut>/</Shortcut>
+                </>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            align="end"
+            sideOffset={6}
+            className="w-44 p-1"
+            style={{ zIndex: CHROME_MENU_Z }}
+          >
+            <DropdownMenuItem
+              onSelect={() => {
+                onOpenAdd();
+              }}
+            >
+              <SquareCheck className="size-3.5 text-subtle" />
+              <span className="flex-1">کار</span>
+              <Shortcut>T</Shortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                onOpenNote();
+                onNavigate?.();
+              }}
+            >
+              <SquareText className="size-3.5 text-subtle" />
+              <span className="flex-1">یادداشت</span>
+              <Shortcut>N</Shortcut>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {NAV_ITEMS.map((item) => (
           <SidebarNavItem
             key={item.id}
@@ -886,6 +1210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             icon={item.icon}
             active={activeTab === item.id}
             compact={compact}
+            trailing={item.id === 'focus' ? <FocusSidebarBadge compact={compact} /> : undefined}
             onClick={() => navigate(item.id)}
           />
         ))}
@@ -894,7 +1219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {!compact && (
         <section
           aria-labelledby="sidebar-recents-heading"
-          className="mt-5 min-h-0 flex-1 overflow-y-auto overflow-x-hidden no-scrollbar"
+          className="mt-5"
         >
           {pinnedItems.length > 0 && (
             <div className="mb-5" aria-labelledby="sidebar-pinned-heading">
@@ -980,7 +1305,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <ArrowUpDown className="size-3.5" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={6} className="w-40 p-1">
+              <DropdownMenuContent
+                align="end"
+                sideOffset={6}
+                className="w-40 p-1"
+                style={{ zIndex: CHROME_MENU_Z }}
+              >
                 {RECENT_SORTS.map((option) => (
                   <DropdownMenuItem
                     key={option.id}
@@ -1041,7 +1371,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </section>
       )}
 
-      <div className={cn('mt-auto flex flex-col pt-3', compact && 'items-center')}>
+      </div>
+
+      <div className={cn('mt-auto flex shrink-0 flex-col pt-3', compact && 'items-center')}>
+        {compact && onOpenSearch && (
+          <button
+            type="button"
+            onClick={() => {
+              onOpenSearch();
+              onNavigate?.();
+            }}
+            title={`جستجو (${shortcutLabel('P')})`}
+            aria-label="جستجوی همه‌کاره"
+            aria-keyshortcuts={shortcutAria('P')}
+            className="group relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+          >
+            <Search className="size-[18px]" />
+            <RailTip label={`جستجو (${shortcutLabel('P')})`} />
+          </button>
+        )}
         <AccountMenu
           compact={compact}
           onOpenSettings={onOpenSettings}
@@ -1068,8 +1416,9 @@ const SidebarNavItem: React.FC<{
   activeIcon?: LucideIcon;
   active?: boolean;
   compact?: boolean;
+  trailing?: React.ReactNode;
   onClick: () => void;
-}> = ({ label, icon, activeIcon, active = false, compact = false, onClick }) => {
+}> = ({ label, icon, activeIcon, active = false, compact = false, trailing, onClick }) => {
   const Glyph = active && activeIcon ? activeIcon : icon;
 
   return (
@@ -1088,6 +1437,12 @@ const SidebarNavItem: React.FC<{
     >
       <Glyph className="size-[18px] shrink-0" />
       {!compact && <span className="min-w-0 flex-1 truncate text-right leading-5">{label}</span>}
+      {trailing &&
+        (compact ? (
+          <span className="absolute -top-1 -end-1">{trailing}</span>
+        ) : (
+          <span className="shrink-0">{trailing}</span>
+        ))}
       {compact && <RailTip label={label} />}
     </button>
   );

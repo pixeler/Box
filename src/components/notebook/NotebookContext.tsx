@@ -1,8 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Note, Tag, Box } from '@/types/models';
 import type { NotionViewMode } from './NoteEditModal';
 import { noteRepo, tagRepo, boxRepo } from '@/repositories';
 import { toast } from '@/lib/toast';
+import { navigate, parseHash, useRoute } from '@/lib/router';
+import { loadNoteTemplates, pickTemplateFor, type NoteTemplate } from '@/lib/noteTemplates';
 
 interface NotebookContextType {
   notes: Note[];
@@ -24,7 +26,14 @@ interface NotebookContextType {
   targetParentBoxId: string | null;
   setTargetParentBoxId: (id: string | null) => void;
   loadData: () => Promise<void>;
-  handleCreateNewNote: () => Promise<void>;
+  /** Starts a new note (from its automatic template, if one is assigned) and opens it. */
+  handleCreateNewNote: () => void;
+  /** Creates a note in the current folder with the given starting body. */
+  createNoteWithBody: (body: string, title?: string) => Promise<void>;
+  editingTemplate: NoteTemplate | null;
+  setEditingTemplate: (template: NoteTemplate | null) => void;
+  templateEditorOpen: boolean;
+  setTemplateEditorOpen: (open: boolean) => void;
   handleOpenCreateBox: (parentId?: string | null) => void;
   handleDropOnBox: (noteId: string, targetBoxId: string | null) => Promise<void>;
 }
@@ -36,7 +45,12 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
 
-  const [currentFolderId, setCurrentFolderId] = useState<string | null | 'all_notes'>(null);
+  // The address is the source of truth for "which folder" and "which note", so
+  // back/forward and the sidebar highlight never drift apart.
+  const { route } = useRoute();
+  const [currentFolderId, setFolderIdState] = useState<string | null | 'all_notes'>(
+    () => parseHash(window.location.hash).folderId
+  );
 
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteEditModalOpen, setNoteEditModalOpen] = useState(false);
@@ -45,6 +59,11 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [createBoxOpen, setCreateBoxOpen] = useState(false);
   const [boxToEdit, setBoxToEdit] = useState<Box | null>(null);
   const [targetParentBoxId, setTargetParentBoxId] = useState<string | null>(null);
+
+  // A template opens in the real note editor, app-wide: "new note" exists in
+  // the notebook, the sidebar and the dock, and all of them reach this state.
+  const [editingTemplate, setEditingTemplate] = useState<NoteTemplate | null>(null);
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -91,6 +110,101 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadData();
   }, [loadData]);
 
+  const setCurrentFolderId = useCallback((id: string | null | 'all_notes') => {
+    setFolderIdState(id);
+    navigate({ tab: 'notebook', folderId: id, noteId: null });
+  }, []);
+
+  /** Set by a local open, so the URL sync below does not close it again. */
+  const pendingOpenRef = useRef<string | null>(null);
+  /** The note id the address showed last: a close must not reopen itself. */
+  const routeNoteIdRef = useRef<string | null | undefined>(undefined);
+  /** Where the note was opened from, so closing it lands back there. */
+  const returnHashRef = useRef<string | null>(null);
+
+  // Address → folder.
+  useEffect(() => {
+    if (route.tab !== 'notebook' || route.noteId) return;
+    setFolderIdState((previous) => (previous === route.folderId ? previous : route.folderId));
+  }, [route.tab, route.folderId, route.noteId]);
+
+  // An opened note → address.
+  useEffect(() => {
+    if (!noteEditModalOpen || !editingNote) return;
+    const current = parseHash(window.location.hash);
+    if (current.noteId === editingNote.id) {
+      pendingOpenRef.current = null;
+      return;
+    }
+    pendingOpenRef.current = editingNote.id;
+    // The address of the note being left is not where the new one came from:
+    // keeping the older target means closing lands where the person started.
+    if (!current.noteId) returnHashRef.current = window.location.hash || '#/day';
+    setFolderIdState(editingNote.box_id ?? null);
+    navigate({
+      tab: 'notebook',
+      folderId: editingNote.box_id ?? null,
+      noteId: editingNote.id,
+    });
+  }, [noteEditModalOpen, editingNote]);
+
+  // Address → an opened note. This is what makes the browser Back button close
+  // the note and land on the folder (or day) the person came from.
+  useEffect(() => {
+    // A local open already chose the note on screen; its address is one commit
+    // away. Reading the older address here would put the note being left back
+    // on screen and start a fight between the two effects that never settles.
+    if (pendingOpenRef.current) {
+      if (route.noteId !== pendingOpenRef.current) return;
+      pendingOpenRef.current = null;
+    }
+
+    const previousRouteNoteId = routeNoteIdRef.current;
+    routeNoteIdRef.current = route.noteId;
+
+    if (!route.noteId) {
+      if (noteEditModalOpen) {
+        setNoteEditModalOpen(false);
+        setEditingNote(null);
+        setNoteViewModeOverride(null);
+      }
+      return;
+    }
+
+    if (editingNote?.id === route.noteId) {
+      pendingOpenRef.current = null;
+      return;
+    }
+
+    // A closed note stays in the address for one commit while the address heads
+    // back to its folder; opening it here would immediately undo the close.
+    if (!noteEditModalOpen && previousRouteNoteId === route.noteId) return;
+
+    const found = notes.find((note) => note.id === route.noteId);
+    if (!found) return;
+    setEditingNote(found);
+    setNoteEditModalOpen(true);
+  }, [route.noteId, notes, editingNote?.id, noteEditModalOpen]);
+
+  // Closing the window drops the note from the address. Replace, so Back does
+  // not simply reopen what was just closed. `wasOpenRef` keeps a cold deep link
+  // alive: on the first render the note opens one effect above this one.
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    if (noteEditModalOpen) {
+      wasOpenRef.current = true;
+      return;
+    }
+    if (!wasOpenRef.current) return;
+    wasOpenRef.current = false;
+    const current = parseHash(window.location.hash);
+    if (!current.noteId) return;
+    // A note opened from Today or a task returns there, not to the notebook.
+    const from = returnHashRef.current ? parseHash(returnHashRef.current) : current;
+    const target = from.noteId ? { ...from, noteId: null } : from;
+    navigate({ ...target, noteId: null }, true);
+  }, [noteEditModalOpen]);
+
   const boxNotesCountMap = useMemo(() => {
     const map: Record<string, number> = {};
     boxes.forEach((b) => (map[b.id] = 0));
@@ -102,27 +216,72 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return map;
   }, [boxes, notes]);
 
-  const handleCreateNewNote = async () => {
-    try {
-      const targetBoxId =
-        currentFolderId && currentFolderId !== 'all_notes' ? currentFolderId : null;
+  const createNoteWithBody = useCallback(
+    async (
+      body: string,
+      title = '',
+      /** A template's own look, carried into the note it starts. */
+      appearance?: { icon?: string; cover?: string; color?: string }
+    ) => {
+      try {
+        const targetBoxId =
+          currentFolderId && currentFolderId !== 'all_notes' ? currentFolderId : null;
+        const created = await noteRepo.create({
+          entry_id: null,
+          box_id: targetBoxId,
+          type: 'note',
+          title,
+          body,
+          tag_ids: [],
+          ...(appearance?.icon ? { icon: appearance.icon } : {}),
+          ...(appearance?.cover ? { cover: appearance.cover } : {}),
+          ...(appearance?.color ? { color: appearance.color } : {}),
+        });
+        await loadData();
+        setEditingNote(created);
+        setNoteViewModeOverride('fullscreen');
+        setNoteEditModalOpen(true);
+      } catch (err) {
+        console.error('Failed to create new note:', err);
+        toast.show('خطا در ایجاد یادداشت جدید');
+      }
+    },
+    [currentFolderId, loadData]
+  );
 
-      const created = await noteRepo.create({
-        entry_id: null,
-        box_id: targetBoxId,
-        type: 'note',
-        title: '',
-        body: '',
-        tag_ids: [],
-      });
-      setEditingNote(created);
-      setNoteEditModalOpen(true);
-      loadData();
-    } catch (err) {
-      console.error('Failed to create new note:', err);
-      toast.show('خطا در ایجاد یادداشت جدید');
-    }
-  };
+  /**
+   * One step: a new note with whatever body fits this spot. A template marked
+   * for this folder, or for new notes, is used; otherwise it starts blank.
+   */
+  const handleCreateNewNote = useCallback(() => {
+    void (async () => {
+      try {
+        const templates = await loadNoteTemplates();
+        const targetBoxId =
+          currentFolderId && currentFolderId !== 'all_notes' ? currentFolderId : null;
+        const template =
+          pickTemplateFor(templates, { kind: 'folder', folderId: targetBoxId }) ??
+          pickTemplateFor(templates, { kind: 'new-note' });
+        await createNoteWithBody(
+          template?.body ?? '',
+          '',
+          template
+            ? {
+                icon: template.icon,
+                cover: template.cover,
+                color:
+                  template.cover && !template.cover.startsWith('data:')
+                    ? template.cover
+                    : undefined,
+              }
+            : undefined
+        );
+      } catch (err) {
+        console.error('Failed to start a new note:', err);
+        await createNoteWithBody('');
+      }
+    })();
+  }, [currentFolderId, createNoteWithBody]);
 
   const handleOpenCreateBox = (parentBoxId?: string | null) => {
     setBoxToEdit(null);
@@ -171,6 +330,11 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setTargetParentBoxId,
       loadData,
       handleCreateNewNote,
+      createNoteWithBody,
+      editingTemplate,
+      setEditingTemplate,
+      templateEditorOpen,
+      setTemplateEditorOpen,
       handleOpenCreateBox,
       handleDropOnBox,
     }),
@@ -179,6 +343,7 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       boxes,
       tagsMap,
       currentFolderId,
+      setCurrentFolderId,
       boxNotesCountMap,
       editingNote,
       noteEditModalOpen,
@@ -188,6 +353,9 @@ export const NotebookProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       targetParentBoxId,
       loadData,
       handleCreateNewNote,
+      createNoteWithBody,
+      editingTemplate,
+      templateEditorOpen,
       handleOpenCreateBox,
       handleDropOnBox,
     ]

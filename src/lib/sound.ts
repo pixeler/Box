@@ -4,6 +4,64 @@
  */
 let audioCtx: AudioContext | null = null;
 
+function ensureAudioContext(): AudioContext | null {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContextClass();
+    if (audioCtx.state === 'suspended') void audioCtx.resume();
+    return audioCtx;
+  } catch {
+    return null;
+  }
+}
+
+/** Two soft ascending notes: a session just started. */
+export function playFocusStartSound() {
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  [523.25, 659.25].forEach((frequency, index) => {
+    const at = now + index * 0.12;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, at);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.16, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.34);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(at);
+    oscillator.stop(at + 0.36);
+  });
+}
+
+/** A warm three-note bell: the session is done. */
+export function playFocusFinishSound() {
+  const ctx = ensureAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  [659.25, 830.61, 1046.5].forEach((frequency, index) => {
+    const at = now + index * 0.16;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(frequency, at);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.2, at + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.85);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(at);
+    oscillator.stop(at + 0.9);
+  });
+}
+
 export function playTaskDoneSound() {
   try {
     const AudioContextClass =

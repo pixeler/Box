@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { AppShell } from './components/shell/AppShell';
 import { MobileScrollArea } from './components/layout/MobileScrollArea';
 import { QuickCaptureInput } from './components/capture/QuickCaptureInput';
+import { JournalButton } from './components/notebook/JournalButton';
 import { DayStream } from './components/stream/DayStream';
 import { PinnedSection } from './components/stream/PinnedSection';
 import { NotebookProvider, useNotebook } from './components/notebook/NotebookContext';
@@ -9,6 +10,7 @@ import { NoteEditModal } from './components/notebook/LazyNoteEditModal';
 import type { SettingsSection } from './components/profile/ProfileView';
 import type { ActiveTab } from './components/navigation/BottomDock';
 import { ToastContainer } from './components/ui/Toast';
+import { FocusMiniBar, FocusTaskListener } from './components/focus/FocusMiniBar';
 
 // Heavy, non-first-screen views are split out of the boot bundle. They are
 // prefetched while the app is idle, so switching tabs still feels instant.
@@ -45,6 +47,7 @@ import { Plus, RotateCcw } from 'lucide-react';
 import { RiArrowRightSLine, RiArrowLeftSLine } from '@remixicon/react';
 import { getDailyQuote } from './lib/quotes';
 import { useMediaQuery } from './lib/device';
+import { goBack, goForward, navigate, parseHash, useRoute } from './lib/router';
 import { runWhenIdle } from './lib/idle';
 import { ResurfacingSection } from './components/stream/ResurfacingSection';
 
@@ -79,25 +82,84 @@ const GlobalNoteEditor = () => {
     noteViewModeOverride,
     setNoteViewModeOverride,
     loadData,
+    boxes,
+    setCurrentFolderId,
+    handleCreateNewNote,
+    editingTemplate,
+    setEditingTemplate,
+    templateEditorOpen,
+    setTemplateEditorOpen,
   } = useNotebook();
 
+  // The shell's own "new note" button lives outside this provider's tree, so
+  // it asks for a note through an event instead of a second copy of the handler.
+  useEffect(() => {
+    const open = () => handleCreateNewNote();
+    window.addEventListener('box:new-note', open);
+    return () => window.removeEventListener('box:new-note', open);
+  }, [handleCreateNewNote]);
+
+  /** The note's folder path, root first: the breadcrumb in the note header. */
+  const folderTrail = useMemo(() => {
+    const chain: { id: string; title: string }[] = [];
+    const seen = new Set<string>();
+    let cursorId: string | null | undefined = editingNote?.box_id ?? null;
+    while (cursorId && !seen.has(cursorId)) {
+      seen.add(cursorId);
+      const box = boxes.find((item) => item.id === cursorId);
+      if (!box) break;
+      chain.unshift({ id: box.id, title: box.title });
+      cursorId = box.parent_id ?? null;
+    }
+    return chain;
+  }, [boxes, editingNote?.box_id]);
+
   return (
-    <NoteEditModal
-      note={editingNote}
-      isOpen={noteEditModalOpen}
-      initialViewMode={noteViewModeOverride ?? undefined}
-      onClose={() => {
-        setNoteEditModalOpen(false);
-        setEditingNote(null);
-        setNoteViewModeOverride(null);
-      }}
-      onSaved={loadData}
-    />
+    <>
+      <NoteEditModal
+        key={editingNote?.id ?? 'empty'}
+        note={editingNote}
+        isOpen={noteEditModalOpen}
+        initialViewMode={noteViewModeOverride ?? undefined}
+        folderTrail={folderTrail}
+        onOpenFolder={(folderId) => setCurrentFolderId(folderId)}
+        onClose={() => {
+          setNoteEditModalOpen(false);
+          setEditingNote(null);
+          setNoteViewModeOverride(null);
+        }}
+        onSaved={loadData}
+      />
+
+      {/* A template is written in the same window as a note. */}
+      {editingTemplate && (
+        <NoteEditModal
+          key={editingTemplate.id}
+          note={null}
+          template={editingTemplate}
+          isOpen={templateEditorOpen}
+          initialViewMode="center"
+          onSaved={loadData}
+          onTemplateSaved={loadData}
+          onClose={() => {
+            setTemplateEditorOpen(false);
+            setEditingTemplate(null);
+          }}
+        />
+      )}
+
+    </>
   );
 };
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('day');
+  // The address owns navigation now: tabs, folders and the open note all come
+  // from the hash, so back/forward and deep links behave like a browser.
+  const { route, canGoBack, canGoForward } = useRoute();
+  const activeTab = route.tab;
+  const setActiveTab = useCallback((tab: ActiveTab) => {
+    navigate({ tab, folderId: parseHash(window.location.hash).folderId, noteId: null });
+  }, []);
   // Initialize dynamically to today's actual Shamsi date
   const [selectedDateKey, setSelectedDateKey] = useState<string>(() => getTodayJalaliKey());
   const [displayedDateKey, setDisplayedDateKey] = useState<string>(() => getTodayJalaliKey());
@@ -290,6 +352,8 @@ export function App() {
           setQuickCaptureInitialTab('task');
           if (activeTab === 'day') {
             setInlineAddSection('anytime');
+          } else if (activeTab === 'calendar') {
+            window.dispatchEvent(new Event('box:calendar-inline-add'));
           } else {
             setQuickCaptureOpen(true);
           }
@@ -310,7 +374,7 @@ export function App() {
         }
       }
 
-      // 4. Search '/' shortcut when not in input
+      // 4. New item menu on '/': the sidebar opens task/note choices.
       if (
         !e.ctrlKey &&
         !e.metaKey &&
@@ -319,7 +383,7 @@ export function App() {
       ) {
         if (!quickCaptureOpen && !searchOpen) {
           e.preventDefault();
-          setSearchOpen(true);
+          window.dispatchEvent(new Event('box:open-new-menu'));
         }
       }
     };
@@ -617,11 +681,25 @@ export function App() {
               {/* Page row: the weekday title with step arrows, then the daily quote + date pill */}
               <div className="w-full px-5 pt-10 sm:px-6 sm:pt-12">
                 <div className="flex items-start justify-between gap-3">
-                  {/* Weekday title, with the prev/next pair beside it */}
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <h1 className="truncate font-darvish text-[26px] font-bold tracking-normal text-foreground sm:text-[30px]">
+                  {/* Weekday title */}
+                  <div className="flex min-w-0 items-center">
+                    <h1 className="truncate font-darvish text-[22px] font-semibold leading-8 tracking-normal text-foreground sm:text-[24px]">
                       {currentWeekdayName}
                     </h1>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {!isSelectedToday && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDateKey(getTodayJalaliKey())}
+                        title="بازگشت به امروز"
+                        className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground sm:flex"
+                      >
+                        <RotateCcw className="size-3.5" />
+                        <span>امروز</span>
+                      </button>
+                    )}
                     <div className="flex shrink-0 items-center gap-0.5">
                       <button
                         type="button"
@@ -642,20 +720,6 @@ export function App() {
                         <RiArrowLeftSLine className="size-4" />
                       </button>
                     </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {!isSelectedToday && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDateKey(getTodayJalaliKey())}
-                        title="بازگشت به امروز"
-                        className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground sm:flex"
-                      >
-                        <RotateCcw className="size-3.5" />
-                        <span>امروز</span>
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -674,7 +738,7 @@ export function App() {
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 select-none">
                   <p
                     ref={goalPillRef}
-                    className="min-w-[12rem] flex-1 text-[12.5px] leading-6 text-subtle"
+                    className="min-w-[12rem] flex-1 text-[14px] leading-7 text-subtle"
                   >
                     {getDailyQuote(displayedDateKey)}
                   </p>
@@ -687,13 +751,20 @@ export function App() {
               <div className="grid w-full items-start gap-x-10 px-5 pb-24 pt-6 sm:px-6 sm:pt-7 min-[1200px]:grid-cols-[minmax(0,498px)_minmax(0,1fr)]">
                 {/* Today column */}
                 <div className="flex w-full min-w-0 flex-col">
-                  <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pb-2 select-none">
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pb-2 select-none">
                     <h2 className="text-[14.5px] font-semibold tracking-tight text-foreground">
                       {formatJalaliDisplay(displayedJalali)}
                     </h2>
                     <span className="text-[11.5px] leading-5 text-muted-foreground">
                       {toPersianDigits(tasks.length)} کار
                     </span>
+                    <div className="ms-auto">
+                      <JournalButton
+                        dateKey={displayedDateKey}
+                        tasks={tasks}
+                        overdueTasks={overdueTasks}
+                      />
+                    </div>
                   </div>
 
                   {/* Stream Content Area */}
@@ -779,15 +850,19 @@ export function App() {
       <AppShell
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onBack={goBack}
+        onForward={goForward}
         onOpenAdd={() => {
           setQuickCaptureInitialTab('task');
           if (activeTab === 'day') setInlineAddSection('anytime');
           else setQuickCaptureOpen(true);
         }}
         onOpenNote={() => {
-          setQuickCaptureInitialTab('note');
-          setQuickCaptureOpen(true);
+          window.dispatchEvent(new Event('box:new-note'));
         }}
+        onOpenSearch={() => setSearchOpen(true)}
         onOpenSettings={(section = 'main') => {
           setSettingsSection(section);
           setSettingsOpen(true);
@@ -800,6 +875,12 @@ export function App() {
 
       {/* Floating dynamic toast notification */}
       <ToastContainer />
+
+      {/* A running focus session follows the user into every other section. */}
+      <FocusMiniBar hidden={activeTab === 'focus'} onOpen={() => setActiveTab('focus')} />
+
+      {/* Starts sessions requested from task cards and jumps to the focus view. */}
+      <FocusTaskListener onNavigate={() => setActiveTab('focus')} />
 
       <GlobalNoteEditor />
 

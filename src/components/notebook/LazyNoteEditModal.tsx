@@ -11,6 +11,6 @@ const Modal = lazy(() =>
  */
 export const NoteEditModal: React.FC<NoteEditModalProps> = (props) => (
   <Suspense fallback={null}>
-    <Modal {...props} />
+    <Modal key={props.note?.id ?? props.template?.id ?? 'modal'} {...props} />
   </Suspense>
 );

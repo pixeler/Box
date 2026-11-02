@@ -2,11 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { focusSessionRepo } from '@/repositories';
 import type { FocusSession } from '@/types/models';
 import { getTodayJalaliKey, toPersianDigits } from '@/lib/jalali';
-import { playTaskDoneSound } from '@/lib/sound';
+import { playFocusFinishSound, playFocusStartSound } from '@/lib/sound';
+import { notifyFocus, setTaskbarTimerBadge } from '@/lib/focusDesktop';
 import { AMBIENT_SOUNDS, type AmbientSoundId } from './ambientSounds';
 import { NotificationService } from '@/lib/notifications';
 import { triggerHaptic } from '@/lib/capacitor';
 import { syncWidgetData } from '@/lib/widget';
+import { toast } from '@/lib/toast';
 
 export type TimerState = 'idle' | 'running' | 'paused' | 'completed';
 
@@ -15,8 +17,10 @@ interface FocusTimerContextValue {
   remainingSeconds: number;
   timerState: TimerState;
   selectedTaskId: string | null;
+  selectedTaskTitle: string | null;
   activeSessionStartMinute: number | null;
   todayFocusSessions: FocusSession[];
+  recentSessions: FocusSession[];
   elapsedMinutes: number;
   remainingMinutes: number;
   // Ambient Sound
@@ -29,7 +33,10 @@ interface FocusTimerContextValue {
   // Timer Actions
   setDurationMinutes: (mins: number) => void;
   setRemainingSeconds: (secs: number) => void;
-  setSelectedTaskId: (id: string | null) => void;
+  selectTask: (task: { id: string; title: string } | null) => void;
+  /** Selects a task and starts a session on it in one step (task card timer). */
+  startFocusTask: (task: { id: string; title: string; minutes?: number }) => Promise<void>;
+  loadRecentSessions: () => Promise<void>;
   handleStart: () => void;
   handlePauseResume: () => void;
   handleAddOneMinute: () => void;
@@ -59,11 +66,13 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [remainingSeconds, setRemainingSeconds] = useState<number>(30 * 60);
   const [timerState, setTimerState] = useState<TimerState>('idle');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedTaskTitle, setSelectedTaskTitle] = useState<string | null>(null);
   const [activeSessionStartMinute, setActiveSessionStartMinute] = useState<number | null>(null);
   const activeSessionStartTimeRef = useRef<Date | null>(null);
   const targetEndTimeRef = useRef<number | null>(null);
 
   const [todayFocusSessions, setTodayFocusSessions] = useState<FocusSession[]>([]);
+  const [recentSessions, setRecentSessions] = useState<FocusSession[]>([]);
 
   // Persistent Ambient Audio (stays alive across app tabs & window changes)
   const [activeSoundId, setActiveSoundId] = useState<AmbientSoundId>('none');
@@ -155,9 +164,18 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [todayDateKey]);
 
+  const loadRecentSessions = useCallback(async () => {
+    try {
+      setRecentSessions(await focusSessionRepo.list());
+    } catch (err) {
+      console.error('Failed to load focus history:', err);
+    }
+  }, []);
+
   useEffect(() => {
     loadTodayFocusSessions();
-  }, [loadTodayFocusSessions]);
+    loadRecentSessions();
+  }, [loadTodayFocusSessions, loadRecentSessions]);
 
   // Save completed/stopped session
   const saveSession = useCallback(
@@ -177,14 +195,15 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       try {
         await focusSessionRepo.create({
           task_id: selectedTaskId,
-          task_title: selectedTaskId ? undefined : 'تمرکز آزاد',
-          date_key: todayDateKey,
+          task_title: selectedTaskTitle || (selectedTaskId ? 'تمرکز روی کار' : 'تمرکز آزاد'),
+          // The day the session actually ends on, not the day the provider mounted.
+          date_key: getTodayJalaliKey(),
           start_at: formatHM(startTime),
           end_at: formatHM(endTime),
           duration_minutes: elapsedMins,
           completed,
         });
-        await loadTodayFocusSessions();
+        await Promise.all([loadTodayFocusSessions(), loadRecentSessions()]);
       } catch (err) {
         console.error('Failed to save focus session:', err);
       } finally {
@@ -194,7 +213,7 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         localStorage.removeItem(STORAGE_KEY);
       }
     },
-    [selectedTaskId, todayDateKey, loadTodayFocusSessions]
+    [selectedTaskId, selectedTaskTitle, loadTodayFocusSessions, loadRecentSessions]
   );
 
   // Restore active timer from localStorage on mount
@@ -212,6 +231,7 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           setRemainingSeconds(left);
           setTimerState('running');
           setSelectedTaskId(data.selectedTaskId || null);
+          setSelectedTaskTitle(data.selectedTaskTitle || null);
           setActiveSessionStartMinute(data.activeSessionStartMinute || null);
           activeSessionStartTimeRef.current = data.activeSessionStartTime
             ? new Date(data.activeSessionStartTime)
@@ -229,6 +249,7 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setRemainingSeconds(data.remainingSeconds || 30 * 60);
         setTimerState('paused');
         setSelectedTaskId(data.selectedTaskId || null);
+        setSelectedTaskTitle(data.selectedTaskTitle || null);
         setActiveSessionStartMinute(data.activeSessionStartMinute || null);
         if (data.activeSessionStartTime) {
           activeSessionStartTimeRef.current = new Date(data.activeSessionStartTime);
@@ -236,6 +257,15 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     } catch {}
   }, []);
+
+  // Windows taskbar badge: remaining minutes while a session is live, cleared otherwise.
+  useEffect(() => {
+    if (timerState === 'running' || timerState === 'paused') {
+      void setTaskbarTimerBadge(Math.ceil(remainingSeconds / 60));
+    } else {
+      void setTaskbarTimerBadge(null);
+    }
+  }, [timerState, remainingSeconds]);
 
   // Save active timer to localStorage whenever relevant state changes
   useEffect(() => {
@@ -248,12 +278,20 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         activeSessionStartMinute,
         activeSessionStartTime: activeSessionStartTimeRef.current?.toISOString(),
         selectedTaskId,
+        selectedTaskTitle,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } else if (timerState === 'idle' || timerState === 'completed') {
       localStorage.removeItem(STORAGE_KEY);
     }
-  }, [timerState, durationMinutes, remainingSeconds, activeSessionStartMinute, selectedTaskId]);
+  }, [
+    timerState,
+    durationMinutes,
+    remainingSeconds,
+    activeSessionStartMinute,
+    selectedTaskId,
+    selectedTaskTitle,
+  ]);
 
   // Main countdown ticker based on physical timestamp (handles tab switching & window throttling)
   useEffect(() => {
@@ -268,8 +306,18 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (diffSecs <= 0) {
           setRemainingSeconds(0);
           setTimerState('completed');
-          playTaskDoneSound();
+          playFocusFinishSound();
           triggerHaptic('heavy');
+          toast.show('جلسه تمرکز کامل شد');
+          // The in-app tick replaces the pre-scheduled notification.
+          void NotificationService.cancelFocusCompletion();
+          notifyFocus(
+            'تمرکز تمام شد',
+            selectedTaskTitle
+              ? `جلسهٔ «${selectedTaskTitle}» ثبت شد.`
+              : 'جلسهٔ تمرکز شما ثبت شد.',
+            { sound: true }
+          );
           saveSession(true, durationMinutes * 60);
         } else {
           setRemainingSeconds(diffSecs);
@@ -295,28 +343,60 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         window.removeEventListener('focus', handleVisibilityChange);
       };
     }
-  }, [timerState, durationMinutes, saveSession]);
+  }, [timerState, durationMinutes, saveSession, selectedTaskTitle]);
 
   // Controls
-  const handleStart = useCallback(() => {
+  const beginSession = useCallback((minutes: number, taskTitle?: string | null) => {
+    const runMinutes = Math.max(1, Math.round(minutes));
     const startDate = new Date();
     activeSessionStartTimeRef.current = startDate;
-    const startMin = startDate.getHours() * 60 + startDate.getMinutes();
-    setActiveSessionStartMinute(startMin);
+    setActiveSessionStartMinute(startDate.getHours() * 60 + startDate.getMinutes());
 
-    const totalSecs = durationMinutes * 60;
-    setRemainingSeconds(totalSecs);
-    targetEndTimeRef.current = Date.now() + totalSecs * 1000;
+    setDurationMinutes(runMinutes);
+    setRemainingSeconds(runMinutes * 60);
+    targetEndTimeRef.current = Date.now() + runMinutes * 60 * 1000;
     setTimerState('running');
+
+    playFocusStartSound();
+    notifyFocus(
+      'تمرکز شروع شد',
+      `${toPersianDigits(runMinutes)} دقیقه${taskTitle?.trim() ? ` · ${taskTitle.trim()}` : ''}`
+    );
 
     // Trigger haptic feedback and schedule native notification
     triggerHaptic('medium');
     NotificationService.requestPermission().then((granted) => {
       if (granted) {
-        NotificationService.scheduleFocusCompletion(durationMinutes);
+        NotificationService.scheduleFocusCompletion(runMinutes);
       }
     });
-  }, [durationMinutes]);
+  }, []);
+
+  const handleStart = useCallback(() => {
+    beginSession(durationMinutes, selectedTaskTitle);
+  }, [beginSession, durationMinutes, selectedTaskTitle]);
+
+  const selectTask = useCallback((task: { id: string; title: string } | null) => {
+    setSelectedTaskId(task?.id ?? null);
+    setSelectedTaskTitle(task?.title ?? null);
+  }, []);
+
+  const startFocusTask = useCallback(
+    async (task: { id: string; title: string; minutes?: number }) => {
+      // A running session must be banked before we point the timer at another task.
+      if (activeSessionStartTimeRef.current) {
+        const elapsed = durationMinutes * 60 - remainingSeconds;
+        if (elapsed >= 45) await saveSession(false, elapsed);
+      }
+      setSelectedTaskId(task.id);
+      setSelectedTaskTitle(task.title);
+      beginSession(
+        task.minutes && task.minutes > 0 ? task.minutes : durationMinutes,
+        task.title
+      );
+    },
+    [beginSession, durationMinutes, remainingSeconds, saveSession]
+  );
 
   const handlePauseResume = useCallback(() => {
     triggerHaptic('light');
@@ -376,8 +456,10 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       remainingSeconds,
       timerState,
       selectedTaskId,
+      selectedTaskTitle,
       activeSessionStartMinute,
       todayFocusSessions,
+      recentSessions,
       elapsedMinutes,
       remainingMinutes,
       // Ambient Sound
@@ -390,7 +472,9 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Timer Actions
       setDurationMinutes,
       setRemainingSeconds,
-      setSelectedTaskId,
+      selectTask,
+      startFocusTask,
+      loadRecentSessions,
       handleStart,
       handlePauseResume,
       handleAddOneMinute,
@@ -402,8 +486,10 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       remainingSeconds,
       timerState,
       selectedTaskId,
+      selectedTaskTitle,
       activeSessionStartMinute,
       todayFocusSessions,
+      recentSessions,
       elapsedMinutes,
       remainingMinutes,
       activeSoundId,
@@ -412,6 +498,9 @@ export const FocusTimerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       selectSound,
       setSoundVolume,
       toggleSoundPlay,
+      selectTask,
+      startFocusTask,
+      loadRecentSessions,
       handleStart,
       handlePauseResume,
       handleAddOneMinute,

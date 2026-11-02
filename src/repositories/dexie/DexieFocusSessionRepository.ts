@@ -13,8 +13,9 @@ export class DexieFocusSessionRepository {
     return session;
   }
 
-  async list(): Promise<FocusSession[]> {
-    return await db.focus_sessions.orderBy('created_at').reverse().toArray();
+  /** Most recent sessions only: the history view never needs more than this. */
+  async list(limit = 200): Promise<FocusSession[]> {
+    return await db.focus_sessions.orderBy('created_at').reverse().limit(limit).toArray();
   }
 
   async listByDate(dateKey: string): Promise<FocusSession[]> {

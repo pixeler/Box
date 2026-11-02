@@ -23,6 +23,9 @@ function packageNameOf(id: string): string {
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // Both shells are modern Chromium (Electron + Android WebView), so the
+  // modulepreload polyfill and license banners are dead weight.
+  esbuild: { legalComments: 'none' },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -36,6 +39,7 @@ export default defineConfig({
     cssCodeSplit: true,
     reportCompressedSize: false,
     chunkSizeWarningLimit: 900,
+    modulePreload: { polyfill: false },
     rollupOptions: {
       output: {
         /**
@@ -59,7 +63,6 @@ export default defineConfig({
           if (
             pkg === '@remixicon/react' ||
             pkg === 'lucide-react' ||
-            pkg === '@carbon/icons-react' ||
             pkg.startsWith('@hugeicons/')
           ) {
             return 'vendor-icons';

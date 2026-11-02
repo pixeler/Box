@@ -7,7 +7,10 @@ import {
   RiCircleFill,
   RiSubtractLine,
   RiCheckLine,
+  RiLayoutColumnLine,
+  RiListUnordered,
 } from '@remixicon/react';
+import { TodoKanban } from './TodoKanban';
 import type { Task, Tag } from '@/types/models';
 import { taskRepo, tagRepo } from '@/repositories';
 import { syncManager } from '@/lib/sync';
@@ -24,6 +27,20 @@ type PriorityCategory = 'urgent' | 'medium' | 'low' | 'none';
 export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToday, onTaskChanged }) => {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(() =>
+    typeof window !== 'undefined' && localStorage.getItem('box:todo-view') === 'kanban'
+      ? 'kanban'
+      : 'list'
+  );
+
+  const changeViewMode = (mode: 'list' | 'kanban') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('box:todo-view', mode);
+    } catch {
+      /* Storage disabled: the switch simply stops remembering. */
+    }
+  };
 
   // Collapsible section states (all open by default)
   const [openSections, setOpenSections] = useState<Record<PriorityCategory, boolean>>({
@@ -216,14 +233,52 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
   return (
     <div dir="rtl" className="w-full flex-1 flex flex-col justify-between day-slide-transition pb-28 select-none">
       <div>
-        {/* 1. Header: Simple Title 'لیست کارها' without subtitle */}
-        <div className="w-full flex items-center justify-between mt-4 mb-2 relative select-none px-6">
-          <h1 className="text-xl font-bold text-foreground tracking-tight">
-            لیست کارها
-          </h1>
+        <div className="w-full px-5 pt-10 sm:px-6 sm:pt-12">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+              <h1 className="truncate font-darvish text-[22px] font-semibold leading-8 tracking-normal text-foreground sm:text-[24px]">
+                همه کارها
+              </h1>
+
+              <div
+                role="group"
+                aria-label="نمای کارها"
+                className="flex h-8 items-center gap-0.5 rounded-md border border-border/60 p-0.5"
+              >
+                {[
+                  { key: 'list' as const, label: 'لیست', Icon: RiListUnordered },
+                  { key: 'kanban' as const, label: 'کانبان', Icon: RiLayoutColumnLine },
+                ].map(({ key, label, Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => changeViewMode(key)}
+                    aria-pressed={viewMode === key}
+                    className={`flex h-7 items-center justify-center gap-1.5 rounded-[5px] px-2 text-[12px] font-medium transition-colors ${
+                      viewMode === key
+                        ? 'bg-secondary text-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Icon className="size-3.5 shrink-0" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2 text-[11.5px] leading-5 text-muted-foreground">
+            <span>{toPersianDigits(allTasks.filter((task) => task.status === 'open').length)} کار باز</span>
+            <span>·</span>
+            <span>{toPersianDigits(completedTasks.length)} انجام‌شده</span>
+          </div>
         </div>
 
         {/* 2. Priority Sections: Completely clean stream like DayStream, with pill badges for titles */}
+        {viewMode === 'kanban' ? (
+          <TodoKanban tasks={allTasks} onChanged={loadTasks} />
+        ) : (
         <div className="w-full space-y-2 select-none">
           {/* -------------------------------------------------------------
               CATEGORY 1: فوری (Priority 3) -> فلش رو به بالا
@@ -352,6 +407,7 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

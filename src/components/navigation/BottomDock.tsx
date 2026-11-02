@@ -33,7 +33,7 @@ export const BottomDock: React.FC<BottomDockProps> = ({
     return syncManager.subscribe((st) => setSyncState(st));
   }, []);
 
-  const avatarUrl = user?.user_metadata?.avatar_url || '/avatar.png';
+  const avatarUrl = user?.user_metadata?.avatar_url || null;
 
   return (
     <nav

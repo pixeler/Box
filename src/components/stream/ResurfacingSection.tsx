@@ -146,11 +146,17 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
 
   const futureTaskCount = futureTasks.length;
   const futureEventCount = futureEvents.length;
+  const hasOverdue = showOverdue && localOverdueTasks.length > 0;
+  const hasFuture = showFuture && futureTaskCount + futureEventCount > 0;
+
+  // Nothing to resurface: the whole block disappears instead of leaving a
+  // heading with a zero beside it.
+  if (!hasOverdue && !hasFuture) return null;
 
   return (
     <div className={variant === 'overdue' ? 'w-full select-none' : 'my-3 w-full select-none space-y-1'}>
       {/* 1. از روزهای قبل */}
-      {showOverdue && (
+      {hasOverdue && (
       <div className="w-full">
         <button
           onClick={() => setOpenPrevious(!openPrevious)}
@@ -327,7 +333,7 @@ export const ResurfacingSection: React.FC<ResurfacingSectionProps> = ({
       )}
 
       {/* 2. برای بعدا */}
-      {showFuture && (
+      {hasFuture && (
       <div className="w-full">
         <button
           onClick={() => setOpenFuture(!openFuture)}

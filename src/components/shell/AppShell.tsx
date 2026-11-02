@@ -19,8 +19,13 @@ import {
 interface AppShellProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
   onOpenAdd: () => void;
   onOpenNote: () => void;
+  onOpenSearch: () => void;
   onOpenSettings: (section?: SettingsSection) => void;
   onOpenAuth: () => void;
   onOpenTask: (task: Task) => void;
@@ -45,8 +50,13 @@ const clampWidth = (value: number) =>
 export const AppShell: React.FC<AppShellProps> = ({
   activeTab,
   onTabChange,
+  canGoBack,
+  canGoForward,
+  onBack,
+  onForward,
   onOpenAdd,
   onOpenNote,
+  onOpenSearch,
   onOpenSettings,
   onOpenAuth,
   onOpenTask,
@@ -66,43 +76,6 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
-
-  // A tiny tab history for the titlebar arrows. It only tracks top-level
-  // views; opening a task or a note is a modal, not a place to go back to.
-  const navStackRef = useRef<ActiveTab[]>([activeTab]);
-  const navIndexRef = useRef(0);
-  const applyingNavRef = useRef(false);
-  const [, setNavVersion] = useState(0);
-
-  useEffect(() => {
-    if (applyingNavRef.current) {
-      applyingNavRef.current = false;
-      return;
-    }
-    if (navStackRef.current[navIndexRef.current] === activeTab) return;
-
-    const next = navStackRef.current.slice(0, navIndexRef.current + 1);
-    next.push(activeTab);
-    navStackRef.current = next.slice(-30);
-    navIndexRef.current = navStackRef.current.length - 1;
-    setNavVersion((version) => version + 1);
-  }, [activeTab]);
-
-  const goBack = useCallback(() => {
-    if (navIndexRef.current <= 0) return;
-    navIndexRef.current -= 1;
-    applyingNavRef.current = true;
-    onTabChange(navStackRef.current[navIndexRef.current]);
-    setNavVersion((version) => version + 1);
-  }, [onTabChange]);
-
-  const goForward = useCallback(() => {
-    if (navIndexRef.current >= navStackRef.current.length - 1) return;
-    navIndexRef.current += 1;
-    applyingNavRef.current = true;
-    onTabChange(navStackRef.current[navIndexRef.current]);
-    setNavVersion((version) => version + 1);
-  }, [onTabChange]);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((previous) => {
@@ -210,6 +183,13 @@ export const AppShell: React.FC<AppShellProps> = ({
       : sidebarWidth
     : 64;
 
+  // Fullscreen notes sit beside the real sidebar instead of covering it.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--app-sidebar-width', `${sidebarWidthPx}px`);
+  }, [sidebarWidthPx]);
+
+  const nav = { canGoBack, canGoForward, onBack, onForward };
+
   return (
     <div
       dir="rtl"
@@ -221,14 +201,13 @@ export const AppShell: React.FC<AppShellProps> = ({
       )}
     >
       <DesktopTitleBar
-        sidebarWidth={sidebarWidthPx}
-        sidebarCollapsed={collapsed}
-        canToggleSidebar={isDesktop}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
+        onBack={onBack}
+        onForward={onForward}
         onToggleSidebar={toggleCollapsed}
-        canGoBack={navIndexRef.current > 0}
-        canGoForward={navIndexRef.current < navStackRef.current.length - 1}
-        onBack={goBack}
-        onForward={goForward}
+        sidebarCollapsed={collapsed}
+        sidebarWidth={sidebarWidthPx}
       />
       <a
         href="#app-content"
@@ -240,7 +219,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       {isTablet && (
         <div
           className={cn(
-            'relative h-full shrink-0 overflow-visible',
+            'relative z-20 h-full shrink-0 overflow-visible',
             !isResizing && 'transition-[width] duration-150 motion-reduce:transition-none'
           )}
           style={{ width: sidebarWidthPx }}
@@ -253,9 +232,12 @@ export const AppShell: React.FC<AppShellProps> = ({
             onTabChange={onTabChange}
             onOpenAdd={openAdd}
             onOpenNote={onOpenNote}
+            onOpenSearch={onOpenSearch}
             onOpenSettings={openSettings}
             onOpenAuth={openAuth}
             onOpenTask={onOpenTask}
+            showNavControls={!desktop}
+            {...nav}
           />
 
           {isDesktop && !collapsed && (
@@ -290,7 +272,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
       <div
         className={cn(
-          'flex min-w-0 flex-1 flex-col overflow-hidden',
+          'relative z-0 flex min-w-0 flex-1 flex-col overflow-hidden',
           isTablet && 'py-2.5 pe-2.5 ps-0'
         )}
       >
@@ -322,11 +304,13 @@ export const AppShell: React.FC<AppShellProps> = ({
               onTabChange={onTabChange}
               onOpenAdd={openAdd}
               onOpenNote={onOpenNote}
+              onOpenSearch={onOpenSearch}
               onOpenSettings={openSettings}
               onOpenAuth={openAuth}
               onOpenTask={onOpenTask}
               onNavigate={closeMobileMenu}
               onClose={closeMobileMenu}
+              {...nav}
             />
           </div>
         </DialogContent>

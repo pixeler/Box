@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { FocusTimerProvider } from './components/focus/FocusTimerContext';
+import { AppErrorBoundary } from './components/shell/AppErrorBoundary';
 import { AuthProvider } from './lib/auth';
 import { afterFirstPaint, runWhenIdle } from './lib/idle';
 
@@ -10,11 +11,13 @@ const root = ReactDOM.createRoot(document.getElementById('root')!);
 
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <FocusTimerProvider>
-        <App />
-      </FocusTimerProvider>
-    </AuthProvider>
+    <AppErrorBoundary>
+      <AuthProvider>
+        <FocusTimerProvider>
+          <App />
+        </FocusTimerProvider>
+      </AuthProvider>
+    </AppErrorBoundary>
   </React.StrictMode>
 );
 
