@@ -1,0 +1,7 @@
+* -text
+
+# A shell script needs LF line endings: a CRLF shebang makes ./gradlew die
+# instantly on Linux with "bad interpreter", which is how the release build
+# lost its Android job.
+*.sh text eol=lf
+android/gradlew text eol=lf

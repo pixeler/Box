@@ -31,6 +31,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The PDF bridge sanitises its suggested file name instead of trusting the
   renderer's string, and the app protocol handler rejects malformed URLs.
 
+## [0.2.1] - 2026-11-03
+
+### Fixed
+- The release build no longer loses its Android job: `gradlew` keeps LF line
+  endings, and a `.gitattributes` rule stops Windows checkouts from rewriting
+  the shebang.
+- The release workflow publishes whatever platform builds succeeded, instead of
+  discarding the whole release when one runner fails.
+
+
 ## [0.2.0] - 2026-11-03
 
 ### Added

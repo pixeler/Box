@@ -97,11 +97,14 @@ jobs:
       - name: Build web bundle and sync Capacitor
         run: pnpm run android:sync
 
+      - name: Point Gradle at the runner SDK
+        run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+
       - name: Assemble release APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          sh ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Collect APK
         run: |
