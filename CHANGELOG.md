@@ -31,6 +31,28 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The PDF bridge sanitises its suggested file name instead of trusting the
   renderer's string, and the app protocol handler rejects malformed URLs.
 
+## [0.2.0] - 2026-11-03
+
+### Added
+- A **review** screen in the account menu: this week’s completed tasks and focus
+  minutes with week-over-week deltas, a 26-week heatmap, a ten-week trend,
+  weekday and hour-of-day breakdowns, and short, non-judgemental insights.
+- A weekly reflection that opens by itself every Saturday: four questions, saved
+  per week as you type.
+- Linux desktop packages (deb and AppImage) next to the Windows portable build.
+  The release workflow now publishes Windows, Linux, macOS and Android artifacts
+  for the same tag.
+
+### Changed
+- The review screen leads with icon-led stat cards, a highlighted peak hour and
+  tone-coded insight cards instead of flat lists.
+- The habits experiment is parked outside the app for a later rebuild.
+
+### Fixed
+- Dragging a task card inside a note re-inserts the block at the drop target
+  instead of calling a BlockNote API that no longer exists.
+
+
 ## [0.1.0] — 2026-11-02
 
 First public release. Box was built as a private second-brain app and this
