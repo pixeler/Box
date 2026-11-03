@@ -81,6 +81,16 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # The build pins buildToolsVersion 36.0.0; a runner image that predates it
+      # can still fetch it, as long as the SDK licences are accepted first.
+      - name: Accept Android SDK licences
+        run: |
+          SDKMANAGER="$(ls -d "$ANDROID_SDK_ROOT"/cmdline-tools/*/bin 2>/dev/null | tail -n 1)/sdkmanager"
+          if [ -x "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+            "$SDKMANAGER" "build-tools;36.0.0" "platforms;android-36" > /dev/null 2>&1 || true
+          fi
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -107,6 +117,9 @@ jobs:
   publish:
     name: Attach artifacts to the release
     needs: [desktop, android]
+    # One platform failing should not throw away the builds that did succeed, so
+    # the release is published with whatever artifacts exist.
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
