@@ -19,6 +19,9 @@ jobs:
           - platform: windows
             os: windows-latest
             args: --win portable
+          - platform: linux
+            os: ubuntu-latest
+            args: --linux deb AppImage
           - platform: macos
             os: macos-latest
             args: --mac
@@ -54,6 +57,8 @@ jobs:
             release/*.exe
             release/*.dmg
             release/*.zip
+            release/*.deb
+            release/*.AppImage
           if-no-files-found: error
 
   android:
@@ -118,4 +123,6 @@ jobs:
             artifacts/*.exe
             artifacts/*.dmg
             artifacts/*.zip
+            artifacts/*.deb
+            artifacts/*.AppImage
             artifacts/*.apk

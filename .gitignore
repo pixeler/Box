@@ -55,3 +55,7 @@ scratch/
 release/
 
 release-new/
+
+# Feature work parked outside the app (habits and friends) while it is rebuilt.
+shelved/
+release-*/

@@ -41,6 +41,7 @@ const SearchModal = lazy(() =>
 const LoginModal = lazy(() =>
   import('./components/auth/LoginModal').then((m) => ({ default: m.LoginModal }))
 );
+const ReviewView = lazy(() => import('./components/review/ReviewView'));
 
 import { syncManager, type SyncState } from './lib/sync';
 import { Plus, RotateCcw } from 'lucide-react';
@@ -70,6 +71,11 @@ import { checkAndSeedOnboarding } from './lib/seed';
 import { type ThemeId, getStoredTheme, applyTheme } from './lib/theme';
 import type { Task, EventItem, Tag, TimeOfDay } from './types/models';
 import { DailyGoalCelebration } from './components/common/DailyGoalCelebration';
+import { useAuth } from './lib/auth';
+import { AuthWall } from './components/auth/AuthWall';
+import { OnboardingDialog, ONBOARDING_DONE_KEY } from './components/onboarding/OnboardingDialog';
+import { IS_CLOUD_BUILD } from './lib/localData';
+import { markWeeklyReviewSeen, shouldPromptWeeklyReview } from './lib/review';
 
 /** One note window for the whole app, so a note opened from a task or the
  *  sidebar works no matter which tab is mounted. */
@@ -153,6 +159,16 @@ const GlobalNoteEditor = () => {
 };
 
 export function App() {
+  const { user, ready: authReady } = useAuth();
+  // In a cloud build the local database belongs to exactly one account, so
+  // nothing renders until that account is known and signed in.
+  const requiresSignIn = IS_CLOUD_BUILD && !user;
+  const locked = !authReady || requiresSignIn;
+
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewTab, setReviewTab] = useState<'report' | 'week'>('report');
+
   // The address owns navigation now: tabs, folders and the open note all come
   // from the hash, so back/forward and deep links behave like a browser.
   const { route, canGoBack, canGoForward } = useRoute();
@@ -181,6 +197,16 @@ export function App() {
     setGlassOpacity(opacity);
     localStorage.setItem('second_brain_glass_opacity', String(opacity));
   };
+  // Mirrors TodoView's remembered list/board choice so the board can take the
+  // full window width while the list keeps its reading column.
+  const [todoViewMode, setTodoViewMode] = useState<'list' | 'kanban'>(() => {
+    try {
+      return localStorage.getItem('box:todo-view') === 'kanban' ? 'kanban' : 'list';
+    } catch {
+      return 'list';
+    }
+  });
+
   const [enableDaySections, setEnableDaySections] = useState<boolean>(() => {
     return localStorage.getItem('second_brain_enable_day_sections') === 'true';
   });
@@ -225,6 +251,32 @@ export function App() {
   useEffect(() => {
     if (authModalOpen) setAuthMounted(true);
   }, [authModalOpen]);
+
+  // The account menu asks for these screens through events, the same way the
+  // shell already asks for a new note.
+  useEffect(() => {
+    const openReview = () => {
+      setReviewTab('report');
+      setReviewOpen(true);
+    };
+    window.addEventListener('box:open-review', openReview);
+    return () => {
+      window.removeEventListener('box:open-review', openReview);
+    };
+  }, []);
+
+  // Saturday is review day: the report opens itself once a week. It waits for
+  // onboarding to finish so the two overlays never compete for the screen.
+  useEffect(() => {
+    if (!authReady || onboardingOpen) return;
+    const timer = window.setTimeout(() => {
+      if (!shouldPromptWeeklyReview()) return;
+      markWeeklyReviewSeen();
+      setReviewTab('week');
+      setReviewOpen(true);
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [authReady, onboardingOpen]);
   const [_syncState, setSyncState] = useState<SyncState>('idle');
   const [defaultBoxForAdd, setDefaultBoxForAdd] = useState<string | null>(null);
   const [quickCaptureTimeOfDay, setQuickCaptureTimeOfDay] = useState<TimeOfDay | undefined>(undefined);
@@ -581,11 +633,29 @@ export function App() {
     });
   }, [fetchDayData, selectedDateKey]);
 
+  // Seeding and the first-run tour only run once the data has an owner.
+  const lockedRef = useRef(locked);
+  useEffect(() => {
+    lockedRef.current = locked;
+  }, [locked]);
+
+  useEffect(() => {
+    if (locked) return;
+    try {
+      if (localStorage.getItem(ONBOARDING_DONE_KEY) === 'true') return;
+    } catch {
+      return;
+    }
+    const timer = window.setTimeout(() => setOnboardingOpen(true), 900);
+    return () => window.clearTimeout(timer);
+  }, [locked]);
+
   // One-off demo bootstrap + maintenance. This used to run *before* the first
   // database read and awaited a Supabase auth round-trip, which is why a cold
   // start showed a loading state for seconds. It now runs only when idle.
   useEffect(() => {
     runWhenIdle(async () => {
+      if (lockedRef.current) return;
       try {
         const changed = await checkAndSeedOnboarding();
         // Only re-read when the bootstrap actually touched the database.
@@ -670,7 +740,11 @@ export function App() {
         <MobileScrollArea
           className="flex-1 min-h-0"
           contentClassName={`mx-auto w-full ${
-            activeTab === 'day' ? 'max-w-[1000px]' : 'max-w-[var(--content-max)]'
+            activeTab === 'day'
+              ? 'max-w-[1000px]'
+              : activeTab === 'todo' && todoViewMode === 'kanban'
+                ? 'max-w-none'
+                : 'max-w-[var(--content-max)]'
           } pb-0 pt-0 flex min-h-full flex-col`}
         >
           {activeTab === 'day' && (
@@ -837,6 +911,7 @@ export function App() {
             <TodoView
               onBackToToday={() => setActiveTab('day')}
               onTaskChanged={loadDayData}
+              onViewModeChange={setTodoViewMode}
             />
           )}
           {activeTab === 'focus' && <FocusView />}
@@ -844,6 +919,31 @@ export function App() {
       )}
     </div>
   );
+
+  if (!authReady) {
+    return (
+      <div className="flex min-h-dvh w-full items-center justify-center bg-background">
+        <img
+          src="/Boxs/Box 2.png"
+          alt=""
+          className="size-12 animate-pulse rounded-2xl object-contain opacity-70"
+        />
+      </div>
+    );
+  }
+
+  if (requiresSignIn) {
+    return (
+      <>
+        <AuthWall onSignIn={() => setAuthModalOpen(true)} />
+        <Suspense fallback={null}>
+          {authMounted && (
+            <LoginModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+          )}
+        </Suspense>
+      </>
+    );
+  }
 
   return (
     <NotebookProvider>
@@ -953,6 +1053,31 @@ export function App() {
           onComplete={() => setCelebrationCoords(null)}
         />
       )}
+      {reviewOpen && (
+        <Suspense fallback={null}>
+          <ReviewView
+            open={reviewOpen}
+            startTab={reviewTab}
+            onClose={() => setReviewOpen(false)}
+          />
+        </Suspense>
+      )}
+
+      <OnboardingDialog
+        open={onboardingOpen}
+        dailyGoal={dailyTaskGoal}
+        onDailyGoalChange={handleDailyTaskGoalChange}
+        theme={theme}
+        onThemeChange={handleThemeChange}
+        daySections={enableDaySections}
+        onDaySectionsChange={handleEnableDaySectionsChange}
+        onClose={() => {
+          try {
+            localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+          } catch {}
+          setOnboardingOpen(false);
+        }}
+      />
     </NotebookProvider>
   );
 }

@@ -9,6 +9,7 @@ import { TaskItemRow } from '@/components/stream/TaskItemRow';
 import { QuickCaptureInput } from '@/components/capture/QuickCaptureInput';
 import { RiAddLine } from '@remixicon/react';
 import { keepKeyboardInTheNote, swallowTypingKeys } from './keyGuards';
+import { getDraggedNoteTaskId, hasNoteTaskDrag } from '@/lib/noteTaskDrag';
 
 export interface TaskAddRowProps {
   dueDate: string;
@@ -150,6 +151,17 @@ const NoteTaskList: React.FC<{ scope: string }> = ({ scope }) => {
     return () => window.removeEventListener('task-updated', handler);
   }, [load]);
 
+  /** Dropping a card on today's list means "schedule this for today". */
+  const handleDrop = async (event: React.DragEvent) => {
+    const draggedId = getDraggedNoteTaskId(event);
+    if (!draggedId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (overdue) return;
+    await taskRepo.update(draggedId, { due_date: getTodayJalaliKey() });
+    void load();
+  };
+
   return (
     <div
       contentEditable={false}
@@ -157,6 +169,13 @@ const NoteTaskList: React.FC<{ scope: string }> = ({ scope }) => {
       className="my-2 w-full"
       onKeyDownCapture={swallowTypingKeys}
       onMouseDownCapture={keepKeyboardInTheNote}
+      onDragOver={(event) => {
+        if (!hasNoteTaskDrag(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = 'move';
+      }}
+      onDrop={(event) => void handleDrop(event)}
     >
       <p className="mb-1 px-1 text-[11.5px] font-medium text-muted-foreground">
         {TASK_LIST_TITLES[scope] ?? TASK_LIST_TITLES.today}
@@ -180,6 +199,7 @@ const NoteTaskList: React.FC<{ scope: string }> = ({ scope }) => {
               onStatusChanged={load}
               isLast={index === tasks.length - 1}
               hideNoteLink
+              showSubtasks
             />
           ))}
         </div>

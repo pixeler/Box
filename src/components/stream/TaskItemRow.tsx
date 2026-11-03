@@ -71,6 +71,8 @@ interface TaskItemRowProps {
   compact?: boolean;
   /** Set on cards rendered inside their own note, where the note chip is redundant. */
   hideNoteLink?: boolean;
+  /** Show the task own steps under the title (note lists, not the day stream). */
+  showSubtasks?: boolean;
   className?: string;
 }
 
@@ -90,6 +92,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
   isLast = false,
   compact = false,
   hideNoteLink = false,
+  showSubtasks = false,
   className = '',
 }) => {
   const isMobile = useIsMobile();
@@ -207,6 +210,14 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
     onStatusChanged();
   };
 
+  const handleToggleSubtask = async (subtaskId: string) => {
+    const next = (task.subtasks || []).map((item) =>
+      item.id === subtaskId ? { ...item, done: !item.done } : item
+    );
+    await taskRepo.update(task.id, { subtasks: next });
+    onStatusChanged();
+  };
+
   return (
     <>
       <ContextMenu
@@ -255,6 +266,24 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     </span>
                   )}
 
+                  <h3
+                    className={cn(
+                      'font-medium leading-relaxed transition-colors break-words line-clamp-2',
+                      compact ? 'text-[11.5px]' : 'text-[13.5px]'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        isDone
+                          ? ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground font-normal']
+                          : 'text-foreground'
+                      )}
+                    >
+                      {stripMarkdownForPreview(task.title)}
+                    </span>
+                  </h3>
+
+                  {/* The priority flag follows the title, like a marker on the page. */}
                   {task.priority && (
                     <span
                       title={
@@ -278,23 +307,6 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                       />
                     </span>
                   )}
-
-                  <h3
-                    className={cn(
-                      'font-medium leading-relaxed transition-colors break-words line-clamp-2',
-                      compact ? 'text-[11.5px]' : 'text-[13.5px]'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        isDone
-                          ? ['pencil-strike', getTaskPencilPattern(task.id), 'text-muted-foreground font-normal']
-                          : 'text-foreground'
-                      )}
-                    >
-                      {stripMarkdownForPreview(task.title)}
-                    </span>
-                  </h3>
                 </div>
 
                 {/* Task Description if present */}
@@ -317,6 +329,42 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                   </p>
                 )}
 
+                {/* Subtasks, inline: the same steps shown in the task's own window. */}
+                {showSubtasks && (task.subtasks?.length ?? 0) > 0 && (
+                  <ul className="mt-1.5 flex w-full flex-col gap-1">
+                    {(task.subtasks ?? []).map((subtask) => (
+                      <li key={subtask.id} className="flex items-start gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleToggleSubtask(subtask.id);
+                          }}
+                          aria-label={subtask.done ? 'بازگرداندن زیرکار' : 'انجام زیرکار'}
+                          className={cn(
+                            'mt-[3px] flex size-3.5 shrink-0 items-center justify-center rounded-[4px] border transition-colors cursor-pointer',
+                            subtask.done
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-muted-foreground/40 hover:border-foreground'
+                          )}
+                        >
+                          {subtask.done && <RiCheckLine className="size-2.5 stroke-[3]" />}
+                        </button>
+                        <span
+                          className={cn(
+                            'min-w-0 break-words text-[11px] leading-5',
+                            subtask.done
+                              ? 'text-muted-foreground/60 line-through'
+                              : 'text-muted-foreground'
+                          )}
+                        >
+                          {subtask.title}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
                 {/* Meta: Recurring tasks show only time and repeat icon. Non-recurring tasks show date/time */}
                 {isRecurring ? (
                   <div
@@ -328,7 +376,7 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                     {recurringTime && <span>{recurringTime}</span>}
                     <RiRepeatLine className="size-3.5 text-muted-foreground/80 shrink-0" />
                   </div>
-                ) : dateDisplay || (task.time_of_day && task.time_of_day !== 'anytime') ? (
+                ) : dateDisplay ? (
                   <div
                     className={cn(
                       'flex items-center gap-1.5 text-subtle font-normal select-none',
@@ -340,19 +388,6 @@ export const TaskItemRow: React.FC<TaskItemRowProps> = React.memo(({
                         <RiCalendarLine className="size-3.5 shrink-0 text-muted-foreground/80" />
                         <span>{dateDisplay}</span>
                       </>
-                    )}
-                    {(task.time_of_day || 'anytime') !== 'anytime' && (
-                      <HugeiconsIcon
-                        icon={
-                          task.time_of_day === 'morning'
-                            ? MorningSunriseIcon
-                            : task.time_of_day === 'day'
-                            ? Sun01Icon
-                            : EveningMoonIcon
-                        }
-                        size={14}
-                        className="shrink-0 text-muted-foreground/80"
-                      />
                     )}
                   </div>
                 ) : null}

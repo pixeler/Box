@@ -114,8 +114,11 @@ export const TodoKanban: React.FC<TodoKanbanProps> = ({ tasks, onChanged }) => {
   };
 
   return (
-    <div className="w-full overflow-x-auto px-5 pb-6 pt-6 no-scrollbar sm:px-6">
-      <div className="grid min-w-[760px] grid-cols-4 items-start gap-3">
+    <div className="w-full px-5 pb-6 pt-6 sm:px-6">
+      {/* One row, four equal columns that always fit the page: no column can
+          end up half hidden behind the edge. Phones keep readable column widths
+          and scroll sideways instead of squeezing the text to nothing. */}
+      <div className="flex w-full flex-nowrap items-stretch gap-2 overflow-x-auto pb-1 no-scrollbar sm:grid sm:grid-cols-4 sm:gap-3 sm:overflow-visible sm:pb-0">
         {COLUMNS.map((column) => {
           const list = grouped[column.key];
 
@@ -132,7 +135,7 @@ export const TodoKanban: React.FC<TodoKanbanProps> = ({ tasks, onChanged }) => {
               }
               onDrop={(event) => void handleDrop(column.key, event)}
               className={cn(
-                'flex min-h-[160px] flex-col rounded-xl border border-border/40 bg-muted/25 p-2 transition-colors',
+                'flex min-h-[160px] min-w-[200px] flex-1 basis-0 flex-col rounded-xl border border-border/40 bg-muted/25 p-2 transition-colors sm:w-full sm:min-w-0 sm:basis-auto',
                 overColumn === column.key && 'border-primary/40 bg-primary/[0.07]'
               )}
             >

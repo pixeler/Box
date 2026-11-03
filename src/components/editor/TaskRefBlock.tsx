@@ -1,18 +1,30 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createReactBlockSpec } from '@blocknote/react';
+import type { BlockNoteEditor } from '@blocknote/core';
 import type { Task } from '@/types/models';
 import { taskRepo } from '@/repositories';
 import { extractDateOnly, getTodayJalaliKey } from '@/lib/jalali';
 import { TaskItemRow } from '@/components/stream/TaskItemRow';
 import { RiLoader4Line } from '@remixicon/react';
 import { keepKeyboardInTheNote, swallowTypingKeys } from './keyGuards';
+import {
+  getDraggedNoteTaskId,
+  hasNoteTaskDrag,
+  moveTaskIntoNote,
+  startNoteTaskDrag,
+} from '@/lib/noteTaskDrag';
 
 /**
  * A task from the app, embedded in a note. The block stores only the task id and
  * renders the very same card the today and calendar views use, so checking,
- * editing and every menu behave identically in both places.
+ * editing, the right-click menu and drag-and-drop behave identically in both
+ * places.
  */
-const TaskRefView: React.FC<{ taskId: string }> = ({ taskId }) => {
+const TaskRefView: React.FC<{
+  taskId: string;
+  blockId: string;
+  editor: BlockNoteEditor<any, any, any>;
+}> = ({ taskId, blockId, editor }) => {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -100,6 +112,8 @@ const TaskRefView: React.FC<{ taskId: string }> = ({ taskId }) => {
       className="my-0 w-full"
       onKeyDownCapture={swallowTypingKeys}
       onMouseDownCapture={keepKeyboardInTheNote}
+      // The editor owns right-click on its own; the card's menu needs it first.
+      onContextMenu={(event) => event.stopPropagation()}
     >
       <TaskItemRow
         task={displayTask ?? task}
@@ -107,6 +121,24 @@ const TaskRefView: React.FC<{ taskId: string }> = ({ taskId }) => {
         onStatusChanged={load}
         className="px-2 py-1.5"
         hideNoteLink
+        showSubtasks
+        draggable
+        onDragStart={(event) => startNoteTaskDrag(event, displayTask ?? task)}
+        onDragOver={(event) => {
+          if (!hasNoteTaskDrag(event)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.dataTransfer.dropEffect = 'move';
+        }}
+        onDrop={(event) => {
+          const draggedId = getDraggedNoteTaskId(event);
+          if (!draggedId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (draggedId === taskId) return;
+          void moveTaskIntoNote(editor, draggedId, blockId).then(() => load());
+        }}
+        onDragEnd={() => {}}
       />
     </div>
   );
@@ -121,7 +153,13 @@ export const TaskRefBlock = createReactBlockSpec(
     content: 'none',
   },
   {
-    render: ({ block }) => <TaskRefView taskId={block.props.taskId} />,
+    render: ({ block, editor }) => (
+      <TaskRefView
+        taskId={block.props.taskId}
+        blockId={block.id}
+        editor={editor as unknown as BlockNoteEditor<any, any, any>}
+      />
+    ),
     /** Markdown/HTML export must never scrape this component: its loading state
      *  would be written into the note body as text. */
     toExternalHTML: () => (

@@ -152,6 +152,17 @@
       "category": "public.app-category.productivity",
       "darkModeSupport": true,
       "artifactName": "Box-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "deb",
+        "AppImage"
+      ],
+      "category": "Utility",
+      "icon": "build/icon.png",
+      "executableName": "box",
+      "synopsis": "Persian-first offline notes, tasks and focus",
+      "maintainer": "Mahdi Khodadadi <me@pixeler.ir>"
     }
   }
 }

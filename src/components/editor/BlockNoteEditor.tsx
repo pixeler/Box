@@ -82,7 +82,17 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
   autoFocus = false,
 }) => {
   const isLoadedRef = useRef(false);
+  // Content from props is applied exactly once per mounted editor: the note
+  // view echoes every keystroke back as initialContent, and re-applying it
+  // would rebuild the document and throw the caret to the end of the note.
+  const contentAppliedRef = useRef(false);
   const lastMarkdownRef = useRef<string>(initialContent || '');
+  // Latest callbacks in refs, so the change subscription survives re-renders
+  // instead of being torn down (and possibly missing a keystroke) each time.
+  const onChangeRef = useRef(onChange);
+  const onChangeJsonRef = useRef(onChangeJson);
+  onChangeRef.current = onChange;
+  onChangeJsonRef.current = onChangeJson;
   // Position of the caret that opened the task submenu (null when closed).
   const [taskPickerAnchor, setTaskPickerAnchor] = useState<TaskPickerAnchor | null>(null);
   // The block a picked task list belongs to. The picker takes focus, so the
@@ -182,6 +192,15 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
   // Load initial content (JSON blocks first, then markdown) once editor is ready
   useEffect(() => {
     if (!editor) return;
+    if (contentAppliedRef.current) {
+      // A later document only loads into an editor that is still blank, so live
+      // typing is never interrupted by a stale copy of the note.
+      const incoming = (initialContent || '').trim() || (initialContentJson || '').trim();
+      const hasText = editor.document.some(
+        (block) => blockPlainText(block).trim().length > 0
+      );
+      if (hasText || !incoming) return;
+    }
 
     let loaded = false;
     if (initialContentJson) {
@@ -222,6 +241,7 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
       }
     }
 
+    contentAppliedRef.current = true;
     if (isLoadedRef.current) void hydrateTaskTokens();
 
     if (autoFocus) {
@@ -239,17 +259,18 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
       isLoadedRef.current = true;
 
       try {
-        onChangeJson?.(JSON.stringify(ed.document));
+        onChangeJsonRef.current?.(JSON.stringify(ed.document));
       } catch (err) {
         console.error('Failed to serialize note blocks:', err);
       }
 
-      if (!onChange) return;
+      const notify = onChangeRef.current;
+      if (!notify) return;
       try {
         const markdown = ed.blocksToMarkdownLossy(ed.document);
         if (markdown !== lastMarkdownRef.current) {
           lastMarkdownRef.current = markdown;
-          onChange(markdown);
+          notify(markdown);
         }
       } catch (err) {
         console.error('Failed to convert BlockNote blocks to markdown:', err);
@@ -259,7 +280,7 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
     return () => {
       unsubscribe();
     };
-  }, [editor, onChange, onChangeJson]);
+  }, [editor]);
 
   // Update editable state
   useEffect(() => {

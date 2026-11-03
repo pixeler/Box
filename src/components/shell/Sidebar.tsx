@@ -76,7 +76,12 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { RiArrowLeftSLine, RiArrowRightSLine, RiLoginBoxLine } from '@remixicon/react';
+import {
+  RiArrowLeftSLine,
+  RiArrowRightSLine,
+  RiLineChartLine,
+  RiLoginBoxLine,
+} from '@remixicon/react';
 
 export interface SidebarProps {
   activeTab: ActiveTab;
@@ -702,6 +707,17 @@ const AccountMenu: React.FC<{
           <Settings className="size-4 text-subtle" />
           <span className="flex-1">تنظیمات</span>
           <Shortcut>{settingsShortcut}</Shortcut>
+        </DropdownMenuItem>
+
+        {/* The review is a ritual, so it sits next to settings rather than in
+            the "other" submenu. */}
+        <DropdownMenuItem
+          onSelect={() => {
+            window.dispatchEvent(new CustomEvent('box:open-review'));
+          }}
+        >
+          <RiLineChartLine className="size-4 text-subtle" />
+          <span className="flex-1">مرور و گزارش</span>
         </DropdownMenuItem>
         {/* Two everyday entries stay here; everything else — including the
             desktop-only tools — lives one level down. */}

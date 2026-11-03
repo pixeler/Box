@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import type { User, Session, AuthError } from '@supabase/supabase-js';
 import { getSupabase } from './cloud';
-import { runWhenIdle } from './idle';
+import { IS_CLOUD_BUILD, claimLocalDataForUser, clearLocalUserData } from './localData';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  /** True once the stored session has been read: the UI can trust `user`. */
+  ready: boolean;
   signInWithOtp: (email: string) => Promise<{ error: AuthError | null }>;
   verifyOtp: (email: string, token: string) => Promise<{ error: AuthError | null }>;
   signInWithPassword: (email: string, password: string) => Promise<{ error: AuthError | null }>;
@@ -17,72 +19,89 @@ interface AuthContextType {
   signOut: () => Promise<{ error: AuthError | null }>;
 }
 
-/**
- * A signed-out device must not keep the previous account's content.
- * The tombstones and last-sync stamp go with it, or the next account would
- * inherit the previous one's deletions.
- */
-async function clearLocalUserData(): Promise<void> {
-  const { db } = await import('./db/dexie');
-  await Promise.all([
-    db.entries.clear(),
-    db.tasks.clear(),
-    db.events.clear(),
-    db.notes.clear(),
-    db.habits.clear(),
-    db.tags.clear(),
-    db.relations.clear(),
-    db.boxes.clear(),
-    db.focus_sessions.clear(),
-    db.document_versions.clear(),
-  ]);
-  localStorage.removeItem('second_brain_deleted_ids');
-  localStorage.removeItem('second_brain_last_sync');
-}
+/** Restoring a session must never block the app forever if the backend is down. */
+const SESSION_RESTORE_TIMEOUT_MS = 6000;
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  // Starts `false`: the shell never waits on the network. The session is
-  // restored on idle and simply arrives a beat later.
+  // Starts `false`: the shell never waits on the network. Session restore is a
+  // local read, but it still happens a beat after the first paint.
   const [loading] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    // A local-only build has no accounts; there is nothing to wait for.
+    if (!IS_CLOUD_BUILD) {
+      setReady(true);
+      return;
+    }
+
     let cancelled = false;
     let unsubscribe: (() => void) | null = null;
 
-    // Session restore is a network/auth concern, not a render concern, so it
-    // runs after first paint and after the native bridge is up.
-    runWhenIdle(() => {
-      void getSupabase()
-        .then((supabase) => {
-          if (cancelled) return;
+    const apply = async (nextSession: Session | null) => {
+      if (cancelled) return;
 
-          supabase.auth
-            .getSession()
-            .then(({ data }) => {
-              if (cancelled) return;
-              setSession(data.session);
-              setUser(data.session?.user ?? null);
-            })
-            .catch(() => {});
+      // The database on this device belongs to one account. Binding it happens
+      // *before* the user is published, so no other account's content can be
+      // rendered for even one frame.
+      if (nextSession?.user) {
+        try {
+          await claimLocalDataForUser(nextSession.user.id);
+        } catch (err) {
+          console.warn('Failed to bind the local database to this account:', err);
+        }
+      }
 
-          const {
-            data: { subscription },
-          } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-            setSession(nextSession);
-            setUser(nextSession?.user ?? null);
-          });
+      if (cancelled) return;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      setReady(true);
+    };
 
-          unsubscribe = () => subscription.unsubscribe();
-        })
-        .catch(() => {});
-    });
+    const fallback = window.setTimeout(() => {
+      if (!cancelled) setReady(true);
+    }, SESSION_RESTORE_TIMEOUT_MS);
+
+    void getSupabase()
+      .then((supabase) => {
+        if (cancelled) return;
+
+        supabase.auth
+          .getSession()
+          .then(({ data }) => apply(data.session))
+          .catch(() => apply(null));
+
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+          // A signed-out device keeps no content: the data belongs to the
+          // account that just left, not to whoever opens the app next.
+          if (!nextSession) {
+            void clearLocalUserData()
+              .catch(() => {})
+              .finally(() => {
+                if (cancelled) return;
+                setSession(null);
+                setUser(null);
+                setReady(true);
+              });
+            return;
+          }
+
+          void apply(nextSession);
+        });
+
+        unsubscribe = () => subscription.unsubscribe();
+      })
+      .catch(() => apply(null));
 
     return () => {
       cancelled = true;
+      window.clearTimeout(fallback);
       unsubscribe?.();
     };
   }, []);
@@ -195,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       session,
       loading,
+      ready,
       signInWithOtp,
       verifyOtp,
       signInWithPassword,
@@ -208,6 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user,
       session,
       loading,
+      ready,
       signInWithOtp,
       verifyOtp,
       signInWithPassword,

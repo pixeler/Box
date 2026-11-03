@@ -20,11 +20,17 @@ import { TaskItemRow } from '@/components/stream/TaskItemRow';
 interface TodoViewProps {
   onBackToToday?: () => void;
   onTaskChanged?: () => void;
+  /** Lets the shell free the content width while the board is on screen. */
+  onViewModeChange?: (mode: 'list' | 'kanban') => void;
 }
 
 type PriorityCategory = 'urgent' | 'medium' | 'low' | 'none';
 
-export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToday, onTaskChanged }) => {
+export const TodoView: React.FC<TodoViewProps> = ({
+  onBackToToday: _onBackToToday,
+  onTaskChanged,
+  onViewModeChange,
+}) => {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>(() =>
@@ -32,6 +38,10 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
       ? 'kanban'
       : 'list'
   );
+
+  useEffect(() => {
+    onViewModeChange?.(viewMode);
+  }, [viewMode, onViewModeChange]);
 
   const changeViewMode = (mode: 'list' | 'kanban') => {
     setViewMode(mode);
@@ -179,7 +189,7 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
     const isOpen = openSections[cat];
 
     return (
-      <div className="flex items-center justify-between px-6 pt-3 pb-1">
+      <div className="flex items-center justify-between px-1 pt-3 pb-2.5">
         <button
           type="button"
           onClick={() => toggleSection(cat)}
@@ -243,7 +253,7 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
               <div
                 role="group"
                 aria-label="نمای کارها"
-                className="flex h-8 items-center gap-0.5 rounded-md border border-border/60 p-0.5"
+                className="flex h-8 items-center gap-0.5 rounded-lg border border-border/60 p-0.5"
               >
                 {[
                   { key: 'list' as const, label: 'لیست', Icon: RiListUnordered },
@@ -254,7 +264,7 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
                     type="button"
                     onClick={() => changeViewMode(key)}
                     aria-pressed={viewMode === key}
-                    className={`flex h-7 items-center justify-center gap-1.5 rounded-[5px] px-2 text-[12px] font-medium transition-colors ${
+                    className={`flex h-7 items-center justify-center gap-1.5 rounded-md px-2 text-[12px] font-medium transition-colors ${
                       viewMode === key
                         ? 'bg-secondary text-foreground'
                         : 'text-muted-foreground hover:text-foreground'
@@ -373,7 +383,7 @@ export const TodoView: React.FC<TodoViewProps> = ({ onBackToToday: _onBackToToda
              ------------------------------------------------------------- */}
           {completedTasks.length > 0 && (
             <div className="w-full pt-1">
-              <div className="flex items-center justify-between px-6 pt-3 pb-1">
+              <div className="flex items-center justify-between px-1 pt-3 pb-2.5">
                 <button
                   type="button"
                   onClick={() => setCompletedOpen((prev) => !prev)}
