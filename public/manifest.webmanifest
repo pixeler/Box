@@ -1,7 +1,9 @@
 {
   "name": "Box — ذهن دوم",
   "short_name": "Box",
-  "description": "فضای کار آفلاین‌محور برای یادداشت، کار، تقویم شمسی و تمرکز",
+  "description": "فضای کار آفلاین‌محور برای یادداشت، کار، تقویم شمسی و تمرکز — an offline-first workspace for notes, tasks, the Jalali calendar and focus",
+  "description_en": "An offline-first workspace for notes, tasks, the Jalali calendar and focus",
+  "description_fa": "فضای کار آفلاین‌محور برای یادداشت، کار، تقویم شمسی و تمرکز",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#090812",

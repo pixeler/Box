@@ -3,7 +3,7 @@
   "productName": "Box",
   "private": true,
   "version": "0.3.0",
-  "description": "A calm, offline-first second brain for notes, tasks, calendar and deep work. Persian-first, local database, optional cloud sync.",
+  "description": "A calm, offline-first second brain for notes, tasks, calendar and deep work. Persian-first, local database, optional cloud sync. — جعبه: یک ذهن دوم آرام و آفلاین‌محور برای یادداشت، کار، تقویم شمسی و تمرکز؛ فارسی‌محور، پایگاه‌دادهٔ محلی و همگام‌سازی ابری اختیاری.",
   "license": "MIT",
   "author": {
     "name": "Mahdi Khodadadi",

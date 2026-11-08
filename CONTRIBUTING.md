@@ -62,6 +62,12 @@ Useful entry points:
    dated section.
 2. `git commit -am "chore(release): vX.Y.Z"`.
 3. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin master --tags`.
-4. The **Release** workflow builds the Windows portable exe and the macOS
-   `dmg`/`zip`, then attaches them to the GitHub release. Android APKs are built
-   locally with `pnpm android:build`.
+4. The **Release** workflow builds the Windows portable exe, the Linux
+   `deb`/`AppImage` and the macOS `dmg`/`zip`, then attaches them to the GitHub
+   release.
+5. Android APKs are built locally with `pnpm android:build` and attached to the
+   release by hand (`gh release upload vX.Y.Z Box-release.apk`). The Android job
+   in the Release workflow is currently disabled in practice: GitHub's runner
+   image refuses Gradle's own outbound connections, so the APK fails before any
+   task runs. Run the workflow with `workflow_dispatch` and the `tag` input to
+   rebuild the other platforms for an existing release.

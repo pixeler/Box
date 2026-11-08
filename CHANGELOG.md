@@ -7,10 +7,29 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-08
+
 ### Added
+- **One tasks surface.** Today, week, month, year and *all tasks* share a single
+  header: the period title in the middle, the day/week/month/year/all pills on
+  the right and the list ↔ calendar/board switch on the left next to `+`.
+  Week, month and year open as a calendar; *all tasks* opens as a kanban board.
+- A **table of contents** in every note, built from its own headings, so long
+  notes stay navigable.
+- **Note zoom** with an animation and a one-click reset, closed by clicking
+  outside the popover.
 - Repository scaffolding for the open-source release: README, MIT license,
   contribution, security and conduct guides, issue and pull request templates,
   CI and release workflows.
+
+### Changed
+- The `/` menu is one compact line instead of a tall popover.
+- Calendar arrows point in their real direction (right = previous, left = next),
+  and the period pills keep a 52px minimum width with a 2px gap so the header no
+  longer shifts as their labels change.
+- The day stream and the calendar run chromeless inside the tasks header, and
+  the sidebar and tab bar call the section **کارها** rather than splitting it by
+  period.
 
 ### Fixed
 - Typing a space in a note no longer throws the caret into a task list: the
