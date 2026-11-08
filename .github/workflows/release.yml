@@ -4,6 +4,10 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attach the artifacts to (defaults to the pushed ref)
+        required: false
 
 permissions:
   contents: write
@@ -100,6 +104,18 @@ jobs:
       - name: Point Gradle at the runner SDK
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
+      # This runner image refuses services.gradle.org, which is where the
+      # wrapper fetches its distribution, so use the GitHub mirror of the very
+      # same zip instead of a different Gradle version.
+      - name: Point the Gradle wrapper at the GitHub mirror
+        run: |
+          PROPERTIES=android/gradle/wrapper/gradle-wrapper.properties
+          VERSION=$(sed -n 's/.*gradle-\(.*\)-all\.zip.*/\1/p' "$PROPERTIES" | head -n 1)
+          MIRROR="https\://github.com/gradle/gradle-distributions/releases/download/v${VERSION}/gradle-${VERSION}-all.zip"
+          echo "Using $MIRROR"
+          sed -i "s|^distributionUrl=.*|distributionUrl=$MIRROR|" "$PROPERTIES"
+          grep distributionUrl "$PROPERTIES"
+
       - name: Assemble release APK
         run: |
           cd android
@@ -142,6 +158,7 @@ jobs:
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           generate_release_notes: true
           fail_on_unmatched_files: false
           files: |
