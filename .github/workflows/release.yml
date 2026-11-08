@@ -120,10 +120,20 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          # The wrapper fetches its Gradle distribution on first use; a dropped
-          # connection there fails the job before a single task runs, so retry.
+          # Node-based actions reach the network through the runner proxy, but a
+          # plain JVM connects directly and gets refused. Give Gradle the same
+          # proxy, and retry since the wrapper downloads Gradle on first use.
+          PROXY_ARGS=""
+          if [ -n "$HTTPS_PROXY" ]; then
+            HOSTPORT=${HTTPS_PROXY#*://}
+            PROXY_HOST=${HOSTPORT%%:*}
+            PROXY_PORT=${HOSTPORT#*:}
+            PROXY_PORT=${PROXY_PORT%%/*}
+            PROXY_ARGS="-Dhttps.proxyHost=$PROXY_HOST -Dhttps.proxyPort=$PROXY_PORT -Dhttp.proxyHost=$PROXY_HOST -Dhttp.proxyPort=$PROXY_PORT"
+            echo "Gradle will use the runner proxy $PROXY_HOST:$PROXY_PORT"
+          fi
           for attempt in 1 2 3; do
-            if sh ./gradlew assembleRelease --no-daemon --stacktrace; then
+            if JAVA_OPTS="$JAVA_OPTS $PROXY_ARGS" sh ./gradlew assembleRelease --no-daemon --stacktrace; then
               exit 0
             fi
             echo "Gradle attempt $attempt failed; retrying in 20s"
