@@ -823,6 +823,21 @@ body {
   animation: dayPaneEnter 120ms ease-out;
 }
 
+/* A short settle after the text size changes, so the new scale reads as a
+   deliberate step rather than a jump. Compositor-only and one-shot. */
+@keyframes noteZoomBump {
+  0% {
+    transform: scale(0.994);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.note-zoom-bump {
+  animation: noteZoomBump 170ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tab-pane,
   .day-pane-enter,

@@ -76,6 +76,10 @@ interface CalendarViewProps {
   onOpenAddForDate?: (dateKey: string) => void;
   onExitCalendar?: () => void;
   onTaskChanged?: () => void;
+  /** The page around it owns the period and the switch: no toolbar of its own. */
+  chromeless?: boolean;
+  /** Controlled period; the calendar keeps its own when this is omitted. */
+  mode?: CalendarViewMode;
 }
 
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
@@ -201,8 +205,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onOpenAddForDate,
   onExitCalendar: _onExitCalendar,
   onTaskChanged,
+  chromeless = false,
+  mode,
 }) => {
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
+  const [viewMode, setViewMode] = useState<CalendarViewMode>(mode ?? 'week');
   const [currentDateKey, setCurrentDateKey] = useState<string>(
     () => selectedDateKey || getTodayJalaliKey()
   );
@@ -258,6 +264,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       previous === selectedDateKey ? previous : selectedDateKey
     );
   }, [selectedDateKey]);
+
+  useEffect(() => {
+    if (!mode || mode === viewMode) return;
+    setViewMode(mode);
+  }, [mode, viewMode]);
 
   useEffect(() => {
     setWeekComposer(null);
@@ -751,7 +762,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       className="calendar-smooth-open flex h-full w-full select-none flex-col overflow-hidden text-foreground"
       dir="rtl"
     >
-      <CalendarHeader
+      {!chromeless && (
+        <CalendarHeader
         mode={viewMode}
         title={headerTitle}
         subtitle={headerSubtitle}
@@ -777,7 +789,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             ? () => onOpenAddForDate(currentDateKey)
             : undefined
         }
-      />
+        />
+      )}
 
       <div
         ref={periodAnimRef}

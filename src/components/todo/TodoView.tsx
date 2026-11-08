@@ -22,6 +22,10 @@ interface TodoViewProps {
   onTaskChanged?: () => void;
   /** Lets the shell free the content width while the board is on screen. */
   onViewModeChange?: (mode: 'list' | 'kanban') => void;
+  /** The tasks screen draws its own header; only the list/board is wanted. */
+  chromeless?: boolean;
+  /** Controlled list/board choice; without it this view remembers its own. */
+  viewMode?: 'list' | 'kanban';
 }
 
 type PriorityCategory = 'urgent' | 'medium' | 'low' | 'none';
@@ -30,21 +34,21 @@ export const TodoView: React.FC<TodoViewProps> = ({
   onBackToToday: _onBackToToday,
   onTaskChanged,
   onViewModeChange,
+  chromeless = false,
+  viewMode: controlledViewMode,
 }) => {
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [tagsMap, setTagsMap] = useState<Record<string, Tag>>({});
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(() =>
+  const [ownViewMode, setOwnViewMode] = useState<'list' | 'kanban'>(() =>
     typeof window !== 'undefined' && localStorage.getItem('box:todo-view') === 'kanban'
       ? 'kanban'
       : 'list'
   );
-
-  useEffect(() => {
-    onViewModeChange?.(viewMode);
-  }, [viewMode, onViewModeChange]);
+  const viewMode = controlledViewMode ?? ownViewMode;
 
   const changeViewMode = (mode: 'list' | 'kanban') => {
-    setViewMode(mode);
+    if (!controlledViewMode) setOwnViewMode(mode);
+    onViewModeChange?.(mode);
     try {
       localStorage.setItem('box:todo-view', mode);
     } catch {
@@ -243,7 +247,7 @@ export const TodoView: React.FC<TodoViewProps> = ({
   return (
     <div dir="rtl" className="w-full flex-1 flex flex-col justify-between day-slide-transition pb-28 select-none">
       <div>
-        <div className="w-full px-5 pt-10 sm:px-6 sm:pt-12">
+        <div className={chromeless ? 'hidden' : 'w-full px-5 pt-10 sm:px-6 sm:pt-12'}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
               <h1 className="truncate font-darvish text-[22px] font-semibold leading-8 tracking-normal text-foreground sm:text-[24px]">

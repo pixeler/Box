@@ -45,6 +45,8 @@ import {
   type NoteTemplate,
 } from '@/lib/noteTemplates';
 import { NoteHistoryPanel } from './NoteHistoryPanel';
+import { buildNoteOutline, type OutlineEntry } from '@/lib/noteOutline';
+import { toPersianDigits } from '@/lib/jalali';
 import {
   RiCloseLine,
   RiPushpinLine,
@@ -64,6 +66,9 @@ import {
   RiFileTextLine,
   RiRestartLine,
   RiCheckLine,
+  RiZoomInLine,
+  RiListUnordered,
+  RiRefreshLine,
 } from '@remixicon/react';
 
 export type NotionViewMode = 'side-peek' | 'center' | 'fullscreen';
@@ -276,6 +281,34 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
   /** Bumped to remount the editor when a template replaces its content. */
   const [editorKey, setEditorKey] = useState(0);
   const [restoreTick, setRestoreTick] = useState(0);
+  // Text size of the document, remembered across notes and sessions.
+  const [noteZoom, setNoteZoom] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('box:note-zoom'));
+      if (Number.isFinite(saved) && saved >= 70 && saved <= 160) return saved;
+    } catch {
+      /* Storage disabled: the window opens at 100%. */
+    }
+    return 100;
+  });
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  /** One-shot settle animation when the text size changes. */
+  const [zoomBump, setZoomBump] = useState(false);
+  const zoomBumpTimer = useRef<number | null>(null);
+
+  // A click anywhere outside the size panel closes it, even when it lands on
+  // the note itself (the note's own overlay is what usually swallows this).
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[data-zoom-popover]')) return;
+      setZoomOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [zoomOpen]);
   const { user } = useAuth();
 
   const titleInputRef = useRef<HTMLTextAreaElement>(null);
@@ -1202,6 +1235,40 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       )}
     </PopoverContent>
   );
+  // The outline follows the note on screen, including while a switch from
+  // another note is still settling.
+  const outline = buildNoteOutline(shownBodyJson, shownDescription);
+
+  const changeZoom = (next: number) => {
+    const value = Math.min(160, Math.max(70, Math.round(next)));
+    setNoteZoom(value);
+    try {
+      localStorage.setItem('box:note-zoom', String(value));
+    } catch {
+      /* Storage disabled: the zoom simply stops remembering. */
+    }
+
+    setZoomBump(true);
+    if (zoomBumpTimer.current) window.clearTimeout(zoomBumpTimer.current);
+    zoomBumpTimer.current = window.setTimeout(() => setZoomBump(false), 200);
+  };
+
+  const jumpToOutline = (entry: OutlineEntry) => {
+    setOutlineOpen(false);
+    const root = containerRef.current;
+    if (!root) return;
+    const block = entry.id ? root.querySelector<HTMLElement>(`[data-id="${entry.id}"]`) : null;
+    if (block) {
+      block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    // Notes saved before block ids existed: match the heading's own text.
+    const headings = Array.from(root.querySelectorAll<HTMLElement>('.bn-block-content'));
+    headings
+      .find((node) => node.textContent?.trim() === entry.text)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   // Shared column for the title and the editor body: centred and a little
   // wider in full screen, plain padded content in the windowed modes.
   const contentColumnClass =
@@ -1365,6 +1432,114 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
       <div className="min-w-0 flex-1" />
 
       <div className="flex shrink-0 items-center gap-0.5">
+        <Popover open={zoomOpen} onOpenChange={setZoomOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title="اندازه متن"
+              aria-label="اندازه متن"
+            >
+              <RiZoomInLine className="size-4" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            sideOffset={6}
+            data-zoom-popover=""
+            className="w-56 rounded-xl border border-border/70 bg-popover p-3 font-sans text-foreground"
+            style={{ zIndex: overlayZ + 6 }}
+          >
+            <div className="flex items-center justify-between text-[11.5px] text-muted-foreground">
+              <span>اندازه متن</span>
+              <span className="font-medium text-foreground">
+                {toPersianDigits(noteZoom)}٪
+              </span>
+            </div>
+            <input
+              type="range"
+              min={70}
+              max={160}
+              step={5}
+              value={noteZoom}
+              onChange={(event) => changeZoom(Number(event.target.value))}
+              aria-label="اندازه متن یادداشت"
+              className="mt-2 w-full accent-foreground"
+            />
+            <div className="mt-1.5 flex items-center justify-between">
+              {/* Reset only exists while there is something to reset. */}
+              {noteZoom === 100 ? (
+                <span className="text-[11px] text-muted-foreground/60">۱۰۰٪</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => changeZoom(100)}
+                  className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <RiRefreshLine className="size-3" />
+                  بازنشانی
+                </button>
+              )}
+              <div className="flex items-center gap-0.5">
+                {(
+                  [
+                    ['کوچک‌تر', -10, '−'],
+                    ['بزرگ‌تر', 10, '+'],
+                  ] as [string, number, string][]
+                ).map(([label, step, glyph]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => changeZoom(noteZoom + step)}
+                    title={label}
+                    aria-label={label}
+                    className="flex size-6 items-center justify-center rounded border border-border/60 text-[12px] leading-none text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  >
+                    {glyph}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Nothing to list means no button: an empty outline is not a thing. */}
+        {outline.length > 0 && (
+          <Popover open={outlineOpen} onOpenChange={setOutlineOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                title="فهرست مطالب"
+                aria-label="فهرست مطالب"
+              >
+                <RiListUnordered className="size-4" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              sideOffset={6}
+              className="w-64 rounded-xl border border-border/70 bg-popover p-1.5 font-sans text-foreground"
+              style={{ zIndex: overlayZ + 6 }}
+            >
+              <p className="px-1.5 pb-1 text-[10.5px] text-muted-foreground">در این سند</p>
+              <div className="max-h-[46vh] overflow-y-auto">
+                {outline.map((entry, index) => (
+                  <button
+                    key={`${entry.id}-${index}`}
+                    type="button"
+                    onClick={() => jumpToOutline(entry)}
+                    className="flex w-full items-center rounded-md py-1 pe-1.5 text-right text-[12px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    style={{ paddingInlineStart: `${4 + (entry.level - 1) * 12}px` }}
+                  >
+                    <span className="truncate">{entry.text}</span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
         {!isTemplateMode && (
           <>
             <button
@@ -1557,7 +1732,10 @@ export const NoteEditModal: React.FC<NoteEditModalProps> = ({
           className="flex min-h-0 flex-1 flex-col"
         >
           <div
-            className={`flex min-h-0 flex-1 flex-col ${enteredAsNew ? 'note-create-enter' : ''}`}
+            className={`flex min-h-0 flex-1 flex-col ${enteredAsNew ? 'note-create-enter' : ''} ${
+              zoomBump ? 'note-zoom-bump' : ''
+            }`}
+            style={{ zoom: noteZoom / 100 }}
           >
             {/* Title block */}
             <div className={`shrink-0 ${contentColumnClass}`}>

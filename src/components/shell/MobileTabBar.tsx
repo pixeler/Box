@@ -2,12 +2,12 @@ import React from 'react';
 import type { ActiveTab } from '@/components/navigation/BottomDock';
 import { cn } from '@/lib/utils';
 import {
-  RiCalendar2Fill,
-  RiCalendar2Line,
   RiStickyNoteFill,
   RiStickyNoteLine,
-  RiSunFill,
-  RiSunLine,
+  RiTaskFill,
+  RiTaskLine,
+  RiTimerFill,
+  RiTimerLine,
 } from '@remixicon/react';
 
 interface MobileTabBarProps {
@@ -15,10 +15,33 @@ interface MobileTabBarProps {
   onTabChange: (tab: ActiveTab) => void;
 }
 
-const ITEMS = [
-  { id: 'day' as const, label: 'امروز', icon: RiSunLine, activeIcon: RiSunFill },
-  { id: 'calendar' as const, label: 'تقویم', icon: RiCalendar2Line, activeIcon: RiCalendar2Fill },
-  { id: 'notebook' as const, label: 'یادداشت', icon: RiStickyNoteLine, activeIcon: RiStickyNoteFill },
+/**
+ * Three destinations on a phone: tasks, notes and focus. The old today /
+ * calendar / all-tasks trio is one entry now — the tasks screen switches
+ * between them — so the bar has room for focus instead.
+ */
+const ITEMS: { id: ActiveTab; label: string; icon: typeof RiTaskLine; activeIcon: typeof RiTaskFill; match: ActiveTab[] }[] = [
+  {
+    id: 'day',
+    label: 'کارها',
+    icon: RiTaskLine,
+    activeIcon: RiTaskFill,
+    match: ['day', 'todo', 'calendar'],
+  },
+  {
+    id: 'notebook',
+    label: 'یادداشت',
+    icon: RiStickyNoteLine,
+    activeIcon: RiStickyNoteFill,
+    match: ['notebook'],
+  },
+  {
+    id: 'focus',
+    label: 'تمرکز',
+    icon: RiTimerLine,
+    activeIcon: RiTimerFill,
+    match: ['focus'],
+  },
 ];
 
 export const MobileTabBar: React.FC<MobileTabBarProps> = ({ activeTab, onTabChange }) => (
@@ -27,9 +50,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({ activeTab, onTabChan
     className="flex h-[calc(var(--bottom-nav-h)+env(safe-area-inset-bottom,0px))] shrink-0 items-stretch border-t border-border/70 bg-background pb-[env(safe-area-inset-bottom,0px)]"
   >
     {ITEMS.map((item) => {
-      const active =
-        activeTab === item.id ||
-        (item.id === 'day' && (activeTab === 'todo' || activeTab === 'focus'));
+      const active = item.match.includes(activeTab);
       const Icon = active ? item.activeIcon : item.icon;
 
       return (

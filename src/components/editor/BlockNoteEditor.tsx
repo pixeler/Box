@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems, FormattingToolbar, FormattingToolbarController, getFormattingToolbarItems } from '@blocknote/react';
-import type { DefaultReactSuggestionItem } from '@blocknote/react';
+import { SlashMenu, type SlashItem } from './SlashMenu';
 import { BlockNoteView } from '@blocknote/mantine';
 import { BlockNoteSchema, defaultBlockSpecs } from '@blocknote/core';
 import { faDictionary } from '@/lib/editor/faDictionary';
@@ -460,15 +460,15 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
    * row that opens the task submenu. Tasks themselves live in that submenu
    * instead of cluttering this list.
    */
-  const getSlashItems = async (query: string): Promise<DefaultReactSuggestionItem[]> => {
+  const getSlashItems = async (query: string): Promise<SlashItem[]> => {
     const q = query.trim().toLowerCase();
     const matches = (text?: string) => !q || (text || '').toLowerCase().includes(q);
 
-    const defaults = getDefaultReactSlashMenuItems(editor).filter(
+    const defaults: SlashItem[] = (getDefaultReactSlashMenuItems(editor) as SlashItem[]).filter(
       (item) => matches(item.title) || matches(item.subtext) || item.aliases?.some(matches)
     );
 
-    const extras: DefaultReactSuggestionItem[] = [];
+    const extras: SlashItem[] = [];
 
     const taskAliases = ['تسک', 'تسک‌ها', 'تسکها', 'task', 'tasks', 'todo', 'ارجاع'];
     if (taskAliases.some(matches)) {
@@ -477,6 +477,8 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
         subtext: 'انتخاب از لیست تسک‌ها',
         aliases: taskAliases,
         group: 'تسک',
+        kind: 'task',
+        shortcut: '@',
         icon: <RiTaskLine className="size-4" />,
         onItemClick: openTaskPicker,
       });
@@ -492,6 +494,7 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
         subtext: 'کارهای امروز، با افزودن تسک',
         aliases: todayListAliases,
         group: 'تسک',
+        kind: 'task',
         icon: <RiTaskLine className="size-4" />,
         onItemClick: () => insertTaskListBlock('today'),
       });
@@ -502,6 +505,7 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
         subtext: 'کارهایی که موعدشان گذشته',
         aliases: overdueListAliases,
         group: 'تسک',
+        kind: 'task',
         icon: <RiTaskLine className="size-4" />,
         onItemClick: () => insertTaskListBlock('overdue'),
       });
@@ -514,6 +518,7 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
         subtext: 'کارت لینک سایت',
         aliases: bookmarkAliases,
         group: 'لینک',
+        kind: 'bookmark',
         icon: <RiBookmarkLine className="size-4" />,
         onItemClick: insertBookmarkBlock,
       });
@@ -543,7 +548,11 @@ export const BlockNoteEditor: React.FC<BlockNoteEditorProps> = ({
         formattingToolbar={false}
         className="w-full text-right"
       >
-        <SuggestionMenuController triggerCharacter="/" getItems={getSlashItems} />
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={getSlashItems}
+          suggestionMenuComponent={SlashMenu}
+        />
         <FormattingToolbarController
           formattingToolbar={() => (
             <FormattingToolbar>

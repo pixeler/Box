@@ -25,8 +25,6 @@ import { getNoteColorPreset } from '@/components/notebook/noteTheme';
 import { useRecentItems, type RecentItem } from '@/hooks/useRecentItems';
 import {
   ArrowUpDown,
-  Calendar,
-  CalendarDays,
   Check,
   ChevronDown,
   CircleCheck,
@@ -50,7 +48,6 @@ import {
   Settings,
   SquareCheck,
   SquareText,
-  Sun,
   Timer,
   Trash,
   User,
@@ -109,14 +106,17 @@ export interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'day' as const, label: 'امروز', icon: Sun, activeIcon: Sun },
-  { id: 'calendar' as const, label: 'تقویم', icon: Calendar, activeIcon: CalendarDays },
+  {
+    id: 'day' as const,
+    label: 'کارها',
+    icon: ListTodo,
+    activeIcon: ListTodo,
+    // The old today / calendar / all-tasks routes all land on this screen.
+    match: ['day', 'todo', 'calendar'] as ActiveTab[],
+  },
 ];
 
-const TOOL_ITEMS = [
-  { id: 'todo' as const, label: 'همه کارها', icon: ListTodo },
-  { id: 'focus' as const, label: 'تمرکز', icon: Timer },
-];
+const TOOL_ITEMS = [{ id: 'focus' as const, label: 'تمرکز', icon: Timer }];
 
 /** Live countdown next to the focus entry, so the timer is visible from any tab. */
 const FocusSidebarBadge: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
@@ -1134,7 +1134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             label={item.label}
             icon={item.icon}
             activeIcon={item.activeIcon}
-            active={activeTab === item.id}
+            active={item.match.includes(activeTab)}
             compact={compact}
             onClick={() => navigate(item.id)}
           />

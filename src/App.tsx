@@ -4,6 +4,7 @@ import { MobileScrollArea } from './components/layout/MobileScrollArea';
 import { QuickCaptureInput } from './components/capture/QuickCaptureInput';
 import { JournalButton } from './components/notebook/JournalButton';
 import { DayStream } from './components/stream/DayStream';
+import { TasksView, type TaskRange } from './components/tasks/TasksView';
 import { PinnedSection } from './components/stream/PinnedSection';
 import { NotebookProvider, useNotebook } from './components/notebook/NotebookContext';
 import { NoteEditModal } from './components/notebook/LazyNoteEditModal';
@@ -17,10 +18,7 @@ import { FocusMiniBar, FocusTaskListener } from './components/focus/FocusMiniBar
 const NotebookView = lazy(() =>
   import('./components/notebook/NotebookView').then((m) => ({ default: m.NotebookView }))
 );
-const TodoView = lazy(() =>
-  import('./components/todo/TodoView').then((m) => ({ default: m.TodoView }))
-);
-const FocusView = lazy(() =>
+import { syncManager, type SyncState } from './lib/sync';const FocusView = lazy(() =>
   import('./components/focus/FocusView').then((m) => ({ default: m.FocusView }))
 );
 const CalendarView = lazy(() =>
@@ -43,9 +41,6 @@ const LoginModal = lazy(() =>
 );
 const ReviewView = lazy(() => import('./components/review/ReviewView'));
 
-import { syncManager, type SyncState } from './lib/sync';
-import { Plus, RotateCcw } from 'lucide-react';
-import { RiArrowRightSLine, RiArrowLeftSLine } from '@remixicon/react';
 import { getDailyQuote } from './lib/quotes';
 import { useMediaQuery } from './lib/device';
 import { goBack, goForward, navigate, parseHash, useRoute } from './lib/router';
@@ -60,8 +55,6 @@ import {
   formatJalaliDisplay,
   getJalaliDate,
   parseJalaliKey,
-  jalaliToDate,
-  getFullPersianWeekdayName,
   extractDateOnly,
   addJalaliDays,
   toPersianDigits,
@@ -197,15 +190,33 @@ export function App() {
     setGlassOpacity(opacity);
     localStorage.setItem('second_brain_glass_opacity', String(opacity));
   };
-  // Mirrors TodoView's remembered list/board choice so the board can take the
-  // full window width while the list keeps its reading column.
-  const [todoViewMode, setTodoViewMode] = useState<'list' | 'kanban'>(() => {
+  /** One screen for every task: today, a week, a month, a year or all of them. */
+  const [taskRange, setTaskRange] = useState<TaskRange>(() => {
     try {
-      return localStorage.getItem('box:todo-view') === 'kanban' ? 'kanban' : 'list';
+      const saved = localStorage.getItem('box:tasks-range');
+      if (
+        saved === 'today' ||
+        saved === 'week' ||
+        saved === 'month' ||
+        saved === 'year' ||
+        saved === 'all'
+      ) {
+        return saved;
+      }
     } catch {
-      return 'list';
+      /* Storage disabled: the screen opens on today. */
     }
+    return 'today';
   });
+
+  const handleTaskRangeChange = (range: TaskRange) => {
+    setTaskRange(range);
+    try {
+      localStorage.setItem('box:tasks-range', range);
+    } catch {
+      /* Storage disabled: the choice simply stops remembering. */
+    }
+  };
 
   const [enableDaySections, setEnableDaySections] = useState<boolean>(() => {
     return localStorage.getItem('second_brain_enable_day_sections') === 'true';
@@ -685,10 +696,6 @@ export function App() {
   };
 
   const displayedJalali = parseJalaliKey(displayedDateKey);
-  const currentWeekdayName = getFullPersianWeekdayName(
-    jalaliToDate(displayedJalali.jy, displayedJalali.jm, displayedJalali.jd)
-  );
-  const isSelectedToday = displayedDateKey === getTodayJalaliKey();
 
   const profileBaseProps = {
     currentWallpaper: wallpaper,
@@ -713,11 +720,9 @@ export function App() {
     setActiveTab('day');
   };
 
-  const contentPane = (
-    <div key={activeTab} className="tab-pane flex min-h-0 w-full flex-1 flex-col">
-      {activeTab === 'calendar' ? (
-        <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
-          <CalendarView
+  const calendarPane = (
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <CalendarView
             selectedDateKey={selectedDateKey}
             enableDaySections={enableDaySections}
             refreshTrigger={calendarRefreshKey}
@@ -729,87 +734,62 @@ export function App() {
               setQuickCaptureOpen(true);
             }}
             onExitCalendar={() => setActiveTab('day')}
-            onTaskChanged={loadDayData}
-          />
-        </div>
+        onTaskChanged={loadDayData}
+      />
+    </div>
+  );
+
+  const contentPane = (
+    <div key={activeTab} className="tab-pane flex min-h-0 w-full flex-1 flex-col">
+      {activeTab === 'calendar' ? (
+        calendarPane
       ) : activeTab === 'notebook' ? (
         <div className="mx-auto flex h-full min-h-0 w-full max-w-[1000px] flex-1 flex-col overflow-hidden">
           <NotebookView />
         </div>
-      ) : (
+      ) : activeTab === 'focus' ? (
         <MobileScrollArea
           className="flex-1 min-h-0"
-          contentClassName={`mx-auto w-full ${
-            activeTab === 'day'
-              ? 'max-w-[1000px]'
-              : activeTab === 'todo' && todoViewMode === 'kanban'
-                ? 'max-w-none'
-                : 'max-w-[var(--content-max)]'
-          } pb-0 pt-0 flex min-h-full flex-col`}
+          contentClassName="mx-auto w-full max-w-[var(--content-max)] pb-0 pt-0 flex min-h-full flex-col"
         >
-          {activeTab === 'day' && (
-            <div
-              key={displayedDateKey}
-              className="w-full flex-1 flex flex-col day-pane-enter"
-            >
-              {/* Page row: the weekday title with step arrows, then the daily quote + date pill */}
-              <div className="w-full px-5 pt-10 sm:px-6 sm:pt-12">
-                <div className="flex items-start justify-between gap-3">
-                  {/* Weekday title */}
-                  <div className="flex min-w-0 items-center">
-                    <h1 className="truncate font-darvish text-[22px] font-semibold leading-8 tracking-normal text-foreground sm:text-[24px]">
-                      {currentWeekdayName}
-                    </h1>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {!isSelectedToday && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDateKey(getTodayJalaliKey())}
-                        title="بازگشت به امروز"
-                        className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground sm:flex"
-                      >
-                        <RotateCcw className="size-3.5" />
-                        <span>امروز</span>
-                      </button>
-                    )}
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, -1))}
-                        title="روز قبل"
-                        aria-label="روز قبل"
-                        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                      >
-                        <RiArrowRightSLine className="size-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDateKey(addJalaliDays(selectedDateKey, 1))}
-                        title="روز بعد"
-                        aria-label="روز بعد"
-                        className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                      >
-                        <RiArrowLeftSLine className="size-4" />
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuickCaptureInitialTab('task');
-                        if (activeTab === 'day') setInlineAddSection('anytime');
-                        else setQuickCaptureOpen(true);
-                      }}
-                      title="افزودن کار (T)"
-                      className="flex size-8 items-center justify-center rounded-md border border-border/70 text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                    >
-                      <Plus className="size-[18px]" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 select-none">
+          <FocusView />
+        </MobileScrollArea>
+      ) : (
+            <TasksView
+              range={taskRange}
+              onRangeChange={handleTaskRangeChange}
+              selectedDateKey={selectedDateKey}
+              onSelectDate={setSelectedDateKey}
+              onOpenAdd={() => {
+                setQuickCaptureInitialTab('task');
+                setInlineAddSection('anytime');
+              }}
+              onTaskChanged={loadDayData}
+              renderCalendar={(mode) => (
+                <CalendarView
+                  chromeless
+                  mode={mode}
+                  selectedDateKey={selectedDateKey}
+                  enableDaySections={enableDaySections}
+                  refreshTrigger={calendarRefreshKey}
+                  onSelectDate={setSelectedDateKey}
+                  onOpenAddForDate={(dateKey) => {
+                    setSelectedDateKey(dateKey);
+                    setQuickCaptureOpen(true);
+                  }}
+                  onExitCalendar={() => setActiveTab('day')}
+                  onTaskChanged={loadDayData}
+                />
+              )}
+              todayContent={
+                <div
+                  key={displayedDateKey}
+                  className="w-full flex-1 flex flex-col day-pane-enter"
+                >
+              {/* The tasks screen owns the date and the arrows; the day keeps
+                  only its quote, which belongs to today specifically. */}
+              <div className="w-full px-5 pt-4 sm:px-6 sm:pt-5">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 select-none">
                   <p
                     ref={goalPillRef}
                     className="min-w-[12rem] flex-1 text-[14px] leading-7 text-subtle"
@@ -905,17 +885,8 @@ export function App() {
                 )}
               </div>
             </div>
-          )}
-
-          {activeTab === 'todo' && (
-            <TodoView
-              onBackToToday={() => setActiveTab('day')}
-              onTaskChanged={loadDayData}
-              onViewModeChange={setTodoViewMode}
-            />
-          )}
-          {activeTab === 'focus' && <FocusView />}
-        </MobileScrollArea>
+                }
+              />
       )}
     </div>
   );
