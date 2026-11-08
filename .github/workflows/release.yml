@@ -104,7 +104,16 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          sh ./gradlew assembleRelease --no-daemon --stacktrace
+          # The wrapper fetches its Gradle distribution on first use; a dropped
+          # connection there fails the job before a single task runs, so retry.
+          for attempt in 1 2 3; do
+            if sh ./gradlew assembleRelease --no-daemon --stacktrace; then
+              exit 0
+            fi
+            echo "Gradle attempt $attempt failed; retrying in 20s"
+            sleep 20
+          done
+          exit 1
 
       - name: Collect APK
         run: |
